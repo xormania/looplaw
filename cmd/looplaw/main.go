@@ -6,31 +6,25 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/xormania/looplaw/internal/outcome"
 )
 
 const version = "0.0.0-dev"
 
-// Exit codes follow the failure doctrine (rejection/denial are not the same
-// thing and neither is an infrastructure abort); the full enumeration lands
-// with the first real gate.
-const (
-	exitOK    = 0
-	exitUsage = 64
-)
-
 func main() {
 	if len(os.Args) < 2 {
 		usage()
-		os.Exit(exitUsage)
+		os.Exit(outcome.ExitUsage)
 	}
 	switch os.Args[1] {
 	case "version":
 		fmt.Println("looplaw " + version)
-		os.Exit(exitOK)
+		os.Exit(outcome.ExitOK)
 	default:
 		fmt.Fprintf(os.Stderr, "looplaw: unknown command %q\n", os.Args[1])
 		usage()
-		os.Exit(exitUsage)
+		os.Exit(outcome.ExitUsage)
 	}
 }
 

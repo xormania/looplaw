@@ -92,9 +92,15 @@ func Open(root string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open store: %w", err)
 	}
+	// One connection: every transaction serializes at the Go level, so
+	// concurrent recorders queue rather than fork the chain or trip
+	// SQLITE_BUSY. The busy timeout covers cross-process contention on
+	// the same file.
+	db.SetMaxOpenConns(1)
 	for _, pragma := range []string{
 		"PRAGMA journal_mode = WAL;",
 		"PRAGMA foreign_keys = ON;",
+		"PRAGMA busy_timeout = 5000;",
 	} {
 		if _, err := db.Exec(pragma); err != nil {
 			db.Close()
@@ -126,9 +132,10 @@ func hashOf(kind Kind, rectype, subject, body, actor, at, prev string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// Append records one fact, chained to the current tail. The transaction
-// reads the tail and inserts inside one immediate lock, so concurrent
-// appenders serialize instead of forking the chain.
+// Append records one fact, chained to the current tail. The read-tail
+// and insert share one transaction on the store's single connection, so
+// concurrent appenders serialize instead of forking the chain (proven by
+// the concurrency behavior test).
 func (s *Store) Append(kind Kind, rectype, subject, body, actor string) (Record, error) {
 	tx, err := s.db.Begin()
 	if err != nil {

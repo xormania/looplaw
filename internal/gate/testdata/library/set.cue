@@ -62,6 +62,25 @@ lexicon: {
 		rewrite:    "The borrower requested renewal; the librarian lent again, and the successor loan records the new due date."
 		status:     "ratified"
 	}
+	overdue: {
+		tier:       "QUALIFY"
+		definition: "Bare description of a loan past its due date: a state derived from recorded dates, owned by no party — standing changes only by the return act or a renewal."
+		authority:  "none"
+		related: ["loan", "due date"]
+		aliases: []
+		not: [
+			{
+				misreading:    "overdue as an act, or as a fault finding in itself"
+				write_instead: "write 'overdue loan' (the qualified form); fault is adjudicated under the return contract's blame clause, from the records"
+			},
+		]
+		collision:  "The collections prior: 'overdue' as an escalation state someone triggers; here it is a description derived from recorded dates, triggered by nobody."
+		docs:       "an overdue loan (qualified; derived from the records)"
+		prompts:    "overdue (lend-library, QUALIFY): bare 'overdue' is banned — write 'overdue loan'. A derived description from recorded dates, owned by no party; never an act, and it assigns no fault by itself."
+		violation:  "The librarian declared the book overdue and fined the borrower."
+		rewrite:    "The loan record's due date passed with no return record; the overdue loan's fault question is adjudicated under the return contract's blame clause."
+		status:     "ratified"
+	}
 }
 
 contracts: {

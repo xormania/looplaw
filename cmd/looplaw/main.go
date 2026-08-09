@@ -56,7 +56,7 @@ commands:
                        carry their remedy; exit codes follow the failure
                        doctrine (0 ok, 1 rejection, 3 abort)
 
-The rest of the kernel surface (serve, admit, diff, context, verify,
-status) arrives as it is designed; see proj/looplaw-spec.md §10.
+The rest of the kernel surface (serve, submit, diff, project, verify,
+status, export) arrives as it is designed; see proj/looplaw-spec.md §10.
 `)
 }

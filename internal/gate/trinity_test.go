@@ -136,6 +136,59 @@ var mutations = []mutation{
 		wantCheck: "trinity/party-resolve",
 		wantIn:    `"phantom"`,
 	},
+	{
+		// Empty-string references are shape-illegal (reference grammar),
+		// so they can never slip past the relational guards.
+		name:      "empty-at-fault",
+		old:       `at_fault: "borrower", evidence: "the loan record's due date against the return record's date"`,
+		new:       `at_fault: "", evidence: "the loan record's due date against the return record's date"`,
+		wantCheck: "trinity/shape",
+		wantIn:    "at_fault",
+	},
+	{
+		name:      "empty-act",
+		old:       `acts: ["lend"]`,
+		new:       `acts: [""]`,
+		wantCheck: "trinity/shape",
+		wantIn:    "acts",
+	},
+	{
+		name:      "same-contract-duplicate-act",
+		old:       `acts: ["lend"]`,
+		new:       `acts: ["lend", "lend"]`,
+		wantCheck: "trinity/act-closure",
+		wantIn:    "held twice by C-LEND-1",
+	},
+	{
+		// A homoglyph fork of a term key (Cyrillic а) is a collision
+		// generator and must be refused by shape.
+		name:      "homoglyph-term-key",
+		old:       "lexicon: {\n\tloan: {",
+		new:       "lexicon: {\n\t\"loаn\": {",
+		wantCheck: "trinity/shape",
+		wantIn:    "loаn",
+	},
+	{
+		name:      "floating-empty-cites",
+		old:       `cites: ["C-LEND-1", "L-1"]`,
+		new:       `cites: []`,
+		wantCheck: "trinity/shape",
+		wantIn:    "cites",
+	},
+	{
+		name:      "dead-invariant",
+		old:       "invariants: {\n\t\"L-1\": {",
+		new:       "invariants: {\n\t\"L-9\": {\n\t\ttext:      \"No book is lent to a party holding an overdue loan.\"\n\t\trationale: \"authored but bound to nothing — dead law for this red\"\n\t}\n\t\"L-1\": {",
+		wantCheck: "trinity/invariant-coverage",
+		wantIn:    `"L-9"`,
+	},
+	{
+		name:      "authority-free-supplier",
+		old:       "note:           \"holds the lending authority: lend and return are its acts\"\n\t\tauthority_free: false",
+		new:       "note:           \"holds the lending authority: lend and return are its acts\"\n\t\tauthority_free: true",
+		wantCheck: "trinity/authority-free",
+		wantIn:    `"librarian"`,
+	},
 }
 
 func TestMutationsAreRedForTheirDeclaredReason(t *testing.T) {
@@ -166,8 +219,8 @@ func TestMutationsAreRedForTheirDeclaredReason(t *testing.T) {
 				if r.Check == m.wantCheck && strings.Contains(r.Error(), m.wantIn) {
 					found = true
 				}
-				if r.Class != outcome.Rejection {
-					t.Errorf("refusal class = %s, want rejection (malformed submission): %s", r.Class, r.Error())
+				if r.Class != outcome.Rejection && r.Class != outcome.Finding {
+					t.Errorf("refusal class = %s, want rejection or finding: %s", r.Class, r.Error())
 				}
 				if r.Remedy == "" {
 					t.Errorf("refusal without a remedy: %s", r.Error())
@@ -182,6 +235,73 @@ func TestMutationsAreRedForTheirDeclaredReason(t *testing.T) {
 					m.wantCheck, m.wantIn, strings.Join(got, "\n  "))
 			}
 		})
+	}
+}
+
+// A valid set written in ordinary DRY CUE — references like
+// registry.librarian.id instead of string literals — must be green: the
+// relational lane reads the unified value, where references resolve.
+func TestReferencesResolveGreen(t *testing.T) {
+	base, err := os.ReadFile(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	refStyled := strings.ReplaceAll(string(base), `supplier: "librarian"`, `supplier: registry.librarian.id`)
+	if refStyled == string(base) {
+		t.Fatal("reference rewrite did not apply — fixture drifted")
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "set.cue")
+	if err := os.WriteFile(path, []byte(refStyled), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range ValidateTrinity(path) {
+		t.Errorf("reference-styled valid set refused: %s", r.Error())
+	}
+}
+
+// A set with no parties or contracts binds nothing and is refused —
+// silence is not a declaration.
+func TestVacuousSetRefused(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "set.cue")
+	vacuous := "subject: \"empty-sys\"\nschema_version: \"0\"\nexperience_declared_absent: true\n"
+	if err := os.WriteFile(path, []byte(vacuous), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	refusals := ValidateTrinity(path)
+	found := false
+	for _, r := range refusals {
+		if r.Check == "trinity/vacuity" && r.Class == outcome.Rejection {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("vacuous set not refused by trinity/vacuity; got %+v", refusals)
+	}
+}
+
+// A present-but-unreadable region is a first-class Finding, never a
+// silent skip.
+func TestUnreadableRegionIsFinding(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "set.cue")
+	bad := "subject: \"bad-sys\"\nschema_version: \"0\"\nexperience_declared_absent: true\ncontracts: 42\n"
+	if err := os.WriteFile(path, []byte(bad), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	refusals := ValidateTrinity(path)
+	found := false
+	for _, r := range refusals {
+		if r.Check == "trinity/region-unreadable" {
+			if r.Class != outcome.Finding {
+				t.Errorf("region-unreadable class = %s, want finding", r.Class)
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("unreadable contracts region produced no finding; got %+v", refusals)
 	}
 }
 
@@ -205,7 +325,9 @@ func TestEveryGateHasAProvingRed(t *testing.T) {
 	}
 
 	proven := map[string]bool{
-		"trinity/load": true, // TestUnreadablePathAborts
+		"trinity/load":              true, // TestUnreadablePathAborts
+		"trinity/vacuity":           true, // TestVacuousSetRefused
+		"trinity/region-unreadable": true, // TestUnreadableRegionIsFinding
 	}
 	for _, m := range mutations {
 		proven[m.wantCheck] = true

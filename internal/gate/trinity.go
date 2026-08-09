@@ -26,11 +26,15 @@ var Checks = []string{
 	"trinity/schema-load",
 	"trinity/parse",
 	"trinity/shape",
+	"trinity/vacuity",
+	"trinity/region-unreadable",
 	"trinity/act-closure",
 	"trinity/party-resolve",
 	"trinity/party-coverage",
 	"trinity/cite-resolve",
+	"trinity/invariant-coverage",
 	"trinity/blame-resolve",
+	"trinity/authority-free",
 	"trinity/related-resolve",
 	"trinity/authority-resolve",
 	"trinity/experience-cite-resolve",
@@ -65,7 +69,7 @@ func validateTrinityBytes(subject string, data []byte) []outcome.Refusal {
 			Check:   "trinity/schema-load",
 			Subject: "law (embedded)",
 			Reason:  err.Error(),
-			Remedy:  "the shipped law is broken; rebuild from ratified law",
+			Remedy:  "the embedded law is broken; replace this binary with one embedding the ratified law",
 		}}
 	}
 
@@ -86,6 +90,13 @@ func validateTrinityBytes(subject string, data []byte) []outcome.Refusal {
 	// shape gate; a mismatch is a rejection naming the failing path.
 	def := schema.LookupPath(cue.ParsePath("#TrinitySet"))
 	unified := def.Unify(set)
+
+	// The relational lane reads the unified value: schema-injected fields
+	// (ids) and ordinary CUE references resolve there. Only when shape
+	// fails do we fall back to the raw set, so the relational lane still
+	// reports what it can — a shape failure in one region must not mask a
+	// relational failure in another.
+	relational := unified
 	if err := unified.Validate(cue.Concrete(true)); err != nil {
 		refusals = append(refusals, outcome.Refusal{
 			Class:   outcome.Rejection,
@@ -94,20 +105,16 @@ func validateTrinityBytes(subject string, data []byte) []outcome.Refusal {
 			Reason:  err.Error(),
 			Remedy:  "align the set with the ratified #TrinitySet schema (law/trinity.cue)",
 		})
-		// Relational checks still run where the raw fields allow: a shape
-		// failure in one region must not mask a relational failure in
-		// another.
+		relational = set
 	}
 
-	refusals = append(refusals, relationalChecks(subject, set)...)
+	refusals = append(refusals, relationalChecks(subject, relational)...)
 	return refusals
 }
 
-// relationalChecks carries the checks CUE's lattice cannot state: the
-// closures and cross-references. Go is the relational lane.
-// embeddedLaw builds the complete ratified law package the binary ships,
-// loaded as one CUE instance so cross-file references resolve exactly as
-// they do on disk.
+// embeddedLaw builds the complete ratified law package the binary
+// carries, loaded as one CUE instance so cross-file references resolve
+// exactly as they do on disk.
 func embeddedLaw(ctx *cue.Context) (cue.Value, error) {
 	overlay := map[string]load.Source{}
 	entries, err := law.Files.ReadDir(".")
@@ -141,21 +148,68 @@ func embeddedLaw(ctx *cue.Context) (cue.Value, error) {
 	return v, nil
 }
 
+// relationalChecks carries the checks CUE's lattice cannot state: the
+// closures and cross-references. Go is the relational lane. A region the
+// checks cannot read is a first-class finding — never skipped.
 func relationalChecks(subject string, set cue.Value) []outcome.Refusal {
 	var refusals []outcome.Refusal
+	regionFinding := func(region string, err error) {
+		refusals = append(refusals, outcome.Refusal{
+			Class:   outcome.Finding,
+			Check:   "trinity/region-unreadable",
+			Subject: fmt.Sprintf("%s: %s", subject, region),
+			Reason:  err.Error(),
+			Remedy:  "make the region a struct of the schema's shape; an unreadable region is reported, never skipped",
+		})
+	}
 
-	partyIDs := fieldNames(set, "registry")
-	invariantIDs := fieldNames(set, "invariants")
-	lexiconTerms := fieldNames(set, "lexicon")
+	partyIDs, err := fieldNames(set, "registry")
+	if err != nil {
+		regionFinding("registry", err)
+	}
+	invariantIDs, err := fieldNames(set, "invariants")
+	if err != nil {
+		regionFinding("invariants", err)
+	}
+	lexiconTerms, err := fieldNames(set, "lexicon")
+	if err != nil {
+		regionFinding("lexicon", err)
+	}
+	contractIDs, err := fieldNames(set, "contracts")
+	if err != nil {
+		regionFinding("contracts", err)
+	}
+
+	// Vacuity: a set with no parties or no contracts binds nothing.
+	// Silence is not a declaration (the experience_declared_absent
+	// precedent); an empty set is refused, not vacuously green.
+	if len(partyIDs) == 0 || len(contractIDs) == 0 {
+		refusals = append(refusals, outcome.Refusal{
+			Class:   outcome.Rejection,
+			Check:   "trinity/vacuity",
+			Subject: subject,
+			Reason:  fmt.Sprintf("%d registered parties, %d contracts — the set binds nothing", len(partyIDs), len(contractIDs)),
+			Remedy:  "author the registry and at least one act-bearing contract; a set that binds nothing is not submitted",
+		})
+	}
+
+	// Which parties are declared authority-free: certified by the checks
+	// below, not decorative.
+	authorityFree := map[string]bool{}
+	if reg, err := regionFields(set, "registry"); err == nil {
+		for reg.Next() {
+			free, _ := reg.Value().LookupPath(cue.ParsePath("authority_free")).Bool()
+			authorityFree[reg.Selector().Unquoted()] = free
+		}
+	}
 
 	// Act closure: every act appears in exactly one contract; every
 	// contract holds at least one act.
 	actHolder := map[string]string{}
 	partiesSeen := map[string]bool{}
+	citedInvariants := map[string]bool{}
 
-	contracts := set.LookupPath(cue.ParsePath("contracts"))
-	iter, err := contracts.Fields()
-	if err == nil {
+	if iter, err := regionFields(set, "contracts"); err == nil {
 		for iter.Next() {
 			cid := iter.Selector().Unquoted()
 			c := iter.Value()
@@ -171,7 +225,16 @@ func relationalChecks(subject string, set cue.Value) []outcome.Refusal {
 				})
 			}
 			for _, act := range acts {
-				if holder, dup := actHolder[act]; dup {
+				switch holder, dup := actHolder[act]; {
+				case dup && holder == cid:
+					refusals = append(refusals, outcome.Refusal{
+						Class:   outcome.Rejection,
+						Check:   "trinity/act-closure",
+						Subject: fmt.Sprintf("%s: act %q", subject, act),
+						Reason:  fmt.Sprintf("held twice by %s — every act belongs to exactly one contract, once", cid),
+						Remedy:  "list the act once",
+					})
+				case dup:
 					refusals = append(refusals, outcome.Refusal{
 						Class:   outcome.Rejection,
 						Check:   "trinity/act-closure",
@@ -179,7 +242,7 @@ func relationalChecks(subject string, set cue.Value) []outcome.Refusal {
 						Reason:  fmt.Sprintf("held by both %s and %s — every act belongs to exactly one contract", holder, cid),
 						Remedy:  "remove the act from one contract; one act, one authority, one contract",
 					})
-				} else {
+				default:
 					actHolder[act] = cid
 				}
 			}
@@ -196,18 +259,29 @@ func relationalChecks(subject string, set cue.Value) []outcome.Refusal {
 						Remedy:  "name a registered party, or add the party to the registry",
 					})
 				}
+				if role == "supplier" && authorityFree[p] {
+					refusals = append(refusals, outcome.Refusal{
+						Class:   outcome.Rejection,
+						Check:   "trinity/authority-free",
+						Subject: fmt.Sprintf("%s: %s.supplier", subject, cid),
+						Reason:  fmt.Sprintf("supplier %q is declared authority-free, but a supplier owes the guarantees of an act-bearing contract", p),
+						Remedy:  "give the contract an authority-holding supplier, or amend the party's registry entry",
+					})
+				}
 			}
 
 			for _, cite := range stringList(c, "cites") {
-				if !contains(invariantIDs, cite) {
-					refusals = append(refusals, outcome.Refusal{
-						Class:   outcome.Rejection,
-						Check:   "trinity/cite-resolve",
-						Subject: fmt.Sprintf("%s: %s cites %q", subject, cid, cite),
-						Reason:  "cited invariant does not exist in the set",
-						Remedy:  "cite an existing invariant id; invariants are cited, never restated",
-					})
+				if contains(invariantIDs, cite) {
+					citedInvariants[cite] = true
+					continue
 				}
+				refusals = append(refusals, outcome.Refusal{
+					Class:   outcome.Rejection,
+					Check:   "trinity/cite-resolve",
+					Subject: fmt.Sprintf("%s: %s cites %q", subject, cid, cite),
+					Reason:  "cited invariant does not exist in the set",
+					Remedy:  "cite an existing invariant id; invariants are cited, never restated",
+				})
 			}
 
 			for _, b := range structList(c, "blame") {
@@ -240,11 +314,24 @@ func relationalChecks(subject string, set cue.Value) []outcome.Refusal {
 		}
 	}
 
+	// Invariant coverage: an invariant cited by no contract is dead law.
+	// Experience cites are advisory and do not count as binding coverage.
+	for _, inv := range invariantIDs {
+		if !citedInvariants[inv] {
+			refusals = append(refusals, outcome.Refusal{
+				Class:   outcome.Rejection,
+				Check:   "trinity/invariant-coverage",
+				Subject: fmt.Sprintf("%s: invariant %q", subject, inv),
+				Reason:  "cited by no contract — dead law",
+				Remedy:  "bind at least one contract under it (cites), or retire it from the set",
+			})
+		}
+	}
+
 	// Lexicon reference closure: related terms and term authorities
-	// resolve within the set.
-	lex := set.LookupPath(cue.ParsePath("lexicon"))
-	liter, err := lex.Fields()
-	if err == nil {
+	// resolve within the set, and no term is owned by an authority-free
+	// party.
+	if liter, err := regionFields(set, "lexicon"); err == nil {
 		for liter.Next() {
 			term := liter.Selector().Unquoted()
 			for _, rel := range stringList(liter.Value(), "related") {
@@ -259,7 +346,10 @@ func relationalChecks(subject string, set cue.Value) []outcome.Refusal {
 				}
 			}
 			auth, _ := liter.Value().LookupPath(cue.ParsePath("authority")).String()
-			if auth != "" && auth != "none" && !contains(partyIDs, auth) {
+			if auth == "" || auth == "none" {
+				continue
+			}
+			if !contains(partyIDs, auth) {
 				refusals = append(refusals, outcome.Refusal{
 					Class:   outcome.Rejection,
 					Check:   "trinity/authority-resolve",
@@ -267,15 +357,20 @@ func relationalChecks(subject string, set cue.Value) []outcome.Refusal {
 					Reason:  "term authority is not a registered party",
 					Remedy:  "point authority at a registry party id, or declare it \"none\"",
 				})
+			} else if authorityFree[auth] {
+				refusals = append(refusals, outcome.Refusal{
+					Class:   outcome.Rejection,
+					Check:   "trinity/authority-free",
+					Subject: fmt.Sprintf("%s: lexicon %q authority %q", subject, term, auth),
+					Reason:  "the term's authority is a party declared authority-free",
+					Remedy:  "point authority at an authority-holding party, declare it \"none\", or amend the registry entry",
+				})
 			}
 		}
 	}
 
 	// Experience cites resolve to contracts or invariants.
-	contractIDs := fieldNames(set, "contracts")
-	exp := set.LookupPath(cue.ParsePath("experience"))
-	eiter, err := exp.Fields()
-	if err == nil {
+	if eiter, err := regionFields(set, "experience"); err == nil {
 		for eiter.Next() {
 			xid := eiter.Selector().Unquoted()
 			for _, cite := range stringList(eiter.Value(), "cites") {
@@ -295,16 +390,27 @@ func relationalChecks(subject string, set cue.Value) []outcome.Refusal {
 	return refusals
 }
 
-func fieldNames(v cue.Value, path string) []string {
-	var names []string
-	iter, err := v.LookupPath(cue.ParsePath(path)).Fields()
-	if err != nil {
-		return nil
+// regionFields returns an iterator over a struct region. An absent region
+// iterates zero times with no error; a present-but-unreadable region
+// returns the error for the caller to report as a finding.
+func regionFields(v cue.Value, path string) (*cue.Iterator, error) {
+	region := v.LookupPath(cue.ParsePath(path))
+	if !region.Exists() {
+		return cuecontext.New().CompileString("{}").Fields()
 	}
+	return region.Fields()
+}
+
+func fieldNames(v cue.Value, path string) ([]string, error) {
+	iter, err := regionFields(v, path)
+	if err != nil {
+		return nil, err
+	}
+	var names []string
 	for iter.Next() {
 		names = append(names, iter.Selector().Unquoted())
 	}
-	return names
+	return names, nil
 }
 
 func stringList(v cue.Value, path string) []string {

@@ -1,5 +1,9 @@
 // The product's authority registry and privileged acts — batch 1.
 //
+// RATIFIED: PR #4 merged by xormania 2026-08-09 (the recorded act per
+// law/README.md §3); statuses flipped in the following batch as the
+// protocol prescribes. Amendments only by new PR from here on.
+//
 // Models looplaw as installed and operated by any deployment. "aa" is a
 // role (one human per deployment, singular, non-delegable), never a
 // component: accountability is assumed through recorded acts, never
@@ -55,13 +59,13 @@ registry: {
 		aa: {
 			holder: "the deployment's accountable authority — a role: one human per deployment, singular, non-delegable"
 			holds:  "all law-making acts (ratify, amend, withdraw, defer, grant); accountability assumed through these recorded acts"
-			status: "proposed"
+			status: "ratified"
 			rationale: "contract method's accountability doctrine + the goal-contract-is-law ruling; no component is ever accountable"
 		}
 		recording: {
 			holder: "store"
 			holds:  "the record act: claims, receipts, admissions, versions commit here, append-only; recording settles that a thing was said, never that it is true"
-			status: "proposed"
+			status: "ratified"
 			rationale: "claims-recorded-never-believed; one recording authority with record kinds carrying a law-side/evidence-side marker. Considered and rejected: looplearn as recorder — its store is derived/rebuildable/advisory by definition; holding standing records would put it on decision paths, make its availability load-bearing, and let the learner alter the evidence the law consumes. Looplearn ingests records and submits its advisories back through this act like any party."
 		}
 	}
@@ -72,7 +76,7 @@ registry: {
 			authority: "recording"
 			side:      "design"
 			note:      "append-only; single recording authority across law-side and evidence-side record kinds"
-			status:    "proposed"
+			status:    "ratified"
 			trigger:   "split into two recording authorities only if custody or clearance requirements ever diverge between law-side and evidence-side records"
 		}
 		gates: {
@@ -80,42 +84,42 @@ registry: {
 			authority: "none"
 			side:      "design"
 			note:      "mechanism, never authority: gates verify preconditions of the record act and refuse with remedy; they execute ratifications and grants, originate nothing"
-			status:    "proposed"
+			status:    "ratified"
 		}
 		server: {
 			name:      "the server"
 			authority: "none"
 			side:      "design"
 			note:      "transport for store and gates over the wire; deliberately authority-free"
-			status:    "proposed"
+			status:    "ratified"
 		}
 		absorber: {
 			name:      "the absorber (client)"
 			authority: "none"
 			side:      "design"
 			note:      "proposer only: produces claims that enter through gates like any client's; deliberately authority-free"
-			status:    "proposed"
+			status:    "ratified"
 		}
 		projector: {
 			name:      "the projector (context/brief)"
 			authority: "none"
 			side:      "design"
 			note:      "read path: derived, rebuildable; outputs never on decision paths"
-			status:    "proposed"
+			status:    "ratified"
 		}
 		differ: {
 			name:      "the differ"
 			authority: "none"
 			side:      "design"
 			note:      "read path: gap computation over law and recorded evidence"
-			status:    "proposed"
+			status:    "ratified"
 		}
 		skins: {
 			name:      "CLI / MCP skins"
 			authority: "none"
 			side:      "design"
 			note:      "two skins over one client library; transport only"
-			status:    "proposed"
+			status:    "ratified"
 		}
 	}
 
@@ -123,39 +127,39 @@ registry: {
 		ratify: {
 			changes:   "a draft becomes law (goal contract, lexicon entry, registry change, Tier 0 invariant, standing grant)"
 			authority: "aa"
-			status:    "proposed"
+			status:    "ratified"
 			rationale: "the only law-making act; nothing else confers standing on law"
 		}
 		amend: {
 			changes:   "ratified law is replaced by a new version; the predecessor is archived, never deleted"
 			authority: "aa"
-			status:    "proposed"
+			status:    "ratified"
 			rationale: "re-enters the artifact loop; never-fork — exactly one live version"
 		}
 		withdraw: {
 			changes:   "a law clause or goal is retired without replacement"
 			authority: "aa"
-			status:    "proposed"
+			status:    "ratified"
 			rationale: "the proven-too-expensive exit; design-time retirement — no collision with run-time decommission, which stays reserved for the commission family"
 			trigger:   "if the process-vocabulary lexicon sweep dispositions 'withdraw' differently, rename by amendment"
 		}
 		defer: {
 			changes:   "a gap or clause is parked with destination, authority, and trigger"
 			authority: "aa"
-			status:    "proposed"
+			status:    "ratified"
 			rationale: "deferral discipline: nothing defers into the void; triggers are monitored"
 		}
 		grant: {
 			changes:   "a standing grant licenses a class of automatic admissions (e.g. guest-mode working sets)"
 			authority: "aa"
-			status:    "proposed"
+			status:    "ratified"
 			rationale: "the process method's device for hands-free throughput: ratify the class once, gates check membership per submission"
 			trigger:   "grant record schema to be fixed when the first grant is drafted"
 		}
 		record: {
 			changes:   "a submission becomes a record (claim, receipt, admission, version) after passing the gates"
 			authority: "recording"
-			status:    "proposed"
+			status:    "ratified"
 			rationale: "admission is not a separate privileged act: it is the record act executing behind gates — mechanism words must not smuggle authority"
 		}
 	}

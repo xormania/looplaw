@@ -1,7 +1,9 @@
 package store
 
 import (
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -88,6 +90,41 @@ func TestKindConstraint(t *testing.T) {
 	s := open(t)
 	if _, err := s.Append(Kind("gossip"), "claim", "s", "b", "t"); err == nil {
 		t.Fatal("append accepted an invalid kind")
+	}
+}
+
+// Concurrent recorders must serialize: the chain may never fork. This is
+// the store's load-bearing behavior claim, so it is tested as behavior —
+// many goroutines appending at once, then a full chain verification.
+func TestConcurrentAppendsDoNotForkTheChain(t *testing.T) {
+	s := open(t)
+	const writers, each = 8, 25
+
+	var wg sync.WaitGroup
+	errs := make(chan error, writers*each)
+	for w := range writers {
+		wg.Add(1)
+		go func(w int) {
+			defer wg.Done()
+			for i := range each {
+				if _, err := s.Append(Evidence, "claim", fmt.Sprintf("w%d-%d", w, i), "x", "t"); err != nil {
+					errs <- err
+				}
+			}
+		}(w)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Errorf("concurrent append failed: %v", err)
+	}
+
+	n, err := s.Verify()
+	if err != nil {
+		t.Fatalf("chain verification after concurrent appends: %v", err)
+	}
+	if n != writers*each {
+		t.Errorf("verified %d records, want %d", n, writers*each)
 	}
 }
 

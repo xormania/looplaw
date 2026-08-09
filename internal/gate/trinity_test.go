@@ -189,6 +189,75 @@ var mutations = []mutation{
 		wantCheck: "trinity/authority-free",
 		wantIn:    `"librarian"`,
 	},
+	{
+		name:      "decomp-unknown-child",
+		old:       `children: ["C-STANDING-1", "C-ISSUE-1"]`,
+		new:       `children: ["C-STANDING-1", "C-GHOST-1"]`,
+		wantCheck: "trinity/decomp-resolve",
+		wantIn:    `"C-GHOST-1"`,
+	},
+	{
+		// C-ISSUE-1 containing its own ancestor closes a containment
+		// cycle: C-LEND-1 -> C-ISSUE-1 -> C-LEND-1.
+		name:      "decomp-cycle",
+		old:       `acts: ["issue-loan"]`,
+		new:       "acts: [\"issue-loan\"]\n\t\tinterior: {\n\t\t\tchildren: [\"C-LEND-1\"]\n\t\t\twires: []\n\t\t\tpresents: {\"G-1\": {child: \"C-LEND-1\", guarantee: \"G-1\"}}\n\t\t}",
+		wantCheck: "trinity/decomp-tree",
+		wantIn:    "cycle",
+	},
+	{
+		// C-RETURN-1 also claiming C-ISSUE-1 gives the child two
+		// parents: containment is a tree.
+		name:      "decomp-multi-parent",
+		old:       `acts: ["return"]`,
+		new:       "acts: [\"return\"]\n\t\tinterior: {\n\t\t\tchildren: [\"C-ISSUE-1\"]\n\t\t\twires: []\n\t\t\tpresents: {\"G-1\": {child: \"C-ISSUE-1\", guarantee: \"G-1\"}}\n\t\t}",
+		wantCheck: "trinity/decomp-tree",
+		wantIn:    "C-ISSUE-1",
+	},
+	{
+		name:      "decomp-unpresented-guarantee",
+		old:       "presents: {\n\t\t\t\t\"G-1\": {child: \"C-ISSUE-1\", guarantee: \"G-1\"}\n\t\t\t}",
+		new:       "presents: {}",
+		wantCheck: "trinity/decomp-presents",
+		wantIn:    "presented by no child",
+	},
+	{
+		name:      "decomp-presents-missing-target",
+		old:       "presents: {\n\t\t\t\t\"G-1\": {child: \"C-ISSUE-1\", guarantee: \"G-1\"}\n\t\t\t}",
+		new:       "presents: {\n\t\t\t\t\"G-1\": {child: \"C-STANDING-1\", guarantee: \"G-9\"}\n\t\t\t}",
+		wantCheck: "trinity/decomp-presents",
+		wantIn:    `"G-9"`,
+	},
+	{
+		name:      "decomp-wire-into-nothing",
+		old:       `{from: {child: "C-STANDING-1", guarantee: "G-1"}, to: {child: "C-ISSUE-1", precondition: "P-1"}},`,
+		new:       `{from: {child: "C-STANDING-1", guarantee: "G-1"}, to: {child: "C-ISSUE-1", precondition: "P-9"}},`,
+		wantCheck: "trinity/decomp-wire",
+		wantIn:    `"P-9"`,
+	},
+	{
+		name:      "decomp-dangling-requirement",
+		old:       "wires: [\n\t\t\t\t{from: {child: \"C-STANDING-1\", guarantee: \"G-1\"}, to: {child: \"C-ISSUE-1\", precondition: \"P-1\"}},\n\t\t\t]",
+		new:       "wires: []",
+		wantCheck: "trinity/decomp-dangling",
+		wantIn:    `"P-1"`,
+	},
+	{
+		name:      "decomp-uninherited-invariant",
+		old:       "cites: [\"L-1\"]\n\t\tblame: [\n\t\t\t{violation_class: \"issuing over a live loan\"",
+		new:       "cites: []\n\t\tblame: [\n\t\t\t{violation_class: \"issuing over a live loan\"",
+		wantCheck: "trinity/decomp-cites",
+		wantIn:    `"L-1"`,
+	},
+	{
+		// A shared-client child inventing a precondition widens what the
+		// client owes — refinement never strengthens the client's side.
+		name:      "decomp-widened-client-obligation",
+		old:       "\"P-2\": {text: \"The requested book carries no live loan, verifiable from the loan records.\"}\n\t\t}\n\t\tguarantees: {\n\t\t\t\"G-1\": {text: \"A standing attestation exists",
+		new:       "\"P-2\": {text: \"The requested book carries no live loan, verifiable from the loan records.\"}\n\t\t\t\"P-9\": {text: \"The borrower presents a letter of reference.\"}\n\t\t}\n\t\tguarantees: {\n\t\t\t\"G-1\": {text: \"A standing attestation exists",
+		wantCheck: "trinity/decomp-refinement",
+		wantIn:    `"P-9"`,
+	},
 }
 
 func TestMutationsAreRedForTheirDeclaredReason(t *testing.T) {

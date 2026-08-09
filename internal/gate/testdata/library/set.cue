@@ -14,6 +14,11 @@ registry: {
 		note:           "deliberately authority-free: proposes, requests, returns — holds nothing"
 		authority_free: true
 	}
+	desk: {
+		name:           "the front desk"
+		note:           "interior party: holds the attestation authority for standing"
+		authority_free: false
+	}
 }
 
 invariants: {
@@ -103,6 +108,56 @@ contracts: {
 		blame: [
 			{violation_class: "lending an already-lent book", at_fault: "librarian", evidence: "the loan records at lending time"},
 			{violation_class: "borrowing in bad standing", at_fault: "borrower", evidence: "the member records at submission"},
+		]
+		status: "ratified"
+		interior: {
+			children: ["C-STANDING-1", "C-ISSUE-1"]
+			wires: [
+				{from: {child: "C-STANDING-1", guarantee: "G-1"}, to: {child: "C-ISSUE-1", precondition: "P-1"}},
+			]
+			presents: {
+				"G-1": {child: "C-ISSUE-1", guarantee: "G-1"}
+			}
+		}
+	}
+	"C-STANDING-1": {
+		name: "the standing-attestation contract"
+		parties: {
+			client:   "borrower"
+			supplier: "desk"
+		}
+		acts: ["attest-standing"]
+		preconditions: {
+			"P-1": {text: "The borrower's membership is in good standing, verifiable from the member records at submission."}
+			"P-2": {text: "The requested book carries no live loan, verifiable from the loan records."}
+		}
+		guarantees: {
+			"G-1": {text: "A standing attestation exists naming the borrower and the requested book.", records: "the standing attestation record"}
+		}
+		invariants_local: {}
+		cites: ["L-1"]
+		blame: [
+			{violation_class: "attesting bad standing", at_fault: "desk", evidence: "the member records at attestation time"},
+		]
+		status: "ratified"
+	}
+	"C-ISSUE-1": {
+		name: "the issuance contract"
+		parties: {
+			client:   "desk"
+			supplier: "librarian"
+		}
+		acts: ["issue-loan"]
+		preconditions: {
+			"P-1": {text: "A standing attestation exists naming the borrower and the requested book."}
+		}
+		guarantees: {
+			"G-1": {text: "A loan exists naming the book, the borrower, and the due date.", records: "the loan record"}
+		}
+		invariants_local: {}
+		cites: ["L-1"]
+		blame: [
+			{violation_class: "issuing over a live loan", at_fault: "librarian", evidence: "the loan records at issuance"},
 		]
 		status: "ratified"
 	}

@@ -10,7 +10,12 @@ happened and why without asking anyone.
 - Branch per unit of work: `feat/<short-name>` or `fix/<short-name>`.
 - Commit to the branch, push, open a **draft** PR to `master`.
 - Only xormania marks a PR ready and merges. Agents open drafts.
-- Keep one unit of work per PR — small and auditable beats big and heroic.
+- One unit of work per **commit** — small and auditable beats big and
+  heroic.
+- PRs are **batches, not single commits**: open a draft early, keep
+  pushing units to it, and present it when a coherent theme's worth is
+  ready. Merge cadence is the accountable authority's attention budget —
+  spend it on batches reviewable in one sitting, not on a PR per commit.
 
 ## Commit messages
 

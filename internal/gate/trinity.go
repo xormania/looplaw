@@ -17,6 +17,25 @@ import (
 	"github.com/xormania/looplaw/law"
 )
 
+// Checks enumerates every check id the trinity gates can emit — the
+// gates' action space, enumerable by design. The test suite proves a red
+// for each (an unwitnessed gate is an unproven behavior); adding a check
+// here without a proving red fails the suite.
+var Checks = []string{
+	"trinity/load",
+	"trinity/schema-load",
+	"trinity/parse",
+	"trinity/shape",
+	"trinity/act-closure",
+	"trinity/party-resolve",
+	"trinity/party-coverage",
+	"trinity/cite-resolve",
+	"trinity/blame-resolve",
+	"trinity/related-resolve",
+	"trinity/authority-resolve",
+	"trinity/experience-cite-resolve",
+}
+
 // ValidateTrinity runs the trinity gates over one target set file:
 // the shape gate (the embedded ratified schema, CUE's lane) and the
 // relational gates (closure and reference checks, Go's lane). It returns

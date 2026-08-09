@@ -112,7 +112,7 @@ contracts: {
 experience: {
 	"X-1": {
 		judgment: "December renewals are adjudicated leniently: exam season produces late requests in good faith; advise renewal over fault-finding."
-		cites: ["C-LEND-1"]
+		cites: ["C-LEND-1", "L-1"]
 		advisory: true
 	}
 }

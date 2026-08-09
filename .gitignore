@@ -1,2 +1,4 @@
 proj/
 /looplaw
+/.serena/*
+!/.serena/project.yml

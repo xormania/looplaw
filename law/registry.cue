@@ -62,7 +62,7 @@ registry: {
 			holder: "store"
 			holds:  "the record act: claims, receipts, admissions, versions commit here, append-only; recording settles that a thing was said, never that it is true"
 			status: "proposed"
-			rationale: "claims-recorded-never-believed; one recording authority with record kinds carrying a law-side/evidence-side marker"
+			rationale: "claims-recorded-never-believed; one recording authority with record kinds carrying a law-side/evidence-side marker. Considered and rejected: looplearn as recorder — its store is derived/rebuildable/advisory by definition; holding standing records would put it on decision paths, make its availability load-bearing, and let the learner alter the evidence the law consumes. Looplearn ingests records and submits its advisories back through this act like any party."
 		}
 	}
 

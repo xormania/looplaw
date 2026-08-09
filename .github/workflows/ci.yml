@@ -17,9 +17,13 @@ jobs:
         run: go build ./...
       - name: vet
         run: go vet ./...
-      - name: test
-        run: go test ./...
+      - name: test (behavior suites included, race detector on)
+        run: go test -race ./...
       - name: gate the fixture (first producer, embedded law)
         run: go run ./cmd/looplaw validate internal/gate/testdata/library/set.cue
+      - name: fixture differential (second producer, cue binary, same data)
+        run: |
+          go run cuelang.org/go/cmd/cue@v0.17.1 export internal/gate/testdata/library/set.cue -o /tmp/set.json
+          go run cuelang.org/go/cmd/cue@v0.17.1 vet ./law/ /tmp/set.json -d '#TrinitySet'
       - name: vet the law (second producer, cue binary)
         run: go run cuelang.org/go/cmd/cue@v0.17.1 vet ./law/

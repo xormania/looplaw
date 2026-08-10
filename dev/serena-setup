@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Serena keeps project configuration in a central state directory, so a
+# fresh clone or a different harness starts with defaults. The tracked
+# copy at .serena/project.yml is the source of truth; this copies it
+# into the location Serena reads. Run it once per machine, and again
+# after changing the tracked copy.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+central="${XDG_STATE_HOME:-$HOME/.local/state}/serena-projects/looplaw/.serena"
+if [ ! -d "$central" ]; then
+	echo "no central Serena state for this project yet; activate it once in a session, then rerun" >&2
+	exit 1
+fi
+cp .serena/project.yml "$central/project.yml"
+echo "synced .serena/project.yml -> $central/project.yml"
+echo "restart the language server (or the session) for language-server settings to take effect"

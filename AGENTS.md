@@ -32,6 +32,15 @@ The traps that catch newcomers: `commit`, `merge`, `push`, `build`,
 and `environment` need qualification. A denial is not a failure. Claims
 are recorded, never believed.
 
+## First run on a machine
+
+    dev/serena-setup     # if you use Serena: copies the tracked config
+                         # into the central location Serena reads
+
+The tracked config (`.serena/project.yml`) turns on richer Go
+diagnostics, skips recorded outputs when searching, and points a new
+session at the digest rather than the corpus.
+
 ## Verifying
 
     dev/check                                  # CI's fast lane, same order

@@ -27,6 +27,11 @@ type mutation struct {
 	old, new  string
 	wantCheck string
 	wantIn    string // substring the refusal must name (the mutated thing)
+	// Checks the mutation legitimately cascades into, beyond wantCheck.
+	// Declared, never silent: an undeclared cascade means the red is
+	// partly proving a gate it was not written for, so the closure test
+	// would credit the wrong check.
+	alsoDraws []string
 }
 
 var mutations = []mutation{
@@ -50,6 +55,8 @@ var mutations = []mutation{
 		new:       "client:   \"stranger\"\n\t\t\tsupplier: \"librarian\"\n\t\t}\n\t\tacts: [\"lend\"]",
 		wantCheck: "trinity/party-resolve",
 		wantIn:    `"stranger"`,
+		// cascade: the parent loses its shared client, so the children's preconditions stop being client-owed
+		alsoDraws: []string{"trinity/decomp-dangling", "trinity/decomp-grounded"},
 	},
 	{
 		name: "dangling-invariant-cite",
@@ -167,6 +174,8 @@ var mutations = []mutation{
 		new:       "lexicon: {\n\t\"loаn\": {",
 		wantCheck: "trinity/shape",
 		wantIn:    "loаn",
+		// cascade: the forked term key breaks the neighbor reference pointing at it
+		alsoDraws: []string{"trinity/related-resolve"},
 	},
 	{
 		name:      "floating-empty-cites",
@@ -195,6 +204,8 @@ var mutations = []mutation{
 		new:       `children: ["C-STANDING-1", "C-GHOST-1"]`,
 		wantCheck: "trinity/decomp-resolve",
 		wantIn:    `"C-GHOST-1"`,
+		// cascade: presents and the wire both target the child that was renamed away
+		alsoDraws: []string{"trinity/decomp-presents", "trinity/decomp-wire"},
 	},
 	{
 		// C-ISSUE-1 containing its own ancestor closes a containment
@@ -204,6 +215,8 @@ var mutations = []mutation{
 		new:       "acts: [\"issue-loan\"]\n\t\tinterior: {\n\t\t\tchildren: [\"C-LEND-1\"]\n\t\t\twires: []\n\t\t\tpresents: {\"G-1\": {child: \"C-LEND-1\", guarantee: \"G-1\"}}\n\t\t}",
 		wantCheck: "trinity/decomp-tree",
 		wantIn:    "cycle",
+		// cascade: the cycle leaves the cycled child unfed and unreachable
+		alsoDraws: []string{"trinity/decomp-dangling", "trinity/decomp-grounded"},
 	},
 	{
 		// C-RETURN-1 also claiming C-ISSUE-1 gives the child two
@@ -213,6 +226,8 @@ var mutations = []mutation{
 		new:       "acts: [\"return\"]\n\t\tinterior: {\n\t\t\tchildren: [\"C-ISSUE-1\"]\n\t\t\twires: []\n\t\t\tpresents: {\"G-1\": {child: \"C-ISSUE-1\", guarantee: \"G-1\"}}\n\t\t}",
 		wantCheck: "trinity/decomp-tree",
 		wantIn:    "C-ISSUE-1",
+		// cascade: the second interior claims a child whose feeds live in the first
+		alsoDraws: []string{"trinity/decomp-dangling", "trinity/decomp-grounded"},
 	},
 	{
 		name:      "decomp-unpresented-guarantee",
@@ -234,6 +249,8 @@ var mutations = []mutation{
 		new:       `{from: {child: "C-STANDING-1", guarantee: "G-1"}, to: {child: "C-ISSUE-1", precondition: "P-9"}},`,
 		wantCheck: "trinity/decomp-wire",
 		wantIn:    `"P-9"`,
+		// cascade: the retargeted wire feeds nothing, so the real precondition is left unfed
+		alsoDraws: []string{"trinity/decomp-dangling", "trinity/decomp-grounded"},
 	},
 	{
 		name:      "decomp-dangling-requirement",
@@ -241,6 +258,8 @@ var mutations = []mutation{
 		new:       "wires: []",
 		wantCheck: "trinity/decomp-dangling",
 		wantIn:    `"P-1"`,
+		// cascade: an unfed precondition is also unreachable by any execution order
+		alsoDraws: []string{"trinity/decomp-grounded"},
 	},
 	{
 		name:      "decomp-uninherited-invariant",
@@ -257,6 +276,8 @@ var mutations = []mutation{
 		new:       "\"P-2\": {text: \"The requested book carries no live loan, verifiable from the loan records.\"}\n\t\t\t\"P-9\": {text: \"The borrower presents a letter of reference.\"}\n\t\t}\n\t\tguarantees: {\n\t\t\t\"G-1\": {text: \"A standing attestation exists",
 		wantCheck: "trinity/decomp-refinement",
 		wantIn:    `"P-9"`,
+		// cascade: the invented obligation is owed by nobody, so the child cannot be reached
+		alsoDraws: []string{"trinity/decomp-grounded"},
 	},
 	{
 		// A self-wire "feeds" a precondition from the very act it gates —
@@ -266,6 +287,8 @@ var mutations = []mutation{
 		new:       `{from: {child: "C-ISSUE-1", guarantee: "G-1"}, to: {child: "C-ISSUE-1", precondition: "P-1"}},`,
 		wantCheck: "trinity/decomp-wire",
 		wantIn:    "itself",
+		// cascade: the self-wire replaces the only real feed, leaving the precondition unfed
+		alsoDraws: []string{"trinity/decomp-dangling", "trinity/decomp-grounded"},
 	},
 	{
 		// A precondition both client-owed and wire-fed has two satisfiers
@@ -309,9 +332,17 @@ func TestMutationsAreRedForTheirDeclaredReason(t *testing.T) {
 				t.Fatalf("mutation accepted — the gate is blind to %s", m.name)
 			}
 			found := false
+			declared := map[string]bool{m.wantCheck: true}
+			for _, c := range m.alsoDraws {
+				declared[c] = true
+			}
 			for _, r := range refusals {
 				if r.Check == m.wantCheck && strings.Contains(r.Error(), m.wantIn) {
 					found = true
+				}
+				if !declared[r.Check] {
+					t.Errorf("undeclared cascade: this one-edit mutation also drew %s — declare it in alsoDraws or narrow the edit, or the closure test credits a gate this red does not prove\n  %s",
+						r.Check, r.Error())
 				}
 				if r.Class != outcome.Rejection && r.Class != outcome.Finding {
 					t.Errorf("refusal class = %s, want rejection or finding: %s", r.Class, r.Error())
@@ -537,6 +568,10 @@ func TestEveryGateHasAProvingRed(t *testing.T) {
 		"trinity/vacuity":           true, // TestVacuousSetRefused
 		"trinity/region-unreadable": true, // TestUnreadableRegionIsFinding
 		"trinity/decomp-grounded":   true, // TestUngroundedInteriorRefused
+		// TestProvenanceRedsAreRedForTheirDeclaredReason
+		"trinity/provenance-address":  true,
+		"trinity/provenance-source":   true,
+		"trinity/provenance-coverage": true,
 	}
 	for _, m := range mutations {
 		proven[m.wantCheck] = true
@@ -555,6 +590,96 @@ func TestEveryGateHasAProvingRed(t *testing.T) {
 	for check := range exempt {
 		if proven[check] {
 			t.Errorf("gate %s is exempted AND proven — delete the stale exemption", check)
+		}
+	}
+}
+
+// Provenance reds. The absorbed-view fixture lives in the absorber's
+// testdata; these mutate it by one edit each, so the gate's provenance
+// lane is witnessed the same way every other lane is.
+const provFixture = "../absorb/testdata/view.cue"
+
+func TestProvenanceRedsAreRedForTheirDeclaredReason(t *testing.T) {
+	base, err := os.ReadFile(provFixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if refusals := ValidateTrinity(provFixture); len(refusals) != 0 {
+		t.Fatalf("the absorbed-view fixture must be green: %+v", refusals)
+	}
+
+	cases := []mutation{
+		{
+			name:      "provenance-address-unknown-contract",
+			old:       `"C-LEND-1":       ["lending.go"]`,
+			new:       `"C-GHOST-1":      ["lending.go"]`,
+			wantCheck: "trinity/provenance-address",
+			wantIn:    `"C-GHOST-1"`,
+		},
+		{
+			name:      "provenance-address-unknown-clause",
+			old:       `"C-LEND-1/G-1":   ["lending.go"]`,
+			new:       `"C-LEND-1/G-9":   ["lending.go"]`,
+			wantCheck: "trinity/provenance-address",
+			wantIn:    `"G-9"`,
+		},
+		{
+			name:      "provenance-unbaselined-source",
+			old:       `"C-RETURN-1":     ["returning.go"]`,
+			new:       `"C-RETURN-1":     ["phantom.go"]`,
+			wantCheck: "trinity/provenance-source",
+			wantIn:    `"phantom.go"`,
+		},
+		{
+			// Both C-RETURN-1 derivations go: a clause-grain address
+			// still covers its contract, so coverage only fails when
+			// nothing addresses the contract at all.
+			name:      "provenance-uncovered-contract",
+			old:       "\t\t\"C-RETURN-1\":     [\"returning.go\"]\n\t\t\"C-RETURN-1/G-1\": [\"returning.go\"]",
+			new:       "\t\t\"C-LEND-1/P-1\":   [\"lending.go\"]",
+			wantCheck: "trinity/provenance-coverage",
+			wantIn:    `"C-RETURN-1"`,
+		},
+	}
+
+	for _, m := range cases {
+		t.Run(m.name, func(t *testing.T) {
+			if !strings.Contains(string(base), m.old) {
+				t.Fatalf("mutation target drifted from the fixture: %q", m.old)
+			}
+			mutated := strings.Replace(string(base), m.old, m.new, 1)
+			path := filepath.Join(t.TempDir(), "view.cue")
+			if err := os.WriteFile(path, []byte(mutated), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			refusals := ValidateTrinity(path)
+			found := false
+			for _, r := range refusals {
+				if r.Check == m.wantCheck && strings.Contains(r.Error(), m.wantIn) {
+					found = true
+				}
+				if r.Remedy == "" {
+					t.Errorf("refusal without a remedy: %s", r.Error())
+				}
+			}
+			if !found {
+				var got []string
+				for _, r := range refusals {
+					got = append(got, r.Error())
+				}
+				t.Errorf("red, but not for the declared reason.\nwant %s naming %s\ngot:\n  %s",
+					m.wantCheck, m.wantIn, strings.Join(got, "\n  "))
+			}
+		})
+	}
+}
+
+// Authored law carries no provenance and the provenance lane stays
+// silent over it — law is authored and ratified, never derived.
+func TestAuthoredLawSkipsTheProvenanceLane(t *testing.T) {
+	for _, r := range ValidateTrinity(fixture) {
+		if strings.HasPrefix(r.Check, "trinity/provenance") {
+			t.Errorf("provenance lane fired on authored law: %s", r.Error())
 		}
 	}
 }

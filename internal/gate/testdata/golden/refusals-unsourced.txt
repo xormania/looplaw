@@ -1,0 +1,1 @@
+trinity/provenance-coverage: rejection testdata/attacks/provenance-unsourced-contract.cue: contract "C-RETURN-1": absorbed but derived from nothing — an unsourced statement cannot go stale, so nothing can ever falsify it — remedy: record what the contract was derived from, or drop it from the view

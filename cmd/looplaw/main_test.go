@@ -89,6 +89,12 @@ func TestBehaviorContract(t *testing.T) {
 		{"diff-identical-empty-feed", []string{"diff", fixture, fixture}, 0, "[]", ""},
 		{"diff-gaps-are-success", []string{"diff", fixture, "../../internal/diff/testdata/library-view.cue"}, 0, `"kind": "absent"`, ""},
 		{"diff-invalid-side-rejects", []string{"diff", fixture, red}, 1, "", "diff/side"},
+		{"absorb-usage", []string{"absorb", "../../internal/absorb/testdata/scope"}, 64, "", "usage: looplaw absorb"},
+		{"absorb-prints-provenance", []string{"absorb", "../../internal/absorb/testdata/scope", "lend-library"}, 0, "provenance: {", ""},
+		{"absorb-missing-scope-aborts", []string{"absorb", "no-such-dir", "x"}, 3, "", "absorb/scope: abort"},
+		{"status-unchanged-scope", []string{"status", "../../internal/absorb/testdata/view.cue", "../../internal/absorb/testdata/scope"}, 0, `"stale": false`, ""},
+		{"status-on-authored-law-rejects", []string{"status", fixture, "../../internal/absorb/testdata/scope"}, 1, "", "status/no-provenance"},
+		{"status-usage", []string{"status", fixture}, 64, "", "usage: looplaw status"},
 	}
 
 	for _, c := range cases {

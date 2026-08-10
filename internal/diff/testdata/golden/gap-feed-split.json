@@ -1,0 +1,15 @@
+[
+  {
+    "id": "GAP-1",
+    "subject": "lend-library",
+    "address": {
+      "contract": "C-LEND-1"
+    },
+    "kind": "absent",
+    "work": "split",
+    "detail": "contract absent from the view; the goal decomposes it, so the work begins by decomposing",
+    "goal_hash": "a0993beae09e122516061e5d6a7f9e096c8f772f1c1f4c96a406ddbff221174c",
+    "view_hash": "",
+    "status": "open"
+  }
+]

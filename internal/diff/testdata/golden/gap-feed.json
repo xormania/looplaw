@@ -1,0 +1,42 @@
+[
+  {
+    "id": "GAP-1",
+    "subject": "lend-library",
+    "address": {
+      "contract": "C-AUDIT-1"
+    },
+    "kind": "added",
+    "work": "fill",
+    "detail": "contract present in the view but absent from goal-law — reconciliation is the aa's amendment path, never silent adoption",
+    "goal_hash": "",
+    "view_hash": "4a134b2cfdb107f85750cac67a5ee78f1304c188e5c891ae01a6a4e1fdfb84d6",
+    "status": "open"
+  },
+  {
+    "id": "GAP-2",
+    "subject": "lend-library",
+    "address": {
+      "contract": "C-LEND-1",
+      "clause": "P-1"
+    },
+    "kind": "changed",
+    "work": "fill",
+    "detail": "clause text differs between goal-law and the view",
+    "goal_hash": "8c6b391ee432fd16a791fc3c9a7b73605cc5b6c56b679ca4fd1f7d9d87911c6c",
+    "view_hash": "df638a8cede5b62822980ef466d7ab3f3668d09db66e5afe8a99edad0368f0cf",
+    "status": "open"
+  },
+  {
+    "id": "GAP-3",
+    "subject": "lend-library",
+    "address": {
+      "contract": "C-RETURN-1"
+    },
+    "kind": "absent",
+    "work": "fill",
+    "detail": "contract absent from the view",
+    "goal_hash": "968172ce540a5aaeb82016231e8a6d917bcae20fc671962855871b2d44c1a801",
+    "view_hash": "",
+    "status": "open"
+  }
+]

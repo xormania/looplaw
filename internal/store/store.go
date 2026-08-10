@@ -43,7 +43,7 @@ type Record struct {
 	Type    string `json:"type"` // the record kind: claim, receipt, admission, version
 	Subject string `json:"subject"`
 	Body    string `json:"body"`
-	Actor   string `json:"actor"`
+	Party   string `json:"party"`
 	At      string `json:"at"`
 	Prev    string `json:"prev"`
 	Hash    string `json:"hash"`
@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS records (
 	rectype TEXT NOT NULL,
 	subject TEXT NOT NULL,
 	body    TEXT NOT NULL,
-	actor   TEXT NOT NULL,
+	party   TEXT NOT NULL,
 	at      TEXT NOT NULL,
 	prev    TEXT NOT NULL,
 	hash    TEXT NOT NULL UNIQUE
@@ -170,16 +170,16 @@ func (s *Store) Close() error { return s.db.Close() }
 // canonical is the hashed wire form: length-delimited fields in fixed
 // order, so no field boundary is ambiguous and no serialization library
 // defines the format.
-func canonical(kind Kind, rectype, subject, body, actor, at, prev string) string {
+func canonical(kind Kind, rectype, subject, body, party, at, prev string) string {
 	var out strings.Builder
-	for _, f := range []string{string(kind), rectype, subject, body, actor, at, prev} {
+	for _, f := range []string{string(kind), rectype, subject, body, party, at, prev} {
 		fmt.Fprintf(&out, "%d:%s|", len(f), f)
 	}
 	return out.String()
 }
 
-func hashOf(kind Kind, rectype, subject, body, actor, at, prev string) string {
-	sum := sha256.Sum256([]byte(canonical(kind, rectype, subject, body, actor, at, prev)))
+func hashOf(kind Kind, rectype, subject, body, party, at, prev string) string {
+	sum := sha256.Sum256([]byte(canonical(kind, rectype, subject, body, party, at, prev)))
 	return hex.EncodeToString(sum[:])
 }
 
@@ -190,20 +190,20 @@ type Draft struct {
 	Type    string
 	Subject string
 	Body    string
-	Actor   string
+	Party   string
 }
 
 // ContentHash is the digest of a draft's content, independent of where
 // it lands in the chain: an admission cites it so the entry event names
 // exactly what entered.
 func ContentHash(d Draft) string {
-	sum := sha256.Sum256([]byte(canonical(d.Kind, d.Type, d.Subject, d.Body, d.Actor, "", "")))
+	sum := sha256.Sum256([]byte(canonical(d.Kind, d.Type, d.Subject, d.Body, d.Party, "", "")))
 	return hex.EncodeToString(sum[:])
 }
 
 // Append records one fact, chained to the current tail.
-func (s *Store) Append(kind Kind, rectype, subject, body, actor string) (Record, error) {
-	recs, err := s.AppendAll([]Draft{{Kind: kind, Type: rectype, Subject: subject, Body: body, Actor: actor}})
+func (s *Store) Append(kind Kind, rectype, subject, body, party string) (Record, error) {
+	recs, err := s.AppendAll([]Draft{{Kind: kind, Type: rectype, Subject: subject, Body: body, Party: party}})
 	if err != nil {
 		return Record{}, err
 	}
@@ -243,15 +243,15 @@ func (s *Store) AppendAll(drafts []Draft) ([]Record, error) {
 			Type:    d.Type,
 			Subject: d.Subject,
 			Body:    d.Body,
-			Actor:   d.Actor,
+			Party:   d.Party,
 			At:      at,
 			Prev:    prev,
 		}
-		rec.Hash = hashOf(rec.Kind, rec.Type, rec.Subject, rec.Body, rec.Actor, rec.At, rec.Prev)
+		rec.Hash = hashOf(rec.Kind, rec.Type, rec.Subject, rec.Body, rec.Party, rec.At, rec.Prev)
 
 		res, err := tx.Exec(
-			"INSERT INTO records (kind, rectype, subject, body, actor, at, prev, hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-			string(rec.Kind), rec.Type, rec.Subject, rec.Body, rec.Actor, rec.At, rec.Prev, rec.Hash,
+			"INSERT INTO records (kind, rectype, subject, body, party, at, prev, hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+			string(rec.Kind), rec.Type, rec.Subject, rec.Body, rec.Party, rec.At, rec.Prev, rec.Hash,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("append: %w", err)
@@ -271,7 +271,7 @@ func (s *Store) AppendAll(drafts []Draft) ([]Record, error) {
 
 // Records returns the full ledger in sequence order.
 func (s *Store) Records() ([]Record, error) {
-	rows, err := s.db.Query("SELECT seq, kind, rectype, subject, body, actor, at, prev, hash FROM records ORDER BY seq")
+	rows, err := s.db.Query("SELECT seq, kind, rectype, subject, body, party, at, prev, hash FROM records ORDER BY seq")
 	if err != nil {
 		return nil, fmt.Errorf("records: %w", err)
 	}
@@ -280,7 +280,7 @@ func (s *Store) Records() ([]Record, error) {
 	for rows.Next() {
 		var r Record
 		var kind string
-		if err := rows.Scan(&r.Seq, &kind, &r.Type, &r.Subject, &r.Body, &r.Actor, &r.At, &r.Prev, &r.Hash); err != nil {
+		if err := rows.Scan(&r.Seq, &kind, &r.Type, &r.Subject, &r.Body, &r.Party, &r.At, &r.Prev, &r.Hash); err != nil {
 			return nil, fmt.Errorf("records: %w", err)
 		}
 		r.Kind = Kind(kind)
@@ -302,7 +302,7 @@ func (s *Store) Verify() (int, error) {
 		if r.Prev != prev {
 			return 0, fmt.Errorf("verify: seq %d: chain break: prev %q, want %q", r.Seq, r.Prev, prev)
 		}
-		want := hashOf(r.Kind, r.Type, r.Subject, r.Body, r.Actor, r.At, r.Prev)
+		want := hashOf(r.Kind, r.Type, r.Subject, r.Body, r.Party, r.At, r.Prev)
 		if r.Hash != want {
 			return 0, fmt.Errorf("verify: seq %d: content does not re-hash to what was recorded", r.Seq)
 		}

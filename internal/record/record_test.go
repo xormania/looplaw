@@ -47,7 +47,7 @@ func tamper(t *testing.T, dir string, seq int64, body string) {
 }
 
 func goodClaim() gate.Submission {
-	return gate.Submission{Kind: "claim", Subject: "scope-x", Actor: "absorber:test", Body: `{"states":"a contract exists"}`}
+	return gate.Submission{Kind: "claim", Subject: "scope-x", Party: "absorber:test", Body: `{"states":"a contract exists"}`}
 }
 
 func goodReceipt() gate.Submission {
@@ -55,7 +55,7 @@ func goodReceipt() gate.Submission {
 		Subject: "C-LEND-1", Verdict: "pass", Source: "ci",
 		Hash: strings.Repeat("a", 64),
 	})
-	return gate.Submission{Kind: "receipt", Subject: "C-LEND-1", Actor: "ci:test", Body: string(body)}
+	return gate.Submission{Kind: "receipt", Subject: "C-LEND-1", Party: "ci:test", Body: string(body)}
 }
 
 // Every submission lands with its admission, and the admission names
@@ -78,7 +78,7 @@ func TestSubmitRecordsContentWithItsAdmission(t *testing.T) {
 	if err := json.Unmarshal([]byte(recs[1].Body), &adm); err != nil {
 		t.Fatal(err)
 	}
-	if adm.Actor != "absorber:test" || adm.Kind != "claim" || adm.Subject != "scope-x" {
+	if adm.Party != "absorber:test" || adm.Kind != "claim" || adm.Subject != "scope-x" {
 		t.Errorf("admission does not name the entry: %+v", adm)
 	}
 	if adm.ContentHash == "" || len(adm.ChecksRun) == 0 {
@@ -95,7 +95,7 @@ func TestSubmitRecordsContentWithItsAdmission(t *testing.T) {
 func TestRefusedSubmissionRecordsNothing(t *testing.T) {
 	s := open(t)
 	bad := goodClaim()
-	bad.Actor = ""
+	bad.Party = ""
 	if _, refusals := Submit(s, bad); len(refusals) == 0 {
 		t.Fatal("an unattributed submission was recorded")
 	}
@@ -118,7 +118,7 @@ func TestSubmissionChecksAreRedForTheirDeclaredReason(t *testing.T) {
 		{"unknown-kind", func(s *gate.Submission) { s.Kind = "rumor" }, "submit/kind"},
 		{"system-produced-kind", func(s *gate.Submission) { s.Kind = "admission" }, "submit/kind"},
 		{"no-subject", func(s *gate.Submission) { s.Subject = "" }, "submit/subject"},
-		{"no-actor", func(s *gate.Submission) { s.Actor = "" }, "submit/actor"},
+		{"no-party", func(s *gate.Submission) { s.Party = "" }, "submit/party"},
 		{"no-content", func(s *gate.Submission) { s.Body = "   " }, "submit/content"},
 		{"receipt-unreadable", func(s *gate.Submission) {
 			*s = goodReceipt()
@@ -164,7 +164,7 @@ func TestSubmissionChecksAreRedForTheirDeclaredReason(t *testing.T) {
 
 func TestEverySubmissionCheckHasAProvingRed(t *testing.T) {
 	proven := map[string]bool{}
-	for _, c := range []string{"submit/kind", "submit/subject", "submit/actor", "submit/content", "submit/receipt-shape"} {
+	for _, c := range []string{"submit/kind", "submit/subject", "submit/party", "submit/content", "submit/receipt-shape"} {
 		proven[c] = true // TestSubmissionChecksAreRedForTheirDeclaredReason
 	}
 	for _, check := range gate.SubmissionChecks {

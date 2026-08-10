@@ -5,7 +5,7 @@
     "type": "claim",
     "subject": "scope-x",
     "body": "{\"states\":\"a contract exists\"}",
-    "actor": "absorber:test",
+    "party": "absorber:test",
     "at": "<masked>",
     "prev": "<masked>",
     "hash": "<masked>"
@@ -15,8 +15,8 @@
     "kind": "evidence",
     "type": "admission",
     "subject": "scope-x",
-    "body": "{\"kind\":\"claim\",\"subject\":\"scope-x\",\"actor\":\"absorber:test\",\"content_hash\":\"01c6b6f49781a2741351a4c6bb893fb0d83f017d1faf7e601c5976c3787fb45f\",\"checks_run\":[\"submit/kind\",\"submit/subject\",\"submit/actor\",\"submit/content\",\"submit/receipt-shape\"]}",
-    "actor": "absorber:test",
+    "body": "{\"kind\":\"claim\",\"subject\":\"scope-x\",\"party\":\"absorber:test\",\"content_hash\":\"01c6b6f49781a2741351a4c6bb893fb0d83f017d1faf7e601c5976c3787fb45f\",\"checks_run\":[\"submit/kind\",\"submit/subject\",\"submit/party\",\"submit/content\",\"submit/receipt-shape\"]}",
+    "party": "absorber:test",
     "at": "<masked>",
     "prev": "<masked>",
     "hash": "<masked>"
@@ -27,7 +27,7 @@
     "type": "receipt",
     "subject": "C-LEND-1",
     "body": "{\"subject\":\"C-LEND-1\",\"verdict\":\"pass\",\"source\":\"ci\",\"hash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
-    "actor": "ci:test",
+    "party": "ci:test",
     "at": "<masked>",
     "prev": "<masked>",
     "hash": "<masked>"
@@ -37,8 +37,8 @@
     "kind": "evidence",
     "type": "admission",
     "subject": "C-LEND-1",
-    "body": "{\"kind\":\"receipt\",\"subject\":\"C-LEND-1\",\"actor\":\"ci:test\",\"content_hash\":\"03e1819aca5e4da50639dfa7b3e6830d227db30f53bca537324904b86d0087e6\",\"checks_run\":[\"submit/kind\",\"submit/subject\",\"submit/actor\",\"submit/content\",\"submit/receipt-shape\"]}",
-    "actor": "ci:test",
+    "body": "{\"kind\":\"receipt\",\"subject\":\"C-LEND-1\",\"party\":\"ci:test\",\"content_hash\":\"03e1819aca5e4da50639dfa7b3e6830d227db30f53bca537324904b86d0087e6\",\"checks_run\":[\"submit/kind\",\"submit/subject\",\"submit/party\",\"submit/content\",\"submit/receipt-shape\"]}",
+    "party": "ci:test",
     "at": "<masked>",
     "prev": "<masked>",
     "hash": "<masked>"

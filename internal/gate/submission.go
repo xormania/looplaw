@@ -15,7 +15,7 @@ import (
 var SubmissionChecks = []string{
 	"submit/kind",
 	"submit/subject",
-	"submit/actor",
+	"submit/party",
 	"submit/content",
 	"submit/receipt-shape",
 }
@@ -26,7 +26,7 @@ var SubmissionChecks = []string{
 type Submission struct {
 	Kind    string // "claim" or "receipt" — the record kinds a party may submit
 	Subject string
-	Actor   string
+	Party   string
 	Body    string
 }
 
@@ -79,8 +79,8 @@ func ValidateSubmission(sub Submission) []outcome.Refusal {
 		refuse("submit/subject", "subject", "a submission names no subject",
 			"name what the submission is about; a record about nothing can never be found or falsified")
 	}
-	if !nameRE.MatchString(sub.Actor) {
-		refuse("submit/actor", "actor", "a submission names no submitter",
+	if !nameRE.MatchString(sub.Party) {
+		refuse("submit/party", "party", "a submission names no submitting party",
 			"name the submitting party; recording settles that a party said a thing, which is unstatable without the party")
 	}
 	if strings.TrimSpace(sub.Body) == "" {

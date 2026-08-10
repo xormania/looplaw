@@ -18,14 +18,14 @@ import (
 	"github.com/xormania/looplaw/internal/store"
 )
 
-// Admission is the entry event, recorded: it names the submitter, what
+// Admission is the entry event, recorded: it names the submitting party, what
 // was submitted, and the checks the submission passed. It confers no
 // standing — it settles that the entry happened, never that the content
 // is true.
 type Admission struct {
 	Kind        string   `json:"kind"`
 	Subject     string   `json:"subject"`
-	Actor       string   `json:"actor"`
+	Party       string   `json:"party"`
 	ContentHash string   `json:"content_hash"`
 	ChecksRun   []string `json:"checks_run"`
 	Grant       string   `json:"grant,omitempty"`
@@ -45,13 +45,13 @@ func Submit(s *store.Store, sub gate.Submission) ([]store.Record, []outcome.Refu
 		Type:    sub.Kind,
 		Subject: sub.Subject,
 		Body:    sub.Body,
-		Actor:   sub.Actor,
+		Party:   sub.Party,
 	}
 
 	adm := Admission{
 		Kind:      sub.Kind,
 		Subject:   sub.Subject,
-		Actor:     sub.Actor,
+		Party:     sub.Party,
 		ChecksRun: gate.SubmissionChecks,
 	}
 	adm.ContentHash = store.ContentHash(content)
@@ -71,7 +71,7 @@ func Submit(s *store.Store, sub gate.Submission) ([]store.Record, []outcome.Refu
 			Type:    "admission",
 			Subject: sub.Subject,
 			Body:    string(body),
-			Actor:   sub.Actor,
+			Party:   sub.Party,
 		},
 	})
 	if err != nil {

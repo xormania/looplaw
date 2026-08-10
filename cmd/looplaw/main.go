@@ -139,7 +139,7 @@ func main() {
 		s := openProject(os.Args[2])
 		defer s.Close()
 		recs, refusals := record.Submit(s, gate.Submission{
-			Kind: os.Args[3], Subject: os.Args[4], Actor: actor(), Body: body,
+			Kind: os.Args[3], Subject: os.Args[4], Party: party(), Body: body,
 		})
 		if len(refusals) > 0 {
 			refuse(refusals...)
@@ -290,11 +290,12 @@ func openProject(name string) *store.Store {
 	return s
 }
 
-// actor names the submitting party. It is supplied, never inferred: a
+// party names the submitting party. It is supplied, never inferred: a
 // record settles that a party said a thing, and a party the tool
-// guessed is not one that said anything.
-func actor() string {
-	if a := os.Getenv("LOOPLAW_ACTOR"); a != "" {
+// guessed is not one that said anything. What is recorded is the
+// party as claimed — looplaw checks no identity and asserts none.
+func party() string {
+	if a := os.Getenv("LOOPLAW_PARTY"); a != "" {
 		return a
 	}
 	return ""

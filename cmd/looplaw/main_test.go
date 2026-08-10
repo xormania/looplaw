@@ -78,7 +78,7 @@ func mutate(t *testing.T, old, new string) string {
 // behavior suite never touches a real one.
 func TestRecordActBehavior(t *testing.T) {
 	root := t.TempDir()
-	env := []string{"LOOPLAW_ROOT=" + root, "LOOPLAW_ACTOR=behavior:test"}
+	env := []string{"LOOPLAW_ROOT=" + root, "LOOPLAW_PARTY=behavior:test"}
 
 	body := filepath.Join(t.TempDir(), "claim.json")
 	if err := os.WriteFile(body, []byte(`{"states":"a contract exists"}`), 0o644); err != nil {
@@ -116,11 +116,11 @@ func TestRecordActBehavior(t *testing.T) {
 	}
 
 	// An unattributed submission is refused, and refuses on stderr.
-	noActor := []string{"LOOPLAW_ROOT=" + root}
-	if stdout, stderr, exit := runEnv(t, noActor, "submit", "demo", "claim", "s", body); exit != 1 {
+	noParty := []string{"LOOPLAW_ROOT=" + root}
+	if stdout, stderr, exit := runEnv(t, noParty, "submit", "demo", "claim", "s", body); exit != 1 {
 		t.Errorf("unattributed submit: exit=%d", exit)
-	} else if !strings.Contains(stderr, "submit/actor") || strings.TrimSpace(stdout) != "" {
-		t.Errorf("refusal must name submit/actor on stderr only: out=%q err=%q", stdout, stderr)
+	} else if !strings.Contains(stderr, "submit/party") || strings.TrimSpace(stdout) != "" {
+		t.Errorf("refusal must name submit/party on stderr only: out=%q err=%q", stdout, stderr)
 	}
 }
 

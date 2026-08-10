@@ -8,7 +8,7 @@ would then be the wrong one.
 Pointers that save the most:
 - Vocabulary, authority, what the law says → `dev/DIGEST.md` (generated,
   18KB), not `dev/*.cue`. Full text only when exact wording matters.
-- Before pushing → `dev/check`. After changing law → `dev/law`.
+- Before pushing → `dev/check`. After changing law → `dev/basis`.
 - Before a merge request → `dev/review.md`.
 - Before inventing an adversarial input → `internal/gate/testdata/attacks/`.
 

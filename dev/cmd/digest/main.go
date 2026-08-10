@@ -50,7 +50,7 @@ func Digest(dir string) (string, error) {
 	var b strings.Builder
 	b.WriteString(`# looplaw's design basis — digest
 
-Generated from dev/*.cue by dev/law, so it cannot drift from the files
+Generated from dev/*.cue by dev/basis, so it cannot drift from the files
 it summarises. The prompt cards below are written to be pasted
 verbatim; read the full text in dev/*.cue when exact wording is at
 stake. The schema the binary enforces on input is law/, and it is not

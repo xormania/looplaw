@@ -27,15 +27,13 @@ go run cuelang.org/go/cmd/cue vet ./dev/
 step "test"
 go test ./...
 
-step "goldens and the digest are current"
+step "recorded outputs match what the code emits"
+# Compared against generated output, not against git: a deliberate
+# change staged for this commit is not drift, and CI checks the
+# committed state separately.
 go test ./... -run Golden -count=1
 go run ./dev/cmd/digest > /tmp/looplaw-digest-check.md
-diff -q /tmp/looplaw-digest-check.md dev/DIGEST.md >/dev/null || { echo 'digest stale; run dev/law'; exit 1; }
-if ! git diff --quiet -- '*/testdata/golden/*' dev/DIGEST.md; then
-	git diff --stat -- '*/testdata/golden/*' dev/DIGEST.md
-	echo "recorded outputs drifted; if deliberate: LOOPLAW_GOLDEN_UPDATE=1 go test ./... && dev/law"
-	exit 1
-fi
+diff -q /tmp/looplaw-digest-check.md dev/DIGEST.md >/dev/null || { echo "digest stale; run dev/basis"; exit 1; }
 
 step "stray scratch files"
 stray=$(git status --porcelain --untracked-files=all | grep -E '(^\?\? .*(zz_|scratch|tmp).*\.go$)' || true)

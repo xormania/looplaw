@@ -43,7 +43,7 @@ initial_prompt: |
     dev/DIGEST.md (18KB, generated from the law the binary carries), not
     dev/*.cue. Open the full text only when exact wording matters.
   - Run dev/check before pushing; it is CI's fast lane in the same order.
-    dev/law regenerates the digest and reports ratification debt.
+    dev/basis regenerates the digest and reports ratification debt.
 
   Before inventing an adversarial input, look in
   internal/gate/testdata/attacks/ — every attack that has ever found a

@@ -46,7 +46,7 @@ second copy of it.
 ## Verifying
 
     dev/check                                  # CI's fast lane, same order
-    dev/law                                    # regenerate the digest, report ratification debt
+    dev/basis                                    # regenerate the digest, report ratification debt
     go test -race ./...                        # before pushing
     LOOPLAW_GOLDEN_UPDATE=1 go test ./...      # re-record goldens deliberately
 

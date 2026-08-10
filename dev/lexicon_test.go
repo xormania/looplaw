@@ -158,3 +158,38 @@ func excerpt(text, term string) string {
 	end := min(len(text), i+len(term)+60)
 	return "…" + strings.ReplaceAll(text[start:end], "\n", " ") + "…"
 }
+
+// One brief, not several. Harness-specific files (CLAUDE.md and any
+// equivalent) point at AGENTS.md rather than copying it: two briefs
+// drift, and the one a harness happens to read would then be the one
+// that is wrong.
+func TestHarnessBriefsArePointers(t *testing.T) {
+	canonical, err := os.ReadFile("../AGENTS.md")
+	if err != nil {
+		t.Fatal("AGENTS.md is the canonical brief and must exist: " + err.Error())
+	}
+
+	harnessFiles, err := filepath.Glob("../*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range harnessFiles {
+		name := filepath.Base(path)
+		if name == "AGENTS.md" || name == "README.md" || name == "CONTRIBUTING.md" {
+			continue
+		}
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(b), "AGENTS.md") {
+			t.Errorf("%s is a harness brief that does not point at AGENTS.md", name)
+		}
+		// A pointer that has grown into a second brief has stopped
+		// being a pointer.
+		if len(b) > len(canonical)/3 {
+			t.Errorf("%s is %d bytes against the canonical %d: it has grown into a second brief rather than a pointer",
+				name, len(b), len(canonical))
+		}
+	}
+}

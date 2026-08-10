@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Law housekeeping: regenerate the digest from the law the binary
+# carries, and report the ratification debt — entries still marked
+# proposed after their batch was merged. Missing that flip is the
+# process error made most often here, and it is invisible until
+# somebody greps for it.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+go run ./cmd/looplaw project law > law/DIGEST.md
+if git diff --quiet -- law/DIGEST.md; then
+	echo "digest current"
+else
+	echo "digest regenerated:"
+	git diff --stat -- law/DIGEST.md
+fi
+
+printf '\n== status by file\n'
+for f in law/*.cue; do
+	proposed=$(grep -c 'status: *"proposed"' "$f" 2>/dev/null || true)
+	ratified=$(grep -c 'status: *"ratified"' "$f" 2>/dev/null || true)
+	[ "$proposed" = "0" ] && [ "$ratified" = "0" ] && continue
+	printf '%-22s ratified %-4s proposed %s\n' "$(basename "$f")" "$ratified" "$proposed"
+done
+
+total=$(grep -rc 'status: *"proposed"' law/*.cue 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+printf '\n'
+if [ "$total" = "0" ]; then
+	echo "no proposed entries: nothing awaits ratification"
+else
+	echo "$total proposed entries. If their batch is merged, the flip is owed:"
+	echo "  the merge was the ratification act; flip status and cite the pull request in the file header"
+fi

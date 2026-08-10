@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# The same sequence CI's fast lane runs, in the same order, so a green
+# run here means a green run there. Cheapest checks first: a typo
+# should cost seconds, not a full suite.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+step() { printf '\n\033[1m== %s\033[0m\n' "$1"; }
+
+step "format"
+if [ -n "$(gofmt -l .)" ]; then
+	gofmt -l .
+	echo "run: gofmt -w ."
+	exit 1
+fi
+
+step "vet"
+go vet ./...
+
+step "build"
+go build ./...
+
+step "law (second producer)"
+go run cuelang.org/go/cmd/cue vet ./law/
+
+step "test"
+go test ./...
+
+step "goldens and the digest are current"
+go test ./... -run 'Golden|Digest' -count=1
+if ! git diff --quiet -- '*/testdata/golden/*' law/DIGEST.md; then
+	git diff --stat -- '*/testdata/golden/*' law/DIGEST.md
+	echo "recorded outputs drifted; if deliberate: LOOPLAW_GOLDEN_UPDATE=1 go test ./... && dev/law"
+	exit 1
+fi
+
+step "stray scratch files"
+stray=$(git status --porcelain --untracked-files=all | grep -E '(^\?\? .*(zz_|scratch|tmp).*\.go$)' || true)
+if [ -n "$stray" ]; then
+	echo "$stray"
+	echo "agents leave these behind; remove them before pushing"
+	exit 1
+fi
+
+printf '\n\033[32mall checks passed\033[0m — race and the producer differential still run in CI\n'

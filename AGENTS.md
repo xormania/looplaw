@@ -30,7 +30,15 @@ The traps that catch newcomers: `commit`, `merge`, `push`, `build`,
 `deploy`, `release`, `publish`, `ship`, `rollback` are banned bare;
 `authorize`, `permit`, `allow`, `approve` are banned outright; `version`
 and `environment` need qualification. A denial is not a failure. Claims
-are recorded, never believed.
+are recorded, never believed. The outright bans are enforced by
+`go test ./dev/` over everything the product says, so a slip fails
+rather than waiting for review.
+
+The reverse direction matters more and is also enforced: workshop
+concepts must not borrow the product's words, and nothing under `dev/`
+may be named after a product concept. Every conflation this project has
+had ran that way — a script called `dev/law`, a ratification ritual
+copied from the product's act.
 
 ## First run on a machine
 

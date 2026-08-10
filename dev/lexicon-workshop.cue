@@ -38,10 +38,17 @@ reserved_dev: {
 }
 
 // Words that belong to the product, which the workshop therefore does
-// not use for its own concepts. The two vocabularies are disjoint: a
-// word is ours or the product's, never both, and dev/lexicon_test.go
-// fails the moment one appears in the other's list or the other's
-// text.
+// not use for its own concepts. This is the direction that has cost us:
+// a script named dev/law, a ratification ritual copied from the
+// product's act, our design basis living in a directory called law.
+// Borrowing the product's words for workshop things reads as rigor and
+// produces confusion.
+//
+// dev/lexicon_test.go holds three lines: no word appears in both
+// vocabularies, no workshop artifact is named after a product concept,
+// and the product obeys the vocabulary it refuses. Judging whether a
+// product word is *discussed* or *borrowed* in workshop prose needs a
+// reader, so that stays here as a list rather than a test.
 do_not_borrow: [
 	"closure — the contract method's coverage check (act closure). Our equivalent is witness coverage",
 	"claim, receipt, admission, version — record kinds; a test double is a fixture, not a claim",

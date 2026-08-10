@@ -235,3 +235,115 @@ func TestHarnessBriefsArePointers(t *testing.T) {
 		}
 	}
 }
+
+// Nothing in the workshop may be named after a product concept. This is
+// the direction that has actually cost us: a script called dev/law, a
+// ratification ritual copied from the product's act, our design basis
+// living in a directory called law. Borrowing the product's words for
+// workshop things reads as rigor and produces confusion.
+func TestNoWorkshopArtifactIsNamedAfterTheProduct(t *testing.T) {
+	product := productTerms(t)
+	err := filepath.WalkDir("..", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && (d.Name() == ".git" || d.Name() == "proj") {
+			return filepath.SkipDir
+		}
+		rel, _ := filepath.Rel("..", path)
+		if !strings.HasPrefix(rel, "dev/") && rel != "dev" {
+			return nil
+		}
+		// The file that defines the product's vocabulary is allowed to
+		// be named for it.
+		if strings.Contains(rel, "lexicon-product") {
+			return nil
+		}
+		name := strings.ToLower(strings.TrimSuffix(d.Name(), filepath.Ext(d.Name())))
+		if product[name] {
+			t.Errorf("%s is named after the product concept %q — name workshop things for what they do", rel, name)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The product's own refused vocabulary, enforced on what the product
+// says. The lexicon method requires this — a lexicon without mechanical
+// enforcement decays into aspiration — and until now the workshop had a
+// conformance test while the ratified vocabulary had none, which is
+// backwards. Review agents have been finding these by hand at cost.
+func TestProductTextObeysItsOwnRefusedVocabulary(t *testing.T) {
+	banned := bannedProductTerms(t)
+	if len(banned) == 0 {
+		t.Fatal("the product lexicon refuses nothing")
+	}
+	for _, src := range productText(t) {
+		lower := strings.ToLower(stripPaths(src.text))
+		for term, instead := range banned {
+			re := regexp.MustCompile(`\b` + regexp.QuoteMeta(term) + `\b`)
+			if re.MatchString(lower) {
+				t.Errorf("the product says %q, which its own lexicon refuses (%s).\n  %s\n  instead: %s",
+					term, src.where, excerpt(src.text, term), instead)
+			}
+		}
+	}
+}
+
+func devPackage(t *testing.T) cue.Value {
+	t.Helper()
+	insts := load.Instances([]string{"."}, nil)
+	if len(insts) == 0 || insts[0].Err != nil {
+		t.Fatalf("dev package: %v", insts[0].Err)
+	}
+	v := cuecontext.New().BuildInstance(insts[0])
+	if v.Err() != nil {
+		t.Fatalf("dev package: %v", v.Err())
+	}
+	return v
+}
+
+func productTerms(t *testing.T) map[string]bool {
+	t.Helper()
+	out := map[string]bool{"law": true} // the concept, though no entry names it
+	v := devPackage(t)
+	for _, region := range []string{"lexicon", "process_vocab", "forbidden_vocab"} {
+		iter, err := v.LookupPath(cue.ParsePath(region)).Fields()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for iter.Next() {
+			out[strings.ToLower(iter.Selector().Unquoted())] = true
+		}
+	}
+	return out
+}
+
+// Only the outright bans: a qualified-form rule needs a reader, and a
+// test that fires on legitimate qualified use would be noise.
+func bannedProductTerms(t *testing.T) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	v := devPackage(t)
+	for _, region := range []string{"process_vocab", "forbidden_vocab"} {
+		iter, err := v.LookupPath(cue.ParsePath(region)).Fields()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for iter.Next() {
+			tier, _ := iter.Value().LookupPath(cue.ParsePath("tier")).String()
+			if tier != "BANNED" {
+				continue
+			}
+			term := strings.ToLower(iter.Selector().Unquoted())
+			if strings.Contains(term, " ") {
+				continue // phrase rules need a reader
+			}
+			instead, _ := iter.Value().LookupPath(cue.ParsePath("instead")).String()
+			out[term] = instead
+		}
+	}
+	return out
+}

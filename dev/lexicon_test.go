@@ -22,7 +22,7 @@ import (
 // for every purpose a check has — neither may collide with the
 // product's, and neither may appear in what the product says. They are
 // separate files' worth of judgement, not separate standings: the split
-// records that an inherited term is not ours to redefine.
+// records that an inherited term is not this project's to redefine.
 var devRegions = []string{"reserved_dev", "inherited_dev"}
 
 func reservedDev(t *testing.T) []string {
@@ -118,9 +118,9 @@ func TestHarnessBriefsArePointers(t *testing.T) {
 }
 
 // Nothing in the workshop may be named after a product concept. This is
-// the direction that has actually cost us: a script called dev/law, a
-// ratification ritual copied from the product's act, our design basis
-// living in a directory called law. Borrowing the product's words for
+// the direction that has actually cost this project: a script called
+// dev/law, a ratification ritual copied from the product's act, a design
+// basis living in a directory called law. Borrowing the product's words for
 // workshop things reads as rigor and produces confusion.
 func TestNoWorkshopArtifactIsNamedAfterTheProduct(t *testing.T) {
 	product := productTerms(t)
@@ -180,13 +180,13 @@ func productTerms(t *testing.T) map[string]bool {
 	return out
 }
 
-// The two vocabularies are disjoint. Every word is ours or the
-// product's, never both — a word in both lists means the distinction
+// The two vocabularies are disjoint. Every word is the workshop's or
+// the product's, never both — a word in both lists means the distinction
 // has already collapsed, whatever either list says about it.
 func TestVocabulariesDoNotIntersect(t *testing.T) {
-	ours := map[string]bool{}
+	workshop := map[string]bool{}
 	for _, term := range reservedDev(t) {
-		ours[strings.ToLower(term)] = true
+		workshop[strings.ToLower(term)] = true
 	}
 
 	v := devPackage(t)
@@ -197,7 +197,7 @@ func TestVocabulariesDoNotIntersect(t *testing.T) {
 		}
 		for iter.Next() {
 			term := strings.ToLower(iter.Selector().Unquoted())
-			if ours[term] {
+			if workshop[term] {
 				t.Errorf("%q is reserved by both the workshop and the product (%s): a word belongs to one lane or the other, never both",
 					term, region)
 			}
@@ -205,7 +205,7 @@ func TestVocabulariesDoNotIntersect(t *testing.T) {
 	}
 
 	// do_not_borrow is the same claim stated the other way: a word we
-	// have written down as the product's cannot also be one of ours.
+	// written down as the product's cannot also be one of the workshop's.
 	// Checking only the product lexicon left this hole open, and
 	// "drift" sat in it — reserved here while the spec used it for what
 	// the provenance check reports.
@@ -223,7 +223,7 @@ func TestVocabulariesDoNotIntersect(t *testing.T) {
 		head, _, _ := strings.Cut(entry, " — ")
 		for _, w := range strings.Split(head, ",") {
 			w = strings.ToLower(strings.TrimSpace(w))
-			if w != "" && ours[w] {
+			if w != "" && workshop[w] {
 				t.Errorf("%q is reserved by the workshop and also listed in do_not_borrow: the lexicon contradicts itself about whose word it is", w)
 			}
 		}

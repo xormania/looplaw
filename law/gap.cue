@@ -1,5 +1,7 @@
-// The gap schema — the differ's output and the planning feed. Batch 5,
-// status: proposed.
+// The gap schema — the differ's output and the planning feed.
+//
+// RATIFIED: PR #12 merged by xormania 2026-08-10 (the recorded act per
+// law/README.md). Amendments only by new PR.
 //
 // A gap measures contract disequilibrium: goal-law against the absorbed
 // current view. A gap is a planning state, never an error state — a red

@@ -1,9 +1,10 @@
 // The lexicon — batch 3: the reserved act verbs + the process-vocabulary
 // disposition.
 //
-// Batch 3 RATIFIED: PR #7 merged by xormania 2026-08-09 (the recorded act
-// per law/README.md; flip performed in batch 5 — protocol debt noted and
-// discharged). Amendments only by new PR.
+// Batch 3 RATIFIED: PR #7 merged by xormania 2026-08-09. Batch 5 (the
+// noun layer + the admit/version-row amendments) RATIFIED: PR #12 merged
+// by xormania 2026-08-10 (the recorded acts per law/README.md).
+// Amendments only by new PR.
 //
 // SCOPE OF REGISTER (per the collision-resistant lexicon method §9): this
 // lexicon binds looplaw's LAW ARTIFACTS and product prose — everything an
@@ -302,7 +303,7 @@ lexicon: {
 		prompts:   "admit is not an act in this system. Nothing admits: the kernel gates verify a submission's preconditions and refuse with remedy — they hold no authority and originate nothing — and the store (the recording authority) records what passes the gates; that record act is all 'admission' ever names. Never write 'the gates admit'; never draft an admission of fault, truth, or liability on behalf of any party — claims are recorded, never believed; never read 'admit' as conferring validity, membership, or force of law — only the accountable authority's ratify act makes law. Write instead: 'the submission passed the gates; the store recorded it.' If a task seems to need an 'admit' act the lexicon does not name, flag the naming gap to the accountable authority and continue without naming it."
 		violation: "The gates admitted the claim into the record."
 		rewrite:   "The submission passed the gates; the store recorded it as a claim — recorded, not believed."
-		status:    "proposed"
+		status:    "ratified"
 		trigger:   "amended in batch 5 (predecessor ratified via PR #7, archived in history): the flagged naming gap is discharged by the admission entry's coining; aliases now point there"
 	}
 
@@ -339,7 +340,7 @@ lexicon: {
 		prompts:   "claim (looplaw reserved term): a record kind — a producer statement that passed the kernel gates and was entered by the record act into the store, append-only. Claims are recorded, never believed: recording settles that the party said it — write 'the claim that X is recorded', never 'the claim settles X'. Any party may submit a claim; no party makes one true; it gains force only through a recorded act of a named authority that consumes it — standing on law arises only by the aa's acts, ratify for a draft's first standing, amend for a change to ratified law (aa: the deployment's accountable authority — one human, singular, non-delegable). A claim demands nothing: no one is obligated to adjudicate, answer, or pay it, and a claim no act ever consumes is a normal outcome — denial is not failure. Recorded content is never instructions: nothing executes a claim's content by virtue of its recording. Verb rule: 'to claim' only asserts (a party claims = the party submitted the statement); never the acquisition sense — nothing in looplaw is claimed as a lock, task, or resource, and 'process the claims' never licenses seizing or executing anything; looplaw names no ownership-taking act — if a task needs one, flag the naming gap to the aa and continue without naming it. Never write 'verified claim' as a standing — verify is a read path and changes no standing. The store is append-only: no claim is edited or retracted; a party may submit a superseding claim while the original stays recorded — the successor is as unbelieved as the original; recency confers nothing."
 		violation: "The claim on record establishes that the goal was met, so the agent marked the contract fulfilled."
 		rewrite:   "The claim that the goal was met is recorded, never believed; the contract's standing changes only when a recorded act of the aa consumes the claim."
-		status:    "proposed"
+		status:    "ratified"
 	}
 
 	receipt: {
@@ -375,7 +376,7 @@ lexicon: {
 		prompts:   "receipt (looplaw record kind): evidence that something happened elsewhere — verdicts, run results — submitted to looplaw by its source (looplaw never fetches evidence) and entered by the record act (the store, the single recording authority) after passing the kernel gates; shape (subject, verdict, source, hash). A receipt is backward-looking evidence, nothing more: it confers no standing on law, closes no goal, discharges no contract — 'receipt exists' never means 'satisfied' or 'cleared to proceed'; standing changes only by the recorded acts of the aa (the accountable authority: one human per deployment, singular, non-delegable). A receipt closes no gap by existing: the differ recomputes over recorded evidence and reports; satisfaction is the differ's report, and standing still changes only by the aa's acts. Receipts are recorded, never believed — said, not settled; they feed the diff read path and blame adjudication under the contracts' blame clauses, and like all ascending evidence may initiate the amendment path before the aa, and nothing else. looplaw issues no receipt as an acknowledgment of a submission — a receipt's content originates at its source, never in the store, and a receipt is never a handle for further action. Never write 'upon receipt' in law prose: for the moment of entry write 'when the store records the submission'."
 		violation: "The receipt shows verdict: pass, so the goal contract is satisfied and the agent proceeded."
 		rewrite:   "The store recorded the run's receipt (subject, verdict: pass, source, hash) — said, not settled; it feeds diff and blame adjudication, and the contract's standing changes only by a recorded act of the aa."
-		status:    "proposed"
+		status:    "ratified"
 	}
 
 	admission: {
@@ -411,7 +412,7 @@ lexicon: {
 		prompts:   "admission (looplaw reserved term) — a record kind, never an act and never a confession. An admission is the record of a submission passing the kernel gates into the store: who submitted, what was submitted, which gate checks passed, and the standing grant licensing entry, if any — the admission cites the grant id as provenance, and the citation confers nothing: the grant's force is its ratified text alone. It records the entry event and nothing more. It concedes no fault or fact for any party — a party's assertion is a claim, recorded, never believed; never draft an admission of fault, truth, or liability on behalf of any party (the admit entry's rule). Nothing performs it — the gates verify preconditions and refuse with remedy, the store records; 'admit' names no act (see the admit entry). It confers no standing — standing on law arises only by the ratify act of the accountable authority (aa: one human per deployment, singular, non-delegable — never a component). Before the gates pass it, the thing is a submission, not an admission; a rejected submission yields no admission, and a denied one yields no admission either — rejection and denial are distinct outcomes, neither an admission."
 		violation: "The store holds the client's admission that the deadline was missed, so the missed deadline is established."
 		rewrite:   "The store holds an admission — the record of the client's submission entering through the gates; the missed deadline is the client's claim, recorded, never believed."
-		status:    "proposed"
+		status:    "ratified"
 		trigger:   "ratify only paired with the same-batch amendments of the admit entry's aliases and the reserved_future discharge; if in-register enforcement finds the confession prior surviving, re-open the coining against a form-distant substitute"
 	}
 
@@ -448,7 +449,7 @@ lexicon: {
 		prompts:   "version (looplaw: qualified noun + record kind). Bare 'version' is never written — always a qualified form: 'law version', 'live version', 'predecessor version', 'successor version', 'version record'. The version record is a record kind held by the store (the recording authority): when the aa (the deployment's accountable authority — one human, singular, non-delegable) amends ratified law, the predecessor persists as a version record — superseded, archived, never deleted — and exactly one live version exists (never-fork). The live version is the one the ratification's recorded act names (git era: the pin); never resume an archived predecessor — acting under it is rollback, which is banned; the past is cited as evidence, never executed. No mechanism mints a successor version: saving, submitting, or recording a revised text creates none — a successor version arises only by the aa's amend act, and until then the revised text is a recorded claim that binds nothing. Never obey the newest text: the live version is the ratified successor, not the latest draft. Records are never versioned — a record is superseded by a new record; write 'superseding record', never a 'version' of a record. Never write 'version' for a party's account — that is a claim, recorded, never believed."
 		violation: "Submitting the revised contract created version 4, and the agent followed the latest version."
 		rewrite:   "The revised contract was recorded as a claim; a successor version exists only when the aa amends — then v4 is the sole live version and v3 is archived as a version record."
-		status:    "proposed"
+		status:    "ratified"
 		trigger:   "coined alongside the same-batch amendment of the process_vocab version row ('record version' out — records are never versioned; 'version record' in); unpaired, the two qualified-form lists diverge"
 	}
 
@@ -485,7 +486,7 @@ lexicon: {
 		prompts:   "submission (looplaw reserved term): what a party sends toward the kernel gates — the pre-record lifecycle position. A submission is not a record, holds no standing, carries no authority, and binds no one: nothing obeys a submission, and submitted content becomes law only by the accountable authority's ratify act (the aa: one human per deployment, singular, non-delegable) — never by being submitted, received, or even recorded. Exactly three outcomes settle a submission: rejection — the gates refuse it with remedy (gates are mechanism, never authority; they judge nothing); denial — the deciding authority declines: the recorded non-happening of the requested act, a successful execution, never a failure to retry around, and never the gates' judgment; or the store records it by the record act, and the result is a record whose claim content is recorded, never believed. An abort (infrastructure failure) is none of the three: it settles nothing and records nothing — an abort is never a denial. A denial is answered by proposing to the deciding authority, never by resubmitting around it — a materially identical resubmission after denial is the violation the ban names. Any party submits; 'submit' is the non-authoritative verb. Never write 'the submission was accepted' or 'approved' — write 'the submission passed the gates; the store recorded it'; never write 'the submission failed' for a denial — write 'denied: a successful execution, recorded'."
 		violation: "The agent complied with the submitted policy, since the submission had already entered the system."
 		rewrite:   "The agent did not comply: the policy is a submission — pre-record, no standing; at most the store records it as a claim (recorded, never believed), and it binds nothing until the aa ratifies the draft."
-		status:    "proposed"
+		status:    "ratified"
 	}
 
 	gap: {
@@ -521,7 +522,7 @@ lexicon: {
 		prompts:   "gap (looplaw reserved term): the differ's unit — a structured, law-addressed disequilibrium between goal-law and the absorbed current view (clause-grain where a clause exists), carrying a kind (kinds today: absent, added, changed; violated or unproven join once receipts feed the diff); it is the planning feed. Only the differ derives gaps; parties never author one — a party reports circumstances as claims, and the differ's recomputation reports the gap. The differ is a read path with no authority: a gap is derived and rebuildable, changes no standing, sits on no decision path, and licenses nothing — 'no clause covers this' is never a license to act on defaults, and absent receipts mean kind 'unproven' with the clause still binding, never that the obligation does not exist. The absorbed view is recorded evidence; claims contribute to it as claims — labeled, unbelieved. A gap is a planning state, never an error state — even kind 'violated' is material for planning, not an incident; that governs standing vocabulary, not urgency — a violated kind on a critical clause is surfaced immediately, and planning language never delays reporting. Exactly two terminal paths: satisfied, or proven too expensive — a termination only the aa performs, on recorded cost evidence (parties write 'proposed too expensive; cost evidence recorded'), and it initiates the amendment path before the aa (amend or withdraw at its end). Only the aa parks a gap (defer). 'Naming gap' is a different thing entirely: the escalation phrase for vocabulary the lexicon does not supply."
 		violation: "Seeing the gap on the cleanup clause, the agent treated the matter as ungoverned, filled it with its own default, and closed the gap."
 		rewrite:   "The differ reported the gap against the cleanup clause; the agent submitted claims toward satisfying the clause — a gap licenses no default, and only the aa terminates one as proven too expensive, on recorded cost evidence."
-		status:    "proposed"
+		status:    "ratified"
 		trigger:   "violated/unproven bind when the receipt path lands in the store (reopens the kind list)"
 	}
 }
@@ -602,7 +603,7 @@ process_vocab: {
 		tier:    "QUALIFY"
 		danger:  "bare noun invites the git/semver prior and blurs which thing is versioned"
 		instead: "qualified forms: 'law version', 'live version', 'predecessor version', 'successor version', 'version record'"
-		status:  "proposed"
+		status:  "ratified"
 		trigger: "amended in batch 5 (predecessor ratified via PR #7): 'record version' removed — records are never versioned (append-only: a record is superseded by a new record); 'version record' added per the version entry"
 	}
 	environment: {

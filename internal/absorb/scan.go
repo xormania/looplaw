@@ -1,7 +1,7 @@
 // Package absorb is client-layer work: it reads a scope handed to it
 // and computes provenance — the content-hash baseline that makes
 // staleness deterministic. Derivation itself (what law a scope implies)
-// is inference and lives with the agent driving this tool, never here:
+// is inference and lives with the caller driving this tool, never here:
 // the binary computes what is mechanical and hands the rest out.
 //
 // The lane matters. This package reads files because the client may
@@ -115,7 +115,7 @@ func ScanScope(root, scopeName string) (Manifest, error) {
 // manifest, the statement regions left empty for authoring. It is
 // deliberately not a valid set — the gates refuse a set that binds
 // nothing — because the authoring is inference and belongs to the
-// agent, not the binary. The refusals are the worklist.
+// caller, not the binary. The refusals are the worklist.
 //
 // Values are quoted through CUE's own literal quoter: Go's %q emits
 // \x escapes that CUE cannot parse, so a control byte in a path would

@@ -28,7 +28,7 @@ func TestStalenessReportGolden(t *testing.T) {
 	golden.Assert(t, "testdata/golden/staleness-report.json", string(out)+"\n")
 }
 
-// The skeleton is what an authoring agent receives; its shape is the
+// The skeleton is what the authoring caller receives; its shape is the
 // hand-off contract.
 func TestSkeletonGolden(t *testing.T) {
 	m, err := ScanScope(scope, "scope")

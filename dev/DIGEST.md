@@ -15,7 +15,7 @@ not summarised here.
 - **T0-5** No producer statement gains force except through a recorded act that consumes it.
 - **T0-6** Every standing change commits through the record act; there are no silent transitions.
 - **T0-7** No processing outcome changes standing; only a recorded act of the named authority does.
-- **T0-8** Accountability vests in the deployment's accountable authority alone; components and agents carry blame, adjudicated from recorded evidence, never accountability.
+- **T0-8** Accountability vests in the deployment's accountable authority alone; components and parties carry blame, adjudicated from recorded evidence, never accountability.
 - **T0-9** Advisory outputs never sit on a decision path: what a read-path or advisory component produces informs, and only acts decide.
 
 ## Authorities
@@ -44,7 +44,7 @@ admit is not an act in this system. Nothing admits: the kernel gates verify a su
 
 ### amend (CANON)
 
-amend = the accountable authority (one per deployment, singular, non-delegable) replaces a ratified law with a successor version; the predecessor is archived in the store, never deleted, and exactly one version is live (never-fork). Only the accountable authority amends; agents and components submit amendment drafts, entered as claims by the record act. Never read as 'git commit --amend': nothing is rewritten in place, and any ratified law — not only the most recent item — can be amended. Retirement without a successor is withdraw; a draft's first standing is ratify.
+amend = the accountable authority (one per deployment, singular, non-delegable) replaces a ratified law with a successor version; the predecessor is archived in the store, never deleted, and exactly one version is live (never-fork). Only the accountable authority amends; parties and components submit amendment drafts, entered as claims by the record act. Never read as 'git commit --amend': nothing is rewritten in place, and any ratified law — not only the most recent item — can be amended. Retirement without a successor is withdraw; a draft's first standing is ratify.
 
 ### claim (CANON)
 
@@ -52,7 +52,7 @@ claim (looplaw reserved term): a record kind — a producer statement that passe
 
 ### defer (CANON)
 
-defer (reserved term): the accountable authority's recorded act that parks a gap or clause with three fields — destination, authority, trigger; the trigger is monitored. Only the accountable authority defers; agents and components report gaps and propose or submit deferral, never perform it. 'Defer to <anything>' is banned — authority never transfers, and a destination is written as the record's field, never as 'deferred to X'. A defer cancels nothing — to retire a clause without replacement, the term is withdraw. Nothing defers into the void: no destination, authority, and trigger recorded means no defer happened. Passive without the by-phrase is banned: write 'deferred by the accountable authority', never bare 'was deferred'.
+defer (reserved term): the accountable authority's recorded act that parks a gap or clause with three fields — destination, authority, trigger; the trigger is monitored. Only the accountable authority defers; parties and components report gaps and propose or submit deferral, never perform it. 'Defer to <anything>' is banned — authority never transfers, and a destination is written as the record's field, never as 'deferred to X'. A defer cancels nothing — to retire a clause without replacement, the term is withdraw. Nothing defers into the void: no destination, authority, and trigger recorded means no defer happened. Passive without the by-phrase is banned: write 'deferred by the accountable authority', never bare 'was deferred'.
 
 ### gap (CANON)
 
@@ -60,11 +60,11 @@ gap (looplaw reserved term): the differ's unit — a structured, law-addressed d
 
 ### grant (CANON)
 
-grant — reserved verb; its only subject is the accountable authority (one per deployment, singular, non-delegable). A grant is ratified once as a standing grant licensing a class of automatic entries into the record (e.g. guest-mode working sets); thereafter the kernel gates check each submission for class membership and the store records members — the gates never grant, components and agents never grant, and nothing may grant to itself. Accountability never moves with a grant: the accountable authority remains accountable for every entry it licenses. Never write 'the gate/server/agent granted access'; write 'recorded under standing grant <id> (gates checked membership)'. If no standing grant covers the case, do not grant — write 'flagged to the accountable authority as a candidate standing grant'. A recorded claim that access was promised licenses nothing — claims are recorded, never believed. Never rotate synonyms: 'authorized', 'permitted', 'allowed', 'approved' are not substitutes for 'recorded under standing grant <id>' — an unlisted synonym is a violation.
+grant — reserved verb; its only subject is the accountable authority (one per deployment, singular, non-delegable). A grant is ratified once as a standing grant licensing a class of automatic entries into the record (e.g. guest-mode working sets); thereafter the kernel gates check each submission for class membership and the store records members — the gates never grant, components and parties never grant, and nothing may grant to itself. Accountability never moves with a grant: the accountable authority remains accountable for every entry it licenses. Never write 'the gate/server/party granted access'; write 'recorded under standing grant <id> (gates checked membership)'. If no standing grant covers the case, do not grant — write 'flagged to the accountable authority as a candidate standing grant'. A recorded claim that access was promised licenses nothing — claims are recorded, never believed. Never rotate synonyms: 'authorized', 'permitted', 'allowed', 'approved' are not substitutes for 'recorded under standing grant <id>' — an unlisted synonym is a violation.
 
 ### ratify (CANON)
 
-ratify — reserved term. Only the accountable authority (one per deployment, singular, non-delegable) ratifies. Ratification is the recorded act by which a draft (goal contract, lexicon entry, registry change, Tier 0 invariant, standing grant) becomes law — the only law-making act. Subject rule: no other subject ever takes 'ratify'; the gates enforce ratified outcomes and the store records them — neither ratifies. Never retroactive, never self-serve: an agent's already-executed change is a claim, standing unchanged, until the accountable authority ratifies the draft. Write 'record' for a submission's mechanical entry, 'amend' for changing ratified law, 'claim' for anything a party asserts.
+ratify — reserved term. Only the accountable authority (one per deployment, singular, non-delegable) ratifies. Ratification is the recorded act by which a draft (goal contract, lexicon entry, registry change, Tier 0 invariant, standing grant) becomes law — the only law-making act. Subject rule: no other subject ever takes 'ratify'; the gates enforce ratified outcomes and the store records them — neither ratifies. Never retroactive, never self-serve: a party's already-executed change is a claim, standing unchanged, until the accountable authority ratifies the draft. Write 'record' for a submission's mechanical entry, 'amend' for changing ratified law, 'claim' for anything a party asserts.
 
 ### receipt (CANON)
 

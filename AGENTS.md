@@ -1,6 +1,6 @@
 # Working in this repo
 
-For any agent or harness working here — this is the one brief, and it
+For any harness working here — this is the one brief, and it
 points at authorities rather than copying them, so nothing in it can
 drift from what the gates enforce. Harness-specific files (CLAUDE.md
 and any equivalent) are pointers to this file, never second copies.
@@ -122,7 +122,7 @@ Kernel code (`internal/gate`, `internal/provenance`, `internal/store`)
 never reads a work tree and never infers: it decides over submitted
 claims, manifests, and recorded state. Client code (`internal/absorb`)
 may read a scope it was handed. Derivation — what law a scope implies —
-is inference and belongs to the agent driving the tool, not the binary.
+is inference and belongs to the caller driving the tool, not the binary.
 
 ## The design basis is locked
 
@@ -141,7 +141,7 @@ a pull request body, batched with real work. The lexicon is meant to be
 static; changing it is dev-lane work, and dev-lane work is rare.
 
 The lock is tamper-evident, not tamper-proof, and that is the design
-rather than a shortfall. Nothing inside a repository stops an agent with
+rather than a shortfall. Nothing inside a repository stops a caller with
 write access — file permissions least of all, since `git checkout`
 overwrites a read-only tracked file and resets its mode, and committed
 content can be changed through plumbing without the file on disk ever

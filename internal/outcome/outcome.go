@@ -11,7 +11,7 @@
 //
 // A refusal names what was refused, which check refused it, why, and the
 // remedy. Refusals are protocol, not UX: they are fed back to authoring
-// agents for retry, so the remedy is part of the contract.
+// callers for retry, so the remedy is part of the contract.
 //
 // Design basis: proj/looplaw-spec.md (failure taxonomy, refusals-as-
 // protocol) and the contract method's shared doctrine.
@@ -53,7 +53,7 @@ func (c Class) String() string {
 }
 
 // Process exit codes. Distinct on purpose: a denial is not a rejection and
-// neither is an abort; scripts and agents branch on the class without
+// neither is an abort; scripts and callers branch on the class without
 // parsing text. Values are pre-1.0 and may be renumbered until a consumer
 // contract pins them.
 const (

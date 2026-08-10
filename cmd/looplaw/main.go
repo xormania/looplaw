@@ -72,7 +72,7 @@ func main() {
 		}
 		// The skeleton carries machine-computed provenance and empty
 		// statement regions: authoring them is inference, and it belongs
-		// to the agent driving this tool, never to the binary.
+		// to the caller driving this tool, never to the binary.
 		fmt.Print(absorb.Skeleton(os.Args[3], m))
 		os.Exit(outcome.ExitOK)
 	case "status":

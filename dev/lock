@@ -4,7 +4,7 @@
 #
 # This is tamper-evident, not tamper-proof, and the difference is
 # deliberate rather than a shortfall. Nothing inside a repository stops
-# an agent with write access: it can edit any check, and file permissions
+# a caller with write access: it can edit any check, and file permissions
 # do not help — git checkout overwrites a read-only tracked file and
 # resets its mode, and committed content can be changed through git
 # plumbing without the working-tree file ever being written. So the aim

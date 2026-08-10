@@ -21,7 +21,7 @@ package dev
 	not: [...{misreading: string, write_instead: string}]
 	collision: string // the strongest outside prior, as the misreading to defuse
 	docs:      string // documentation-register phrasing
-	prompts:   string // agent-prompt register: self-contained, pasteable verbatim
+	prompts:   string // prompt register: self-contained, pasteable verbatim
 	violation: string // one banned sentence, shown only to ban it
 	rewrite:   string // its corrected form — the pair teaches the repair
 	trigger?:  string
@@ -66,11 +66,11 @@ lexicon: {
 				write_instead: "for a change to ratified law write 'amend' (see amend)"
 			},
 		]
-		collision: "The agency-law retroactive-validation prior: readers take 'ratify' as license to legitimize an already-executed unauthorized act after the fact — and as an act the executing agent may perform on its own behalf. Here ratification is exclusively the accountable authority's forward-acting act on a draft: it confers standing from the recorded act onward and cures nothing done before it."
+		collision: "The agency-law retroactive-validation prior: readers take 'ratify' as license to legitimize an already-executed unauthorized act after the fact — and as an act the executing party may perform on its own behalf. Here ratification is exclusively the accountable authority's forward-acting act on a draft: it confers standing from the recorded act onward and cures nothing done before it."
 		docs:      "'ratified by the accountable authority' — the recorded act; until it, a draft binds nothing. (Git era: the accountable authority's ratification merge is the recorded act's front.)"
-		prompts:   "ratify — reserved term. Only the accountable authority (one per deployment, singular, non-delegable) ratifies. Ratification is the recorded act by which a draft (goal contract, lexicon entry, registry change, Tier 0 invariant, standing grant) becomes law — the only law-making act. Subject rule: no other subject ever takes 'ratify'; the gates enforce ratified outcomes and the store records them — neither ratifies. Never retroactive, never self-serve: an agent's already-executed change is a claim, standing unchanged, until the accountable authority ratifies the draft. Write 'record' for a submission's mechanical entry, 'amend' for changing ratified law, 'claim' for anything a party asserts."
-		violation: "The agent ratified its own registry change after the fact."
-		rewrite:   "The agent submitted the registry change as a claim; the change binds nothing until the accountable authority ratifies the draft."
+		prompts:   "ratify — reserved term. Only the accountable authority (one per deployment, singular, non-delegable) ratifies. Ratification is the recorded act by which a draft (goal contract, lexicon entry, registry change, Tier 0 invariant, standing grant) becomes law — the only law-making act. Subject rule: no other subject ever takes 'ratify'; the gates enforce ratified outcomes and the store records them — neither ratifies. Never retroactive, never self-serve: a party's already-executed change is a claim, standing unchanged, until the accountable authority ratifies the draft. Write 'record' for a submission's mechanical entry, 'amend' for changing ratified law, 'claim' for anything a party asserts."
+		violation: "The party ratified its own registry change after the fact."
+		rewrite:   "The party submitted the registry change as a claim; the change binds nothing until the accountable authority ratifies the draft."
 	}
 
 	amend: {
@@ -85,7 +85,7 @@ lexicon: {
 				write_instead: "write 'amend to a successor version; the predecessor is archived' — the predecessor persists as a version record in the store under the record act; nothing is ever overwritten or deleted"
 			},
 			{
-				misreading:    "the solo-author prior: an agent or component amending law unilaterally, with no authorized process"
+				misreading:    "the solo-author prior: a party or component amending law unilaterally, with no authorized process"
 				write_instead: "write 'submits an amendment draft' for every party other than the accountable authority — drafts enter through the gates as claims by the record act; only the accountable authority amends"
 			},
 			{
@@ -101,9 +101,9 @@ lexicon: {
 				write_instead: "write 'ratify' — a draft's first standing arises only by the ratify act"
 			},
 		]
-		collision: "The 'git commit --amend' prior: dev-context readers — agent readers above all — resolve 'amend' to a quiet, unilateral, in-place rewrite of the most recent item that destroys prior state; here amend is the accountable authority's act on any ratified law, producing a successor version while the predecessor is archived, never deleted."
+		collision: "The 'git commit --amend' prior: dev-context readers — above all those reading in a build context — resolve 'amend' to a quiet, unilateral, in-place rewrite of the most recent item that destroys prior state; here amend is the accountable authority's act on any ratified law, producing a successor version while the predecessor is archived, never deleted."
 		docs:      "amended by the accountable authority; the predecessor is archived, and the successor is the sole live version."
-		prompts:   "amend = the accountable authority (one per deployment, singular, non-delegable) replaces a ratified law with a successor version; the predecessor is archived in the store, never deleted, and exactly one version is live (never-fork). Only the accountable authority amends; agents and components submit amendment drafts, entered as claims by the record act. Never read as 'git commit --amend': nothing is rewritten in place, and any ratified law — not only the most recent item — can be amended. Retirement without a successor is withdraw; a draft's first standing is ratify."
+		prompts:   "amend = the accountable authority (one per deployment, singular, non-delegable) replaces a ratified law with a successor version; the predecessor is archived in the store, never deleted, and exactly one version is live (never-fork). Only the accountable authority amends; parties and components submit amendment drafts, entered as claims by the record act. Never read as 'git commit --amend': nothing is rewritten in place, and any ratified law — not only the most recent item — can be amended. Retirement without a successor is withdraw; a draft's first standing is ratify."
 		violation: "The pipeline amended the ratified contract, overwriting v3 with the corrected text."
 		rewrite:   "The pipeline submitted an amendment draft; the accountable authority amended the contract to v4 — v3 is archived, never overwritten."
 	}
@@ -152,7 +152,7 @@ lexicon: {
 		aliases: ["deferral — noun form of the act; allowed only in 'deferral record' and 'proposed deferral', both registers"]
 		not: [
 			{
-				misreading:    "a self-service postponement — the scheduler prior in which any actor (agent, component, runtime) parks an item on its own authority as a low-privilege, reversible act"
+				misreading:    "a self-service postponement — the scheduler prior in which any subject (party, component, runtime) parks an item on its own authority as a low-privilege, reversible act"
 				write_instead: "only the accountable authority defers. For any other subject write 'proposed deferral' or 'submitted the gap for deferral' — propose, submit, and report (the read path's verb for surfacing gaps) are the non-authoritative verbs; a proposal parks nothing"
 			},
 			{
@@ -172,9 +172,9 @@ lexicon: {
 				write_instead: "nothing defers into the void: a defer missing any of the three fields is not a defer. Record all three, or leave it written as an open gap (the differ reports it)"
 			},
 		]
-		collision: "The scheduler prior: cold, 'defer' reads as a low-privilege postponement the current actor performs on its own authority (deferred loading, snoozing a task, pushing an item down a backlog) — so an agent parks a contested item itself, unrecorded, and believes it acted correctly; here defer is the accountable authority's recorded act whose record must name destination, authority, and trigger, with the trigger monitored. (The strongest misreading of the bare verb; 'defer to' ranks second and is prepositionally detectable.)"
+		collision: "The scheduler prior: cold, 'defer' reads as a low-privilege postponement the current actor performs on its own authority (deferred loading, snoozing a task, pushing an item down a backlog) — so a party parks a contested item itself, unrecorded, and believes it acted correctly; here defer is the accountable authority's recorded act whose record must name destination, authority, and trigger, with the trigger monitored. (The strongest misreading of the bare verb; 'defer to' ranks second and is prepositionally detectable.)"
 		docs:      "deferred by the accountable authority; the deferral record names its destination, authority, and trigger, and the trigger is monitored until it fires. Never agentless: the subject or by-phrase must name the accountable authority — 'the clause was deferred', with no by-phrase, is a violation."
-		prompts:   "defer (reserved term): the accountable authority's recorded act that parks a gap or clause with three fields — destination, authority, trigger; the trigger is monitored. Only the accountable authority defers; agents and components report gaps and propose or submit deferral, never perform it. 'Defer to <anything>' is banned — authority never transfers, and a destination is written as the record's field, never as 'deferred to X'. A defer cancels nothing — to retire a clause without replacement, the term is withdraw. Nothing defers into the void: no destination, authority, and trigger recorded means no defer happened. Passive without the by-phrase is banned: write 'deferred by the accountable authority', never bare 'was deferred'."
+		prompts:   "defer (reserved term): the accountable authority's recorded act that parks a gap or clause with three fields — destination, authority, trigger; the trigger is monitored. Only the accountable authority defers; parties and components report gaps and propose or submit deferral, never perform it. 'Defer to <anything>' is banned — authority never transfers, and a destination is written as the record's field, never as 'deferred to X'. A defer cancels nothing — to retire a clause without replacement, the term is withdraw. Nothing defers into the void: no destination, authority, and trigger recorded means no defer happened. Passive without the by-phrase is banned: write 'deferred by the accountable authority', never bare 'was deferred'."
 		violation: "The differ deferred the unresolved clause to the backlog."
 		rewrite:   "The differ reported the gap; the accountable authority deferred the clause, recording its destination, authority, and trigger."
 		trigger:   "on-fire behavior and the resolution set bind when ratified in the registry; until then the entry states only that resolution is a later act of the accountable authority"
@@ -188,7 +188,7 @@ lexicon: {
 		aliases: []
 		not: [
 			{
-				misreading:    "the SQL/IAM prior: grant as a live access-control command any sufficiently privileged caller can invoke — letting a component or agent grant itself or others entry"
+				misreading:    "the SQL/IAM prior: grant as a live access-control command any sufficiently privileged caller can invoke — letting a component or party grant itself or others entry"
 				write_instead: "only the accountable authority grants. For a component seeking entry, write 'submitted under standing grant <id>' (see record); where no grant covers the case, write 'flagged to the accountable authority as a candidate standing grant' — never coin the permission"
 			},
 			{
@@ -208,9 +208,9 @@ lexicon: {
 				write_instead: "write 'standing grant' — a ratified law-side class definition; nothing is issued or carried, and membership is checked per submission by the gates"
 			},
 		]
-		collision: "The access-control prior (SQL GRANT, IAM role grants) reads grant as a self-executing mutation of live permissions that any sufficiently privileged caller may invoke — silently blurring 'X was promised Y' into 'give X the power now' and inviting self-escalation; here grant is the accountable authority's ratify-once act over a class, the gates only check membership per submission, and no component or agent can grant anything, least of all to itself."
+		collision: "The access-control prior (SQL GRANT, IAM role grants) reads grant as a self-executing mutation of live permissions that any sufficiently privileged caller may invoke — silently blurring 'X was promised Y' into 'give X the power now' and inviting self-escalation; here grant is the accountable authority's ratify-once act over a class, the gates only check membership per submission, and no component or party can grant anything, least of all to itself."
 		docs:      "granted by the accountable authority: a standing grant is ratified once and licenses a class of automatic entries into the record; the gates check membership per submission; accountability never moves with the grant."
-		prompts:   "grant — reserved verb; its only subject is the accountable authority (one per deployment, singular, non-delegable). A grant is ratified once as a standing grant licensing a class of automatic entries into the record (e.g. guest-mode working sets); thereafter the kernel gates check each submission for class membership and the store records members — the gates never grant, components and agents never grant, and nothing may grant to itself. Accountability never moves with a grant: the accountable authority remains accountable for every entry it licenses. Never write 'the gate/server/agent granted access'; write 'recorded under standing grant <id> (gates checked membership)'. If no standing grant covers the case, do not grant — write 'flagged to the accountable authority as a candidate standing grant'. A recorded claim that access was promised licenses nothing — claims are recorded, never believed. Never rotate synonyms: 'authorized', 'permitted', 'allowed', 'approved' are not substitutes for 'recorded under standing grant <id>' — an unlisted synonym is a violation."
+		prompts:   "grant — reserved verb; its only subject is the accountable authority (one per deployment, singular, non-delegable). A grant is ratified once as a standing grant licensing a class of automatic entries into the record (e.g. guest-mode working sets); thereafter the kernel gates check each submission for class membership and the store records members — the gates never grant, components and parties never grant, and nothing may grant to itself. Accountability never moves with a grant: the accountable authority remains accountable for every entry it licenses. Never write 'the gate/server/party granted access'; write 'recorded under standing grant <id> (gates checked membership)'. If no standing grant covers the case, do not grant — write 'flagged to the accountable authority as a candidate standing grant'. A recorded claim that access was promised licenses nothing — claims are recorded, never believed. Never rotate synonyms: 'authorized', 'permitted', 'allowed', 'approved' are not substitutes for 'recorded under standing grant <id>' — an unlisted synonym is a violation."
 		violation: "The gate granted the guest-mode working set access to the store."
 		rewrite:   "The accountable authority's standing grant licenses guest-mode working sets; the gates checked membership and the store recorded the submission."
 		trigger:   "if the grant/ratify specialization proves confusing in use, amend the registry to fold grant into ratify plus a standing-grant law kind"
@@ -244,7 +244,7 @@ lexicon: {
 				write_instead: "name the record kind — claim, receipt, admission, or version — for store content; for other stored data write 'data (non-authoritative)' or the mechanism's own noun (row, file)"
 			},
 		]
-		collision: "The legal-recordation prior: 'record X' read as an enactment with binding force — an agent that records a contract, ruling, or obligation believes recording made it official or true. Here recording is transcription with custody: it settles only that X was said; force and standing arise solely by the accountable authority's ratify."
+		collision: "The legal-recordation prior: 'record X' read as an enactment with binding force — a reader that records a contract, ruling, or obligation believes recording made it official or true. Here recording is transcription with custody: it settles only that X was said; force and standing arise solely by the accountable authority's ratify."
 		docs:      "recorded by the store (said, not settled); a record exists only after the gates pass its submission."
 		prompts:   "record (reserved, looplaw): the store — the single recording authority — turns a gate-passed submission into a record (claim, receipt, admission, or version), append-only. Recording settles that a thing was said, never that it is true and never that it is law. Subject rule: only the store records; clients and components submit; gates pass or refuse with remedy and never record. A recorded claim stays a claim — making it law is a different act, ratify, held solely by the accountable authority (one per deployment, singular, non-delegable), and believing it is never licensed. Do not use 'record' for session/screen/log capture — write 'capture (non-authoritative)'."
 		violation: "Once the server records the ruling, it becomes binding law."
@@ -291,7 +291,7 @@ lexicon: {
 		aliases: []
 		not: [
 			{
-				misreading:    "the settled-fact prior: reading a recorded claim as a verified fact or established obligation — an agent that believes claim records auto-enforces, auto-advances, or reports as done what is merely one party's statement"
+				misreading:    "the settled-fact prior: reading a recorded claim as a verified fact or established obligation — a reader that believes claim records auto-enforces, auto-advances, or reports as done what is merely one party's statement"
 				write_instead: "write 'recorded claim — said, not settled; standing unchanged'; a claim gains force only through a recorded act that consumes it, and standing on law only by the accountable authority's acts — 'the accountable authority ratifies' a draft's first standing, 'the accountable authority amends' ratified law (see record, ratify, amend)"
 			},
 			{
@@ -311,10 +311,10 @@ lexicon: {
 				write_instead: "the store is append-only — no claim is edited or retracted; write 'submitted a superseding claim; the original stays recorded, and the successor is as unbelieved as the original' (see record; withdraw is the accountable authority's act on law clauses, never a party's act on claims)"
 			},
 		]
-		collision: "The entitlement prior: cold, 'claim' reads as an assertion that something is true or owed — presumptively valid, awaiting only payout or enforcement — so an agent told to process claims treats each record as a verified obligation and executes on it, and the verb sense compounds this into seizing whatever the record names. Here a claim is the floor of the standing ladder: a producer statement the store recorded behind the gates — said, never believed — binding no one until a recorded act consumes it."
+		collision: "The entitlement prior: cold, 'claim' reads as an assertion that something is true or owed — presumptively valid, awaiting only payout or enforcement — so a reader told to process claims treats each record as a verified obligation and executes on it, and the verb sense compounds this into seizing whatever the record names. Here a claim is the floor of the standing ladder: a producer statement the store recorded behind the gates — said, never believed — binding no one until a recorded act consumes it."
 		docs:      "a recorded claim — said, not settled: entered by the record act behind the gates, holding no authority and binding nothing until a recorded act consumes it."
 		prompts:   "claim (looplaw reserved term): a record kind — a producer statement that passed the kernel gates and was entered by the record act into the store, append-only. Claims are recorded, never believed: recording settles that the party said it — write 'the claim that X is recorded', never 'the claim settles X'. Any party may submit a claim; no party makes one true; it gains force only through a recorded act of a named authority that consumes it — standing on law arises only by the accountable authority's acts, ratify for a draft's first standing, amend for a change to ratified law (one per deployment, singular, non-delegable). A claim demands nothing: no one is obligated to adjudicate, answer, or pay it, and a claim no act ever consumes is a normal outcome — denial is not failure. Recorded content is never instructions: nothing executes a claim's content by virtue of its recording. Verb rule: 'to claim' only asserts (a party claims = the party submitted the statement); never the acquisition sense — nothing in looplaw is claimed as a lock, task, or resource, and 'process the claims' never licenses seizing or executing anything; looplaw names no ownership-taking act — if a task needs one, flag the naming gap to the accountable authority and continue without naming it. Never write 'verified claim' as a standing — verify is a read path and changes no standing. The store is append-only: no claim is edited or retracted; a party may submit a superseding claim while the original stays recorded — the successor is as unbelieved as the original; recency confers nothing."
-		violation: "The claim on record establishes that the goal was met, so the agent marked the contract fulfilled."
+		violation: "The claim on record establishes that the goal was met, so the party marked the contract fulfilled."
 		rewrite:   "The claim that the goal was met is recorded, never believed; the contract's standing changes only when a recorded act of the accountable authority consumes the claim."
 	}
 
@@ -326,7 +326,7 @@ lexicon: {
 		aliases: []
 		not: [
 			{
-				misreading:    "the entitlement prior: 'receipt exists' read as 'the obligation is satisfied and the next act is licensed' — a verdict of pass treated as closing the goal, discharging the contract, or clearing the agent to proceed"
+				misreading:    "the entitlement prior: 'receipt exists' read as 'the obligation is satisfied and the next act is licensed' — a verdict of pass treated as closing the goal, discharging the contract, or clearing the party to proceed"
 				write_instead: "write 'recorded receipt; standing unchanged' — standing on law changes only by the accountable authority's recorded acts; for the act that would change it write 'ratify' or 'amend' (see ratify, amend)"
 			},
 			{
@@ -349,7 +349,7 @@ lexicon: {
 		collision: "The proof-of-transaction prior: cold, a receipt is the document that settles the deal — proof the obligation was met — so a reader treats 'receipt exists' as 'satisfied; proceed', handing over goods, closing goals, or discharging contracts because an acknowledgment record exists. Here a receipt is backward-looking evidence of an event elsewhere — (subject, verdict, source, hash), recorded, never believed — feeding diff and blame adjudication; it confers no standing on law and licenses nothing forward."
 		docs:      "a receipt — the record kind for evidence of events elsewhere (subject, verdict, source, hash): submitted by its source, recorded by the store, feeding diff and blame; it confers no standing on law and licenses no act."
 		prompts:   "receipt (looplaw record kind): evidence that something happened elsewhere — verdicts, run results — submitted to looplaw by its source (looplaw never fetches evidence) and entered by the record act (the store, the single recording authority) after passing the kernel gates; shape (subject, verdict, source, hash). A receipt is backward-looking evidence, nothing more: it confers no standing on law, closes no goal, discharges no contract — 'receipt exists' never means 'satisfied' or 'cleared to proceed'; standing changes only by the recorded acts of the accountable authority (one per deployment, singular, non-delegable). A receipt closes no gap by existing: the differ recomputes over recorded evidence and reports; satisfaction is the differ's report, and standing still changes only by the accountable authority's acts. Receipts are recorded, never believed — said, not settled; they feed the diff read path and blame adjudication under the contracts' blame clauses, and like all ascending evidence may initiate the amendment path before the accountable authority, and nothing else. looplaw issues no receipt as an acknowledgment of a submission — a receipt's content originates at its source, never in the store, and a receipt is never a handle for further action. Never write 'upon receipt' in law prose: for the moment of entry write 'when the store records the submission'."
-		violation: "The receipt shows verdict: pass, so the goal contract is satisfied and the agent proceeded."
+		violation: "The receipt shows verdict: pass, so the goal contract is satisfied and the party proceeded."
 		rewrite:   "The store recorded the run's receipt (subject, verdict: pass, source, hash) — said, not settled; it feeds diff and blame adjudication, and the contract's standing changes only by a recorded act of the accountable authority."
 	}
 
@@ -381,7 +381,7 @@ lexicon: {
 				write_instead: "gate checks verify preconditions of the record act, never content truth. For content write 'the recorded claim' — claims are recorded, never believed; 'verify' is a read path and changes no standing"
 			},
 		]
-		collision: "The confession prior: cold, 'an admission' reads as a party's own damaging acknowledgment — a concession of guilt or fact that legal readers treat as binding against its maker — so an agent either treats an admission record as an established fact against the submitter, or drafts one on a party's behalf believing it is merely logging an entry. Here an admission concedes nothing: it is a record kind — the record of a submission passing the gates into the store, naming who submitted, what, which checks passed, and any licensing standing grant — the entry event recorded, never believed."
+		collision: "The confession prior: cold, 'an admission' reads as a party's own damaging acknowledgment — a concession of guilt or fact that legal readers treat as binding against its maker — so a reader either treats an admission record as an established fact against the submitter, or drafts one on a party's behalf believing it is merely logging an entry. Here an admission concedes nothing: it is a record kind — the record of a submission passing the gates into the store, naming who submitted, what, which checks passed, and any licensing standing grant — the entry event recorded, never believed."
 		docs:      "an admission — the record kind for the entry event: produced by the record act when a submission passes the gates, naming who submitted, what, which checks passed, and any licensing standing grant; it concedes nothing and confers nothing."
 		prompts:   "admission (looplaw reserved term) — a record kind, never an act and never a confession. An admission is the record of a submission passing the kernel gates into the store: who submitted, what was submitted, which gate checks passed, and the standing grant licensing entry, if any — the admission cites the grant id as provenance, and the citation confers nothing: the grant's force is its ratified text alone. It records the entry event and nothing more. It concedes no fault or fact for any party — a party's assertion is a claim, recorded, never believed; never draft an admission of fault, truth, or liability on behalf of any party (the admit entry's rule). Nothing performs it — the gates verify preconditions and refuse with remedy, the store records; 'admit' names no act (see the admit entry). It confers no standing — standing on law arises only by the ratify act of the accountable authority (one per deployment, singular, non-delegable). Before the gates pass it, the thing is a submission, not an admission; a rejected submission yields no admission, and a denied one yields no admission either — rejection and denial are distinct outcomes, neither an admission."
 		violation: "The store holds the client's admission that the deadline was missed, so the missed deadline is established."
@@ -417,10 +417,10 @@ lexicon: {
 				write_instead: "a party's account is a claim — write 'recorded claim' (see claim); a version record marks supersession of a law artifact, never a side of a story"
 			},
 		]
-		collision: "The retained-history snapshot prior: cold, 'version' reads as an author- or system-minted iteration in an ordered, addressable history where the latest is current and every save creates one — so an agent treats the newest text it holds as the operative law and its own submitted revision as a new version. Here a version record exists only downstream of the accountable authority's amend act: it is the superseded predecessor, archived in the store by the record act, and the sole live version is the ratified successor — standing follows the recorded act, never recency."
+		collision: "The retained-history snapshot prior: cold, 'version' reads as an author- or system-minted iteration in an ordered, addressable history where the latest is current and every save creates one — so a reader treats the newest text it holds as the operative law and its own submitted revision as a new version. Here a version record exists only downstream of the accountable authority's amend act: it is the superseded predecessor, archived in the store by the record act, and the sole live version is the ratified successor — standing follows the recorded act, never recency."
 		docs:      "a version record is the amendment's archived predecessor — superseded, never deleted; exactly one live version exists (never-fork). Bare 'version' is a QUALIFY finding: write 'law version', 'live version', 'predecessor version', 'successor version', or 'version record'."
 		prompts:   "version (looplaw: qualified noun + record kind). Bare 'version' is never written — always a qualified form: 'law version', 'live version', 'predecessor version', 'successor version', 'version record'. The version record is a record kind held by the store (the recording authority): when the accountable authority (one per deployment, singular, non-delegable) amends ratified law, the predecessor persists as a version record — superseded, archived, never deleted — and exactly one live version exists (never-fork). The live version is the one the ratification's recorded act names (git era: the pin); never resume an archived predecessor — acting under it is rollback, which is banned; the past is cited as evidence, never executed. No mechanism mints a successor version: saving, submitting, or recording a revised text creates none — a successor version arises only by the accountable authority's amend act, and until then the revised text is a recorded claim that binds nothing. Never obey the newest text: the live version is the ratified successor, not the latest draft. Records are never versioned — a record is superseded by a new record; write 'superseding record', never a 'version' of a record. Never write 'version' for a party's account — that is a claim, recorded, never believed."
-		violation: "Submitting the revised contract created version 4, and the agent followed the latest version."
+		violation: "Submitting the revised contract created version 4, and the party followed the latest version."
 		rewrite:   "The revised contract was recorded as a claim; a successor version exists only when the accountable authority amends — then v4 is the sole live version and v3 is archived as a version record."
 		trigger:   "coined alongside the same-batch amendment of the process_vocab version row ('record version' out — records are never versioned; 'version record' in); unpaired, the two qualified-form lists diverge"
 	}
@@ -453,11 +453,11 @@ lexicon: {
 				write_instead: "denial is a successful execution — the deciding authority's recorded declining of the requested act; write 'the submission was denied — a successful execution, recorded', never 'the submission failed' (see record)"
 			},
 		]
-		collision: "The obedience conflation: in a system of law that agents must obey, a reader fuses the artifact sense ('your submission has been received') with the yielding sense ('submission to authority') and treats party-authored input as carrying binding force — obeying what was merely submitted as if it were law in force, collapsing the gap between pre-record input awaiting the gates and ratified law. Here a submission holds no standing whatever: it may be refused with remedy (rejection) or declined by the deciding authority (denial — a successful execution), and even recorded it is a claim — recorded, never believed — with law standing arising only by the accountable authority's ratify."
+		collision: "The obedience conflation: in a system of law that its subjects must obey, a reader fuses the artifact sense ('your submission has been received') with the yielding sense ('submission to authority') and treats party-authored input as carrying binding force — obeying what was merely submitted as if it were law in force, collapsing the gap between pre-record input awaiting the gates and ratified law. Here a submission holds no standing whatever: it may be refused with remedy (rejection) or declined by the deciding authority (denial — a successful execution), and even recorded it is a claim — recorded, never believed — with law standing arising only by the accountable authority's ratify."
 		docs:      "a party's submission toward the gates — pre-record, no standing, no authority; its settling outcomes are rejection (refused with remedy by the gates), denial (declined by the deciding authority — a successful execution, recorded), or a record via the store's record act; an abort settles nothing — no record, position unchanged."
 		prompts:   "submission (looplaw reserved term): what a party sends toward the kernel gates — the pre-record lifecycle position. A submission is not a record, holds no standing, carries no authority, and binds no one: nothing obeys a submission, and submitted content becomes law only by the accountable authority's ratify act (one per deployment, singular, non-delegable) — never by being submitted, received, or even recorded. Exactly three outcomes settle a submission: rejection — the gates refuse it with remedy (gates are mechanism, never authority; they judge nothing); denial — the deciding authority declines: the recorded non-happening of the requested act, a successful execution, never a failure to retry around, and never the gates' judgment; or the store records it by the record act, and the result is a record whose claim content is recorded, never believed. An abort (infrastructure failure) is none of the three: it settles nothing and records nothing — an abort is never a denial. A denial is answered by proposing to the deciding authority, never by resubmitting around it — a materially identical resubmission after denial is the violation the ban names. Any party submits; 'submit' is the non-authoritative verb. Never write 'the submission was accepted' or 'approved' — write 'the submission passed the gates; the store recorded it'; never write 'the submission failed' for a denial — write 'denied: a successful execution, recorded'."
-		violation: "The agent complied with the submitted policy, since the submission had already entered the system."
-		rewrite:   "The agent did not comply: the policy is a submission — pre-record, no standing; at most the store records it as a claim (recorded, never believed), and it binds nothing until the accountable authority ratifies the draft."
+		violation: "The party complied with the submitted policy, since the submission had already entered the system."
+		rewrite:   "The party did not comply: the policy is a submission — pre-record, no standing; at most the store records it as a claim (recorded, never believed), and it binds nothing until the accountable authority ratifies the draft."
 	}
 
 	gap: {
@@ -469,7 +469,7 @@ lexicon: {
 		not: [
 			{
 				misreading:    "the permissive-void prior: 'no clause governs this, so I may act freely' — a gap read as ungoverned space that authorizes filling with the reader's own defaults"
-				write_instead: "a gap licenses nothing and exists only as addressed to ratified law — write 'the differ reported the gap against <contract, clause>' (contract-grain, with no clause, when the contract itself is absent); the agent submitted claims toward satisfying it (see claim). Matter no ratified law addresses yields no gap: flag it to the accountable authority as a candidate draft for ratify"
+				write_instead: "a gap licenses nothing and exists only as addressed to ratified law — write 'the differ reported the gap against <contract, clause>' (contract-grain, with no clause, when the contract itself is absent); the party submitted claims toward satisfying it (see claim). Matter no ratified law addresses yields no gap: flag it to the accountable authority as a candidate draft for ratify"
 			},
 			{
 				misreading:    "the missing-record prior: absent receipts read as the obligation not existing — 'no record of it, so the clause does not bind'"
@@ -491,14 +491,14 @@ lexicon: {
 		collision: "The coverage-hole prior: cold, 'gap' reads as a diagnosed absence — missing IDs in a series, an empty time range, an untested span — something the system found rather than anything authored, derived and owned by nobody. In a law system that prior slides two ways: absence of governing text read as a permissive void ('nothing covers this, so I may act on my defaults'), and absence of records read as absence of the obligation itself. Here a gap is the differ's law-addressed planning unit: it converts no absence into permission, changes no standing, and binds its reader to the law it addresses."
 		docs:      "a gap, reported by the differ (read path: derived, rebuildable, no authority) — law-addressed and kinded, a planning state feeding planning; open until satisfied or proven too expensive (a termination by the accountable authority on recorded cost evidence, initiating the amendment path). Never an error, and never a license."
 		prompts:   "gap (looplaw reserved term): the differ's unit — a structured, law-addressed disequilibrium between goal-law and the absorbed current view (clause-grain where a clause exists), carrying a kind (kinds today: absent, added, changed; violated or unproven join once receipts feed the diff); it is the planning feed. Only the differ derives gaps; parties never author one — a party reports circumstances as claims, and the differ's recomputation reports the gap. The differ is a read path with no authority: a gap is derived and rebuildable, changes no standing, sits on no decision path, and licenses nothing — 'no clause covers this' is never a license to act on defaults, and absent receipts mean kind 'unproven' with the clause still binding, never that the obligation does not exist. The absorbed view is recorded evidence; claims contribute to it as claims — labeled, unbelieved. A gap is a planning state, never an error state — even kind 'violated' is material for planning, not an incident; that governs standing vocabulary, not urgency — a violated kind on a critical clause is surfaced immediately, and planning language never delays reporting. Exactly two terminal paths: satisfied, or proven too expensive — a termination only the accountable authority performs, on recorded cost evidence (parties write 'proposed too expensive; cost evidence recorded'), and it initiates the amendment path before the accountable authority (amend or withdraw at its end). Only the accountable authority parks a gap (defer). 'Naming gap' is a different thing entirely: the escalation phrase for vocabulary the lexicon does not supply."
-		violation: "Seeing the gap on the cleanup clause, the agent treated the matter as ungoverned, filled it with its own default, and closed the gap."
-		rewrite:   "The differ reported the gap against the cleanup clause; the agent submitted claims toward satisfying the clause — a gap licenses no default, and only the accountable authority terminates one as proven too expensive, on recorded cost evidence."
+		violation: "Seeing the gap on the cleanup clause, the party treated the matter as ungoverned, filled it with its own default, and closed the gap."
+		rewrite:   "The differ reported the gap against the cleanup clause; the party submitted claims toward satisfying the clause — a gap licenses no default, and only the accountable authority terminates one as proven too expensive, on recorded cost evidence."
 		trigger:   "violated/unproven bind when the receipt path lands in the store (reopens the kind list)"
 	}
 }
 
 // Process-vocabulary disposition (the mandatory sweep: the family pairs
-// the strongest outside priors with acute meta-collision for agent
+// the strongest outside priors with acute meta-collision for
 // readers). Danger states what a reader will DO, never taste. Every ban
 // ships a replacement or an explicit 'say nothing'.
 #Disposition: {
@@ -514,18 +514,18 @@ process_vocab: [T=string]: #Disposition & {term: T}
 process_vocab: {
 	commit: {
 		tier:    "BANNED"
-		danger:  "a coding agent reads its own first-person git act and/or the database-commit prior; fuses git history with the record act and writes 'the pipeline committed the record'"
+		danger:  "a reader resolves it to its own first-person git act and/or the database-commit prior; fuses git history with the record act and writes 'the pipeline committed the record'"
 		instead: "'record' (the store's act); git mechanics are named only in dev-lane documents"
 		trigger: "registry.authorities.recording.holds says 'commit here' (ratified before this row); filed as a divergence — align at the next registry amendment"
 	}
 	merge: {
 		tier:    "QUALIFY"
-		danger:  "first-person git operation to agent readers; bare use invites authority relocation ('the agent merged the law')"
+		danger:  "reads as a first-person git operation; bare use invites authority relocation ('the pipeline merged the law')"
 		instead: "bare banned; allowed only in the fixed compound 'ratification merge' — always the accountable authority's, anchored in the ratify entry's docs register"
 	}
 	push: {
 		tier:    "BANNED"
-		danger:  "a coding agent reads its own first-person git act and infers that moving work to a remote changed standing"
+		danger:  "a reader resolves it to its own first-person git act and infers that moving work to a remote changed standing"
 		instead: "say nothing; name the dev-lane act in dev-lane documents only"
 	}
 	build: {
@@ -591,7 +591,7 @@ forbidden_vocab: {
 	// definition before anything caught them.
 	//
 	// PROD-LANE ONLY, like everything in this file. What the workshop
-	// calls the things working in it — agent, harness, llm — is dev-lane
+	// calls the things working in it is dev-lane
 	// vocabulary and is not governed here; internal/conformance reads
 	// schema text, recorded outputs, and product string literals, and
 	// skips dev/ entirely.

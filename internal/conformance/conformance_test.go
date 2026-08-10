@@ -79,7 +79,7 @@ func TestDevWordsNeverReachTheProduct(t *testing.T) {
 // says. The lexicon method requires this — a lexicon without mechanical
 // enforcement decays into aspiration — and until now the workshop had a
 // conformance test while the ratified vocabulary had none, which is
-// backwards. Review agents have been finding these by hand at cost.
+// backwards. Reviewers have been finding these by hand at cost.
 func TestProductTextObeysItsOwnRefusedVocabulary(t *testing.T) {
 	banned := bannedProductTerms(t)
 	if len(banned) == 0 {

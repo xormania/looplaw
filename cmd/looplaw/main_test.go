@@ -181,7 +181,7 @@ func TestBehaviorContract(t *testing.T) {
 
 // Every refusal line follows the wire grammar the failure doctrine
 // promises: "<check>: <class> <subject>: <reason> — remedy: <remedy>".
-// Agents retry off this shape; it is a contract, not formatting.
+// Callers retry off this shape; it is a contract, not formatting.
 func TestRefusalWireGrammar(t *testing.T) {
 	red := mutate(t, `client:   "borrower"`, `client:   "stranger"`)
 	_, stderr, exit := run(t, "validate", red)

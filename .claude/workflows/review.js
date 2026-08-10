@@ -12,8 +12,6 @@ export const meta = {
   ],
 }
 
-const REPO = '/home/work/projects/xormania/looplaw'
-
 const a = args || {}
 const target = a.target || 'the current branch (git diff master...HEAD)'
 const focus = a.focus || 'the changed code'
@@ -69,7 +67,7 @@ const SCOPE = {
 let files = a.files
 if (!files) {
   const scope = await agent(
-    `In ${REPO}, run: git diff --name-only master...HEAD\nReturn the changed paths. Drop anything under testdata/golden (recorded copies of files that already exist). No commentary.`,
+    `In this repository, run: git diff --name-only master...HEAD\nReturn the changed paths. Drop anything under testdata/golden (recorded copies of files that already exist). No commentary.`,
     { label: 'scope', phase: 'Scope', schema: SCOPE, effort: 'low' }
   )
   files = scope ? scope.files : []
@@ -90,7 +88,7 @@ Output rules, enforced by the schema and by how these are read:
 const DEFAULT_LENSES = [
   {
     key: 'correctness',
-    prompt: `Hunt correctness bugs in ${target} on ${REPO}. Focus: ${focus}.
+    prompt: `Hunt correctness bugs in ${target}, in this repository. Focus: ${focus}.
 
 Changed files:
 ${fileList}
@@ -105,24 +103,24 @@ ${TERSE}`,
   },
   {
     key: 'law-conformance',
-    prompt: `Review ${target} on ${REPO} against its own ratified law. Focus: ${focus}.
+    prompt: `Review ${target} against this project's own ratified law. Focus: ${focus}.
 
 Changed files:
 ${fileList}
 
-Read ${REPO}/dev/DIGEST.md — this project's design basis as a brief (invariants, authorities, acts, a card per reserved term, refused vocabulary). It is 18KB against the corpus's 91KB; open dev/*.cue only for a passage the digest does not settle, and schema/*.cue only for the shape a set must take.
+Read dev/DIGEST.md — this project's design basis as a brief (invariants, authorities, acts, a card per reserved term, refused vocabulary). It is 18KB against the corpus's 91KB; open dev/*.cue only for a passage the digest does not settle, and schema/*.cue only for the shape a set must take.
 
 You own the strings; the correctness lens owns behavior. Audit every user-facing string the batch adds or changes — refusal reasons, remedies, usage text, schema comments, generated output — for refused vocabulary, authority relocation (a reserved verb handed to a subject that does not hold it), status laundering (evidence treated as law, a claim treated as believed, processing treated as a standing change), and behavior contradicting a ratified statement. Quote the offending string and give its replacement.
 ${TERSE}`,
   },
   {
     key: 'lane-discipline',
-    prompt: `Audit the kernel/client lane split in ${target} on ${REPO}. Focus: ${focus}.
+    prompt: `Audit the kernel/client lane split in ${target}. Focus: ${focus}.
 
 Changed files:
 ${fileList}
 
-Ratified rules (see ${REPO}/dev/DIGEST.md): the kernel performs no inference and never fetches or inspects work-product content — it decides over submitted claims, manifests, and recorded state; gates are mechanism, never authority; only the store records; law descends and only evidence ascends.
+Ratified rules (see dev/DIGEST.md): the kernel performs no inference and never fetches or inspects work-product content — it decides over submitted claims, manifests, and recorded state; gates are mechanism, never authority; only the store records; law descends and only evidence ascends.
 
 Look for kernel paths that read a tree, client output implying standing it cannot confer, dev-lane conveniences shipped in product code, and unratified artifacts treated as law.
 ${TERSE}`,
@@ -140,7 +138,7 @@ const reviewed = await pipeline(
         .filter((f) => f.severity !== 'note')
         .map((f) => () =>
           agent(
-            `Adversarially verify this finding against ${REPO}. Try to REFUTE it: reproduce the claimed failure or prove it cannot happen. A red for the wrong reason proves nothing, so check that what you reproduce is what the finding actually claims.
+            `Adversarially verify this finding, in this repository. Try to REFUTE it: reproduce the claimed failure or prove it cannot happen. A red for the wrong reason proves nothing, so check that what you reproduce is what the finding actually claims.
 
 Finding: ${JSON.stringify(f)}
 

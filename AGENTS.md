@@ -125,8 +125,8 @@ a branch; master takes pull requests only, and only xormania merges.
 one.** Write the plain sentence. "The golden is out of date" needs no
 term. Nearly every defect this project has had was a coinage that could
 have been a sentence — `aa` for accountable authority, `actor` for party,
-`drift` reserved as ours while the spec used it for what the provenance
-check reports. Raise a term only once it has recurred across batches, in
+`drift` reserved as a workshop word while the spec used it for what the
+provenance check reports. Raise a term only once it has recurred across batches, in
 a pull request body, batched with real work. The lexicon is meant to be
 static; changing it is dev-lane work, and dev-lane work is rare.
 

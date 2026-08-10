@@ -17,6 +17,35 @@ happened and why without asking anyone.
   ready. Merge cadence is the accountable authority's attention budget —
   spend it on batches reviewable in one sitting, not on a PR per commit.
 
+## Voice
+
+This applies to everything written down — commit messages, PR titles and
+bodies, comments, and the prose in `dev/`.
+
+Write about the change, not about whoever made it. No first person, no
+reference to a conversation, no account of who erred or when. State a
+defect as a property of the code: what was wrong, what it caused, and
+what now prevents it.
+
+    no    "aa" was mine, and it survived eight batches before anyone
+          noticed — the failure was inventing a shorthand by analogy.
+    yes   "aa" was an undeclared abbreviation in 132 sites. The lexicon
+          method permits internal shorthand only when it is declared,
+          with the qualified form required in every output register;
+          this one reached `prompts`, which are pasted verbatim into
+          agent context.
+
+The second is shorter, carries the same evidence, and states a rule
+rather than an anecdote — so it is still useful to someone who was not
+there. That is the test: **would this read correctly to a stranger two
+years from now, with no access to any discussion?** Process narrative
+("the last batch", "as agreed"), self-criticism, and named individuals in
+body prose all fail it.
+
+Keep the concrete parts. Counts, measurements, the command that was run
+and what it printed, and which behaviors were proven red are what make a
+record worth keeping. The rule removes the diary, not the evidence.
+
 ## Commit messages
 
 - Subject: imperative mood, capitalized, ≤72 chars, no trailing period.
@@ -47,5 +76,5 @@ record):
   follow-ups, decisions punted and to whom.
 
 Nothing fancy. The test: a year from now, `git log` plus the PR trail should
-answer "what is this, why is it here, and how did we know it worked" without
+answer "what is this, why is it here, and how was it verified" without
 archaeology.

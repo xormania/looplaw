@@ -3,7 +3,7 @@
 // reader actually needs.
 //
 // A dev tool, not product surface: the product enforces schemas on
-// other people's law and has no business printing ours. The lexicon
+// other projects' law and has no business printing this project's. The lexicon
 // method prescribes the digest — focused slices, verbatim, never
 // paraphrased — and the reason is economy as much as fidelity: reading
 // every file to check one sentence pays for the whole corpus each time.

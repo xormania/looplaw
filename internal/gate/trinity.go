@@ -115,7 +115,7 @@ func validateTrinityBytes(subject string, data []byte) (cue.Value, []outcome.Ref
 
 	// The relational lane reads the unified value: schema-injected fields
 	// (ids) and ordinary CUE references resolve there. Only when shape
-	// fails do we fall back to the raw set, so the relational lane still
+	// fails does it fall back to the raw set, so the relational checks still
 	// reports what it can — a shape failure in one region must not mask a
 	// relational failure in another.
 	relational := unified

@@ -1,7 +1,7 @@
 // The vocabulary this project reserves for what the product says: the
 // act verbs, the terms its output uses, and the words it refuses.
 //
-// DEV-LANE, and ratified. It governs our authoring — every refusal,
+// DEV-LANE, and ratified. It governs authoring here — every refusal,
 // remedy, usage line and schema comment the binary emits — rather than
 // anyone's input. The schema the binary enforces on input is schema/.
 // The workshop's own words are dev/lexicon-workshop.cue.

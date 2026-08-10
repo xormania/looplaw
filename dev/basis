@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 # Design-basis housekeeping (named for what it maintains, not for law:
 # law is what an accountable authority ratifies, and it lives in the
-# ledger): regenerate the digest from dev/*.cue and
-# report what is still proposed after its batch was settled. Missing
-# that flip is the process error made most often here, and it is
-# invisible until somebody greps for it.
+# ledger): regenerate the digest from dev/*.cue.
 #
 # This covers dev/ — this project's own design basis. The schemas the
 # binary enforces are law/, and they carry no status.

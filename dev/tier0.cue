@@ -41,7 +41,7 @@ tier0: {
 		rationale: "acts, not adjectives; blocks status laundering at the root"
 	}
 	"T0-8": {
-		rule:      "Accountability vests in the deployment's accountable authority alone; components and agents carry blame, adjudicated from recorded evidence, never accountability."
+		rule:      "Accountability vests in the deployment's accountable authority alone; components and parties carry blame, adjudicated from recorded evidence, never accountability."
 		rationale: "the accountability doctrine; blame from recorded evidence only, never live state"
 	}
 	"T0-9": {

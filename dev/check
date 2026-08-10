@@ -12,6 +12,9 @@ step() { printf '\n\033[1m== %s\033[0m\n' "$1"; }
 step "design basis lock"
 dev/lock
 
+step "lanes"
+dev/lanes
+
 step "format"
 if [ -n "$(gofmt -l .)" ]; then
 	gofmt -l .
@@ -44,7 +47,7 @@ step "stray scratch files"
 stray=$(git status --porcelain --untracked-files=all | grep -E '(^\?\? .*(zz_|scratch|tmp).*\.go$)' || true)
 if [ -n "$stray" ]; then
 	echo "$stray"
-	echo "agents leave these behind; remove them before pushing"
+	echo "these get left behind; remove them before pushing"
 	exit 1
 fi
 

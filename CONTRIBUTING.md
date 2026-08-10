@@ -1,7 +1,7 @@
 # Contributing
 
 Working rules for this repository. Short on ceremony, long on evidence:
-records exist so that someday, someone (human or agent) can reconstruct what
+records exist so that someday, whoever reads them can reconstruct what
 happened and why without asking anyone.
 
 ## Workflow
@@ -9,7 +9,7 @@ happened and why without asking anyone.
 - Never commit to `master` directly.
 - Branch per unit of work: `feat/<short-name>` or `fix/<short-name>`.
 - Commit to the branch, push, open a **draft** PR to `master`.
-- Only xormania marks a PR ready and merges. Agents open drafts.
+- Only xormania marks a PR ready and merges. Harnesses open drafts.
 - One unit of work per **commit** — small and auditable beats big and
   heroic.
 - PRs are **batches, not single commits**: open a draft early, keep
@@ -33,7 +33,7 @@ what now prevents it.
           method permits internal shorthand only when it is declared,
           with the qualified form required in every output register;
           this one reached `prompts`, which are pasted verbatim into
-          agent context.
+          model context.
 
 The second is shorter, carries the same evidence, and states a rule
 rather than an anecdote — so it is still useful to someone who was not

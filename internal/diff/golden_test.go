@@ -21,7 +21,7 @@ func TestGapFeedGolden(t *testing.T) {
 	golden.Assert(t, "testdata/golden/gap-feed.json", string(out)+"\n")
 }
 
-// The refusal stream is protocol too — agents retry off it.
+// The refusal stream is protocol too — callers retry off it.
 func TestDiffRefusalStreamGolden(t *testing.T) {
 	_, refusals := Diff(goal, "testdata/library-view-split.cue")
 	if len(refusals) != 0 {

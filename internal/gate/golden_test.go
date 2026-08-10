@@ -7,7 +7,7 @@ import (
 	"github.com/xormania/looplaw/internal/golden"
 )
 
-// The refusal stream is protocol: agents retry off it, so both its
+// The refusal stream is protocol: callers retry off it, so both its
 // content and its order are recorded. Order is part of the contract —
 // identical input, identical stream, run to run.
 func TestRefusalStreamGolden(t *testing.T) {

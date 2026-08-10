@@ -44,7 +44,7 @@ registry: {
 registry: {
 	authorities: {
 		accountable: {
-			holder: "the deployment's accountable authority — a role: one human per deployment, singular, non-delegable"
+			holder: "the deployment's accountable authority — a role: one per deployment, singular, non-delegable. What holds the role is outside looplaw's boundary: the CLI is the whole surface, a party is recorded as claimed, and nothing here asserts or checks what kind of thing is on the other side"
 			holds:  "all law-making acts (ratify, amend, withdraw, defer, grant); accountability assumed through these recorded acts"
 			rationale: "contract method's accountability doctrine + the goal-contract-is-law ruling; no component is ever accountable"
 		}

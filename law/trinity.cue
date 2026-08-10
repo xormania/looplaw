@@ -1,10 +1,10 @@
 // The trinity — the product's set model.
 //
-// v0 RATIFIED: PR #8 merged by xormania 2026-08-09 (the recorded act per
-// law/README.md). The decomposition additions (#Interior, #Wire,
-// #Contract.interior) are a proposed amendment in this batch; on
-// ratification the predecessor version is archived in history, never
-// deleted.
+// v0 RATIFIED: PR #8 merged by xormania 2026-08-09. The decomposition
+// amendment (#Interior, #Wire, #Contract.interior, the groundability and
+// one-satisfier rulings) RATIFIED: PR #11 merged by xormania 2026-08-10
+// (the recorded acts per law/README.md); predecessors archived in
+// history, never deleted.
 //
 // A TARGET PROJECT's contract set instantiates these definitions;
 // looplaw's gates validate instances. This file is looplaw's definitional

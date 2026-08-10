@@ -100,6 +100,7 @@ withdraw (looplaw reserved term): the accountable authority's design-time act th
 - **rollback** (BANNED) → 'amend' (new version) or 'withdraw'
 - **ship** (BANNED) → say nothing
 - **version** (QUALIFY) → qualified forms: 'law version', 'live version', 'predecessor version', 'successor version', 'version record'
+- **agent** (BANNED) → 'reader' for whoever resolves a term; 'party' for whoever acts, submits, or is bound; 'caller' for whatever drives the CLI; 'harness' for whatever works in the workshop
 - **allow** (BANNED) → 'recorded under standing grant <id>'
 - **approve** (BANNED) → 'ratified by the accountable authority' where law standing is meant; otherwise the non-authoritative verbs (propose, submit, declare)
 - **authorize** (BANNED) → 'recorded under standing grant <id>'

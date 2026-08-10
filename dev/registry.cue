@@ -138,5 +138,5 @@ registry: {
 
 	readpaths: ["diff", "project", "verify", "status", "export"]
 
-	parties: ["loopstrap instance", "loopmaster", "harness agent", "looplearn", "fugit"]
+	parties: ["loopstrap instance", "loopmaster", "harness", "looplearn", "fugit"]
 }

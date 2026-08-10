@@ -615,6 +615,14 @@ forbidden_vocab: {
 		danger:  "same assertion as human, and doubles as a vague quantifier"
 		instead: "'one per deployment' for cardinality; 'the party' for a submitter"
 	}
+	// Four jobs, none of them named precisely. Each has a word already
+	// ratified for it, and the imprecision is the point: the kernel knows
+	// only that something called it.
+	agent: {
+		tier:    "BANNED"
+		danger:  "stands in for four distinct subjects — whoever misreads a term, whoever acts, whatever drives the CLI, and whatever works in the workshop — so a sentence using it asserts a kind of caller the kernel cannot know and names none of the four"
+		instead: "'reader' for whoever resolves a term; 'party' for whoever acts, submits, or is bound; 'caller' for whatever drives the CLI; 'harness' for whatever works in the workshop"
+	}
 	authorize: {
 		tier:    "BANNED"
 		danger:  "reimports the access-control prior — a reader treats entry into the record as a live permission any privileged caller can confer"

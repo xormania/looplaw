@@ -1,0 +1,37 @@
+name: fuzz
+
+# Fuzzing pays off over hours, not the twenty seconds a pull request can
+# spare: seeds run in the normal suite on every push, and the search
+# itself runs nightly where its cost buys something.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pkg: ./internal/diff/
+            target: FuzzClauseHashIsInjective
+          - pkg: ./internal/store/
+            target: FuzzCanonicalIsInjective
+          - pkg: ./internal/gate/
+            target: FuzzValidateNeverPanics
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: fuzz ${{ matrix.target }}
+        run: go test ${{ matrix.pkg }} -run '^$' -fuzz ${{ matrix.target }} -fuzztime 5m
+      - name: keep any counterexample
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-corpus-${{ matrix.target }}
+          path: ${{ matrix.pkg }}/testdata/fuzz/

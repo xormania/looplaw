@@ -23,7 +23,8 @@ Pointers that save the most:
 - `internal/absorb` (client: reads a scope) and `internal/provenance`
   (kernel: pure comparison, no IO) — the lane split made visible.
 - `internal/record` — the record act; `internal/store` — the ledger.
-- `internal/project` — the law digest; `internal/golden` — recorded outputs.
+- `internal/golden` — recorded outputs; `internal/conformance` — the
+  checks that read product text, filed with the product they check.
 - `dev/` — dev-lane only: the workshop lexicon, scripts, review protocol.
 
 ## What not to re-litigate

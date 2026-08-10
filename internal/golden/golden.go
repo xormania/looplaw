@@ -8,7 +8,10 @@
 //
 // Through the environment rather than a flag: a flag exists only in
 // packages that import this one, so a repository-wide "go test ./...
-// -update" fails in every package that has no goldens.
+// -update" fails in every package that has no goldens. An environment
+// variable is ignored harmlessly by all of them. The -count=1 defeats
+// the test cache, which has replayed a stale failure over a golden
+// that had already been re-recorded.
 package golden
 
 import (
@@ -20,7 +23,7 @@ import (
 func updating() bool { return os.Getenv("LOOPLAW_GOLDEN_UPDATE") != "" }
 
 // Assert compares got against the recorded golden file, or records it
-// when -update is passed.
+// when LOOPLAW_GOLDEN_UPDATE is set.
 func Assert(t *testing.T, path, got string) {
 	t.Helper()
 	if updating() {

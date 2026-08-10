@@ -53,10 +53,10 @@ second copy of it.
 
 ## Verifying
 
-    dev/check                                  # CI's fast lane, same order
-    dev/basis                                    # regenerate the digest, report ratification debt
-    go test -race ./...                        # before pushing
-    LOOPLAW_GOLDEN_UPDATE=1 go test ./...      # re-record goldens deliberately
+    dev/check                                       # CI's fast lane, same order
+    dev/basis                                       # regenerate dev/DIGEST.md
+    go test -race ./...                             # before pushing
+    LOOPLAW_GOLDEN_UPDATE=1 go test ./... -count=1  # re-record goldens deliberately
 
 `dev/check` is the one to run: green there means green in CI's fast
 lane. CI runs that lane and a race/differential lane in parallel;

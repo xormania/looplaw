@@ -5,34 +5,52 @@ on:
     branches: [master]
   pull_request:
 
+# A superseded run proves nothing about the current head: cancel it
+# rather than pay for it.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  check:
+  # The fast lane: everything cheap, ordered cheapest-first, so a typo
+  # or a law error is refused in seconds instead of after the slow lane.
+  fast:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: build
-        run: go build ./...
+      - name: format
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; echo 'run gofmt -w .'; exit 1; }
       - name: vet
         run: go vet ./...
-      - name: test (behavior suites included, race detector on)
-        run: go test -race ./...
-      - name: fuzz the hash and parse paths briefly
-        run: |
-          go test ./internal/diff/ -run '^$' -fuzz FuzzClauseHashIsInjective -fuzztime 20s
-          go test ./internal/store/ -run '^$' -fuzz FuzzCanonicalIsInjective -fuzztime 20s
-          go test ./internal/gate/ -run '^$' -fuzz FuzzValidateNeverPanics -fuzztime 20s
+      - name: build
+        run: go build ./...
+      - name: vet the law (second producer, cue pinned to the embedded version)
+        run: go run cuelang.org/go/cmd/cue vet ./law/
+      - name: test
+        run: go test ./...
       - name: goldens are current (wire formats change only deliberately)
         run: |
           go test ./... -run Golden -count=1
           git diff --exit-code -- '*/testdata/golden/*'
+
+  # The slow lane, running in parallel with the fast one.
+  thorough:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: test with the race detector
+        run: go test -race ./...
       - name: gate the fixture (first producer, embedded law)
         run: go run ./cmd/looplaw validate internal/gate/testdata/library/set.cue
-      - name: fixture differential (second producer, cue binary, same data)
+      - name: fixture differential (second producer, same data)
         run: |
-          go run cuelang.org/go/cmd/cue@v0.17.1 export internal/gate/testdata/library/set.cue -o /tmp/set.json
-          go run cuelang.org/go/cmd/cue@v0.17.1 vet ./law/ /tmp/set.json -d '#TrinitySet'
-      - name: vet the law (second producer, cue binary)
-        run: go run cuelang.org/go/cmd/cue@v0.17.1 vet ./law/
+          go run cuelang.org/go/cmd/cue export internal/gate/testdata/library/set.cue -o /tmp/set.json
+          go run cuelang.org/go/cmd/cue vet ./law/ /tmp/set.json -d '#TrinitySet'

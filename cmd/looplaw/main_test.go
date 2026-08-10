@@ -85,6 +85,10 @@ func TestBehaviorContract(t *testing.T) {
 		{"validate-missing-file-aborts", []string{"validate", "no-such.cue"}, 3, "", "trinity/load: abort"},
 		{"validate-red-rejects", []string{"validate", red}, 1, "", `"stranger"`},
 		{"validate-unparseable-rejects", []string{"validate", unparseable}, 1, "", "trinity/parse: rejection"},
+		{"diff-usage", []string{"diff", fixture}, 64, "", "usage: looplaw diff"},
+		{"diff-identical-empty-feed", []string{"diff", fixture, fixture}, 0, "[]", ""},
+		{"diff-gaps-are-success", []string{"diff", fixture, "../../internal/diff/testdata/library-view.cue"}, 0, `"kind": "absent"`, ""},
+		{"diff-invalid-side-rejects", []string{"diff", fixture, red}, 1, "", "diff/side"},
 	}
 
 	for _, c := range cases {

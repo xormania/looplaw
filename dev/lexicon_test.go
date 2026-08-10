@@ -17,6 +17,7 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
+	"cuelang.org/go/cue/load"
 )
 
 // Product-facing text is what a reader of the product sees: the schemas
@@ -32,7 +33,7 @@ func TestDevWordsNeverReachTheProduct(t *testing.T) {
 	}
 
 	for _, src := range productText(t) {
-		lower := strings.ToLower(src.text)
+		lower := strings.ToLower(stripPaths(src.text))
 		for _, term := range reserved {
 			re := regexp.MustCompile(`\b` + regexp.QuoteMeta(strings.ToLower(term)) + `\b`)
 			if re.MatchString(lower) {
@@ -145,6 +146,46 @@ func TestEveryDevTermStatesItsMeaning(t *testing.T) {
 			s, err := iter.Value().String()
 			if err != nil || strings.TrimSpace(s) == "" {
 				t.Errorf("%s.%s states no meaning", region, iter.Selector().Unquoted())
+			}
+		}
+	}
+}
+
+// stripPaths removes path-like tokens before matching. A refusal that
+// quotes the file it was handed is echoing input, not speaking: the
+// product does not choose the words in a caller's path, so those
+// occurrences are not the product using a workshop word.
+var pathish = regexp.MustCompile(`\S*/\S+`)
+
+func stripPaths(s string) string { return pathish.ReplaceAllString(s, " ") }
+
+// The two vocabularies are disjoint. Every word is ours or the
+// product's, never both — a word in both lists means the distinction
+// has already collapsed, whatever either list says about it.
+func TestVocabulariesDoNotIntersect(t *testing.T) {
+	ours := map[string]bool{}
+	for _, term := range reservedDev(t) {
+		ours[strings.ToLower(term)] = true
+	}
+
+	insts := load.Instances([]string{"."}, nil)
+	if len(insts) == 0 || insts[0].Err != nil {
+		t.Fatalf("dev package: %v", insts[0].Err)
+	}
+	v := cuecontext.New().BuildInstance(insts[0])
+	if v.Err() != nil {
+		t.Fatalf("dev package: %v", v.Err())
+	}
+	for _, region := range []string{"lexicon", "process_vocab", "forbidden_vocab"} {
+		iter, err := v.LookupPath(cue.ParsePath(region)).Fields()
+		if err != nil {
+			t.Fatalf("%s: %v", region, err)
+		}
+		for iter.Next() {
+			term := strings.ToLower(iter.Selector().Unquoted())
+			if ours[term] {
+				t.Errorf("%q is reserved by both the workshop and the product (%s): a word belongs to one lane or the other, never both",
+					term, region)
 			}
 		}
 	}

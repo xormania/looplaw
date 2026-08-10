@@ -30,25 +30,20 @@ reserved_dev: {
 	golden:        "A recorded output compared byte for byte. A mismatch is a deliberate shape change asking to be noticed."
 	corpus:        "A kept collection of fixtures. The attack corpus holds every adversarial set that has ever found a defect."
 	fixture:       "An authored input a test runs against. Fixture zero is the canonical green set."
+	attack:        "A preserved input that must be refused, kept because it once found a defect."
+	mutation:      "A single edit to a green fixture that must draw a declared refusal."
+	batch:         "One pull request's worth of work."
+	drift:         "A recorded output or fixture falling out of step with the code."
+	lane:          "Which side of the workshop boundary something is on, dev or prod."
 }
 
-// Words both lanes use, in different senses. Not tested — a test would
-// fire on ratified law itself. Listed so the double meaning is
-// deliberate rather than accidental.
-shared: {
-	lane: "dev: which side of the workshop boundary (dev-lane, prod-lane), or which half of the kernel (the shape lane, the relational lane). law: the same kernel sense, in code comments only."
-	batch: "dev: one pull request's worth of work. law: a numbered round of ratification, referenced in law file headers."
-	closure: "dev: the test proving every check has a proving red. law: the contract method's coverage check over acts and parties."
-	drift: "dev: a fixture or golden falling out of step with the code. law: a divergence between artifacts, filed rather than silently resolved."
-	mutation: "dev: a single edit to a green fixture that must draw a declared refusal. law: unused."
-	attack: "dev: a preserved adversarial set. law: unused."
-}
-
-// Product terms we do not borrow for workshop concepts, because law
-// gives each a precise meaning and reusing it blurs exactly the
-// distinction that matters. Documented, not tested: judging misuse
-// needs a reader, and one reader is what this project has.
+// Words that belong to the product, which the workshop therefore does
+// not use for its own concepts. The two vocabularies are disjoint: a
+// word is ours or the product's, never both, and dev/lexicon_test.go
+// fails the moment one appears in the other's list or the other's
+// text.
 do_not_borrow: [
+	"closure — the contract method's coverage check (act closure). Our equivalent is witness coverage",
 	"claim, receipt, admission, version — record kinds; a test double is a fixture, not a claim",
 	"party — a submitter in the product's model; we are the author, not a party",
 	"gap — the differ's unit; work we have not done is a to-do, not a gap",

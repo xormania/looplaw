@@ -64,7 +64,7 @@ driven by whatever automation a harness has.
 
 - **Every check has a proving red.** `gate.Checks` and `diff.Checks`
   enumerate what each package can emit; a check with no red and no
-  declared exemption fails the closure test.
+  declared exemption fails the witness-coverage test.
 - **A red for the wrong reason proves nothing.** Mutations assert the
   refusal names the mutated thing, and any additional check a mutation
   draws must be declared in `alsoDraws`.

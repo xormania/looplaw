@@ -52,10 +52,10 @@ func TestAttackCorpusStaysRefused(t *testing.T) {
 	}
 }
 
-// The corpus is closed: every file present is declared, and every
+// The corpus is complete: every file present is declared, and every
 // declaration has its file. A dropped attack must fail loudly rather
 // than quietly stop running.
-func TestAttackCorpusIsClosed(t *testing.T) {
+func TestAttackCorpusIsComplete(t *testing.T) {
 	index := loadAttackIndex(t)
 	entries, err := os.ReadDir(attacksDir)
 	if err != nil {

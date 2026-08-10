@@ -4,23 +4,26 @@
 // mismatch is a contract change asking to be noticed, not a test to
 // silence.
 //
-// Update with: go test ./... -update
+// Record with: LOOPLAW_GOLDEN_UPDATE=1 go test ./... -count=1
+//
+// Through the environment rather than a flag: a flag exists only in
+// packages that import this one, so a repository-wide "go test ./...
+// -update" fails in every package that has no goldens.
 package golden
 
 import (
-	"flag"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
-var update = flag.Bool("update", false, "rewrite golden files from current output")
+func updating() bool { return os.Getenv("LOOPLAW_GOLDEN_UPDATE") != "" }
 
 // Assert compares got against the recorded golden file, or records it
 // when -update is passed.
 func Assert(t *testing.T, path, got string) {
 	t.Helper()
-	if *update {
+	if updating() {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -32,10 +35,10 @@ func Assert(t *testing.T, path, got string) {
 	}
 	want, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("golden %s missing: %v — run go test ./... -update to record it", path, err)
+		t.Fatalf("golden %s missing: %v — run LOOPLAW_GOLDEN_UPDATE=1 go test ./... -count=1 to record it", path, err)
 	}
 	if string(want) != got {
-		t.Errorf("output differs from golden %s.\nIf the change is deliberate, re-record with -update and say why in the message.\n--- want ---\n%s\n--- got ---\n%s",
+		t.Errorf("output differs from golden %s.\nIf the change is deliberate, re-record with LOOPLAW_GOLDEN_UPDATE=1 and say why in the message.\n--- want ---\n%s\n--- got ---\n%s",
 			path, want, got)
 	}
 }

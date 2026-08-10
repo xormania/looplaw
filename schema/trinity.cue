@@ -9,7 +9,7 @@ package schema
 
 // Reference grammars: party and act ids share one grammar; every
 // reference field carries it, so an empty or malformed reference is
-// refused by shape, and the relational lane only ever adjudicates
+// refused by shape, and the relational checks only ever adjudicate
 // well-formed names.
 #PartyRef: =~"^[a-z][a-z0-9-]*$"
 #ActRef:   =~"^[a-z][a-z0-9-]*$"

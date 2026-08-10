@@ -29,7 +29,7 @@ type mutation struct {
 	wantIn    string // substring the refusal must name (the mutated thing)
 	// Checks the mutation legitimately cascades into, beyond wantCheck.
 	// Declared, never silent: an undeclared cascade means the red is
-	// partly proving a gate it was not written for, so the closure test
+	// partly proving a gate it was not written for, so the witness-coverage test
 	// would credit the wrong check.
 	alsoDraws []string
 }
@@ -341,7 +341,7 @@ func TestMutationsAreRedForTheirDeclaredReason(t *testing.T) {
 					found = true
 				}
 				if !declared[r.Check] {
-					t.Errorf("undeclared cascade: this one-edit mutation also drew %s — declare it in alsoDraws or narrow the edit, or the closure test credits a gate this red does not prove\n  %s",
+					t.Errorf("undeclared cascade: this one-edit mutation also drew %s — declare it in alsoDraws or narrow the edit, or the witness-coverage test credits a gate this red does not prove\n  %s",
 						r.Check, r.Error())
 				}
 				if r.Class != outcome.Rejection && r.Class != outcome.Finding {

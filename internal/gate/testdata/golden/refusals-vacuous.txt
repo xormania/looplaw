@@ -1,0 +1,1 @@
+trinity/vacuity: rejection testdata/attacks/vacuous-set.cue: 0 registered parties, 0 contracts — the set binds nothing — remedy: author the registry and at least one act-bearing contract; a set that binds nothing is not submitted

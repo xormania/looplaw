@@ -19,6 +19,15 @@ jobs:
         run: go vet ./...
       - name: test (behavior suites included, race detector on)
         run: go test -race ./...
+      - name: fuzz the hash and parse paths briefly
+        run: |
+          go test ./internal/diff/ -run '^$' -fuzz FuzzClauseHashIsInjective -fuzztime 20s
+          go test ./internal/store/ -run '^$' -fuzz FuzzCanonicalIsInjective -fuzztime 20s
+          go test ./internal/gate/ -run '^$' -fuzz FuzzValidateNeverPanics -fuzztime 20s
+      - name: goldens are current (wire formats change only deliberately)
+        run: |
+          go test ./... -run Golden -count=1
+          git diff --exit-code -- '*/testdata/golden/*'
       - name: gate the fixture (first producer, embedded law)
         run: go run ./cmd/looplaw validate internal/gate/testdata/library/set.cue
       - name: fixture differential (second producer, cue binary, same data)

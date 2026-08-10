@@ -1,0 +1,43 @@
+{
+  "scope": "scope",
+  "stale": true,
+  "changed": [
+    "lending.go"
+  ],
+  "missing": [
+    "returning.go"
+  ],
+  "added": [
+    "renewals.go"
+  ],
+  "affected": [
+    {
+      "address": "C-LEND-1",
+      "sources": [
+        "lending.go"
+      ]
+    },
+    {
+      "address": "C-LEND-1/G-1",
+      "sources": [
+        "lending.go"
+      ]
+    },
+    {
+      "address": "C-RETURN-1",
+      "sources": [
+        "returning.go"
+      ]
+    },
+    {
+      "address": "C-RETURN-1/G-1",
+      "sources": [
+        "returning.go"
+      ]
+    }
+  ],
+  "counts": {
+    "baselined": 2,
+    "current": 2
+  }
+}

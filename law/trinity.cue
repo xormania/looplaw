@@ -4,7 +4,8 @@
 // amendment (#Interior, #Wire, #Contract.interior, the groundability and
 // one-satisfier rulings) RATIFIED: PR #11 merged by xormania 2026-08-10
 // (the recorded acts per law/README.md); predecessors archived in
-// history, never deleted.
+// history, never deleted. The provenance amendment (#Provenance,
+// #TrinitySet.provenance) is proposed in this batch.
 //
 // A TARGET PROJECT's contract set instantiates these definitions;
 // looplaw's gates validate instances. This file is looplaw's definitional
@@ -148,6 +149,30 @@ package law
 	presents: [PG=string]: {child: string, guarantee: string}
 }
 
+// Provenance: what an absorbed statement was derived from, content-
+// addressed. A set carrying provenance is an absorbed view — evidence,
+// never law (T0-2: nothing ascending confers standing). Ratified
+// goal-law carries none: law is authored and ratified, never derived
+// from what is.
+//
+// Hashes are substrate-neutral by construction, so the same provenance
+// works over any content-addressed store. The client that read the
+// scope computes them; the kernel only ever compares submitted hashes
+// against recorded ones (T0-4: the kernel never fetches or inspects
+// work-product content).
+#Provenance: {
+	// The scope the absorption ran over, as the client named it.
+	scope: string
+	// The staleness baseline: every source the absorption read, by the
+	// client's path naming, with its content hash at absorption time.
+	sources: [string]: =~"^[0-9a-f]{64}$"
+	// Which sources each absorbed statement derived from. Addresses are
+	// "<contract>" or "<contract>/<clause>"; every source named here is
+	// a key of sources, and every contract in the set is addressed —
+	// an absorbed statement with no derivation is unfalsifiable.
+	derivations: [ADDR=string]: [string, ...string]
+}
+
 // An experience entry: the judgment register. Advisory force always —
 // never binding, never a contract clause in disguise.
 #ExperienceEntry: {
@@ -172,4 +197,7 @@ package law
 	// A set with no judgment register declares the absence; silence is
 	// not a declaration.
 	experience_declared_absent: bool
+	// Present exactly when the set is an absorbed view; its absence
+	// means the set is authored law.
+	provenance?: #Provenance
 }

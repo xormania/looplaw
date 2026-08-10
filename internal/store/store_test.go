@@ -20,7 +20,7 @@ func open(t *testing.T) *Store {
 func TestAppendChainsAndVerifies(t *testing.T) {
 	s := open(t)
 
-	r1, err := s.Append(Law, "admission", "registry-batch-1", `{"pr":4}`, "aa:test")
+	r1, err := s.Append(Law, "admission", "registry-batch-1", `{"pr":4}`, "accountable:test")
 	if err != nil {
 		t.Fatalf("append 1: %v", err)
 	}

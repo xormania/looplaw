@@ -91,7 +91,7 @@ func Diff(goalPath, viewPath string) ([]Gap, []outcome.Refusal) {
 			Check:   "diff/goal-provenance",
 			Subject: goalPath,
 			Reason:  "the goal side carries provenance, so it is an absorbed view — evidence, not goal-law",
-			Remedy:  "diff against ratified goal-law; a view becomes law only through the aa's amendment path",
+			Remedy:  "diff against ratified goal-law; a view becomes law only through the accountable authority's amendment path",
 		}}
 	}
 
@@ -146,7 +146,7 @@ func Diff(goalPath, viewPath string) ([]Gap, []outcome.Refusal) {
 	for id, vc := range viewContracts {
 		if _, ok := goalContracts[id]; !ok {
 			add(id, "", "added", "fill",
-				"contract present in the view but absent from goal-law — reconciliation is the aa's amendment path, never silent adoption",
+				"contract present in the view but absent from goal-law — reconciliation is the accountable authority's amendment path, never silent adoption",
 				"", vc.hash)
 		}
 	}

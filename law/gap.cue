@@ -1,4 +1,4 @@
-// The gap record — the differ's output and the planner feed. Batch 5,
+// The gap schema — the differ's output and the planning feed. Batch 5,
 // status: proposed.
 //
 // A gap measures contract disequilibrium: goal-law against the absorbed
@@ -7,10 +7,11 @@
 // or → proven-too-expensive, which initiates the amendment path. Two
 // terminal paths, no third; a gap is never silently abandoned.
 //
-// The differ is a read path: it computes gap records and holds no
-// authority — gap records inform the planner's decisions and decide
-// nothing themselves. Persisted gap records are evidence-side records,
-// entered by the record act like anything else.
+// The differ is a read path: it computes gaps and holds no authority —
+// gaps inform planning decisions and decide nothing themselves. A
+// persisted gap enters the store as a claim of the differ's computation
+// (recorded, never believed) — 'gap record' names no record kind. Only
+// the differ derives gaps; parties report circumstances as claims.
 package law
 
 // Structural kinds (law against view), the v0 set. "violated" and

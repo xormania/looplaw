@@ -155,11 +155,13 @@ package law
 // goal-law carries none: law is authored and ratified, never derived
 // from what is.
 //
-// Hashes are substrate-neutral by construction, so the same provenance
-// works over any content-addressed store. The client that read the
-// scope computes them; the kernel only ever compares submitted hashes
-// against recorded ones (T0-4: the kernel never fetches or inspects
-// work-product content).
+// Every hash is a sha256 hex digest — one function, fixed, so two
+// provenance blocks are comparable by construction. Reopening trigger:
+// a content-addressed substrate whose addresses are not sha256, at
+// which point the function is named in the block rather than assumed.
+// The client that read the scope computes the digests; the kernel only
+// ever compares submitted digests against recorded ones (T0-4: the
+// kernel never fetches or inspects work-product content).
 #Provenance: {
 	// The scope the absorption ran over, as the client named it.
 	scope: string
@@ -198,6 +200,6 @@ package law
 	// not a declaration.
 	experience_declared_absent: bool
 	// Present exactly when the set is an absorbed view; its absence
-	// means the set is authored law.
+	// means the set is authored, carrying no baseline.
 	provenance?: #Provenance
 }

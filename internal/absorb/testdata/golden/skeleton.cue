@@ -1,14 +1,18 @@
 // DRAFT VIEW SKELETON — not yet a valid set.
 //
-// Provenance below was computed from the scope; the law regions are
-// empty and the gates will refuse this set until they are authored.
+// Provenance below was computed from the scope; the statement regions
+// are empty and the gates will refuse this set until they are authored.
 // Those refusals are the worklist. Every contract authored here must
 // also be addressed in provenance.derivations, naming the sources it
 // was derived from — an unsourced statement cannot go stale, so nothing
 // can ever falsify it.
 //
-// This view is evidence, never law: it records what a party claims the
-// scope currently is. Law is authored and ratified separately.
+// This view is evidence, never law: it states what a party claims the
+// scope currently is — submitted as a claim, recorded never believed.
+// Law is authored and ratified separately.
+//
+// Declare experience_declared_absent yourself: silence is not a
+// declaration, so the binary leaves it to the author.
 subject:        "lend-library"
 schema_version: "0"
 
@@ -17,7 +21,7 @@ invariants: {}
 lexicon: {}
 contracts: {}
 experience: {}
-experience_declared_absent: true
+// experience_declared_absent: true|false
 
 provenance: {
 	scope: "scope"

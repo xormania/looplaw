@@ -1,5 +1,5 @@
 // An absorbed view of the lending scope: what a party claims the scope
-// currently is, with provenance recording what each statement was
+// currently is, with provenance naming what each statement was
 // derived from. Evidence, never law — the goal-law it is diffed against
 // lives elsewhere and is ratified separately.
 subject:        "lend-library"

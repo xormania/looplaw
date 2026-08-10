@@ -5,13 +5,14 @@ import (
 	"testing"
 
 	"github.com/xormania/looplaw/internal/golden"
+	"github.com/xormania/looplaw/internal/provenance"
 )
 
 // The staleness report is a wire format: it tells a client which
 // statements are owed a re-derivation, so its shape changes only
 // deliberately.
 func TestStalenessReportGolden(t *testing.T) {
-	m, err := ScanScope(scope)
+	m, err := ScanScope(scope, "scope")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -19,7 +20,7 @@ func TestStalenessReportGolden(t *testing.T) {
 	delete(m.Sources, "returning.go")
 	m.Sources["renewals.go"] = "1111111111111111111111111111111111111111111111111111111111111111"
 
-	rep := Compare(viewProvenance(t, view), m)
+	rep := provenance.Compare(viewProvenance(t, view), m)
 	out, err := json.MarshalIndent(rep, "", "  ")
 	if err != nil {
 		t.Fatal(err)
@@ -30,7 +31,7 @@ func TestStalenessReportGolden(t *testing.T) {
 // The skeleton is what an authoring agent receives; its shape is the
 // hand-off contract.
 func TestSkeletonGolden(t *testing.T) {
-	m, err := ScanScope(scope)
+	m, err := ScanScope(scope, "scope")
 	if err != nil {
 		t.Fatal(err)
 	}

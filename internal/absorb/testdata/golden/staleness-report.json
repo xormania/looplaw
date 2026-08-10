@@ -1,5 +1,7 @@
 {
-  "scope": "scope",
+  "scope_recorded": "scope",
+  "scope_submitted": "scope",
+  "scope_mismatch": false,
   "stale": true,
   "changed": [
     "lending.go"

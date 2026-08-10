@@ -10,6 +10,7 @@ import (
 	"cuelang.org/go/cue"
 
 	"github.com/xormania/looplaw/internal/gate"
+	"github.com/xormania/looplaw/internal/provenance"
 )
 
 const (
@@ -31,11 +32,11 @@ func viewProvenance(t *testing.T, path string) cue.Value {
 }
 
 func TestScanIsDeterministicAndSkipsNonScope(t *testing.T) {
-	a, err := ScanScope(scope)
+	a, err := ScanScope(scope, "scope")
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, _ := ScanScope(scope)
+	b, _ := ScanScope(scope, "scope")
 	if !reflect.DeepEqual(a, b) {
 		t.Fatal("two scans of one scope differ")
 	}
@@ -47,10 +48,10 @@ func TestScanIsDeterministicAndSkipsNonScope(t *testing.T) {
 			t.Errorf("version-control internals absorbed: %s", p)
 		}
 	}
-	if _, err := ScanScope(filepath.Join(scope, "lending.go")); err == nil {
+	if _, err := ScanScope(filepath.Join(scope, "lending.go"), "scope"); err == nil {
 		t.Error("scanning a file rather than a directory must fail")
 	}
-	if _, err := ScanScope("testdata/nowhere"); err == nil {
+	if _, err := ScanScope("testdata/nowhere", "scope"); err == nil {
 		t.Error("scanning a missing scope must fail")
 	}
 }
@@ -69,7 +70,7 @@ func TestScanRefusesToFollowSymlinks(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(dir, "linked.go")); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
-	m, err := ScanScope(dir)
+	m, err := ScanScope(dir, "scope")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,11 +83,11 @@ func TestScanRefusesToFollowSymlinks(t *testing.T) {
 }
 
 func TestUnchangedScopeIsNotStale(t *testing.T) {
-	m, err := ScanScope(scope)
+	m, err := ScanScope(scope, "scope")
 	if err != nil {
 		t.Fatal(err)
 	}
-	rep := Compare(viewProvenance(t, view), m)
+	rep := provenance.Compare(viewProvenance(t, view), m)
 	if rep.Stale || len(rep.Changed)+len(rep.Missing)+len(rep.Affected) != 0 {
 		t.Fatalf("unchanged scope reported stale: %+v", rep)
 	}
@@ -98,13 +99,13 @@ func TestUnchangedScopeIsNotStale(t *testing.T) {
 // The payoff of provenance: an edited source names the statements
 // derived from it, so re-derivation is scoped rather than wholesale.
 func TestChangedSourceNamesTheAffectedStatements(t *testing.T) {
-	m, err := ScanScope(scope)
+	m, err := ScanScope(scope, "scope")
 	if err != nil {
 		t.Fatal(err)
 	}
 	m.Sources["lending.go"] = strings.Repeat("a", 64)
 
-	rep := Compare(viewProvenance(t, view), m)
+	rep := provenance.Compare(viewProvenance(t, view), m)
 	if !rep.Stale {
 		t.Fatal("edited source did not make the view stale")
 	}
@@ -121,13 +122,13 @@ func TestChangedSourceNamesTheAffectedStatements(t *testing.T) {
 }
 
 func TestMissingSourceIsStale(t *testing.T) {
-	m, err := ScanScope(scope)
+	m, err := ScanScope(scope, "scope")
 	if err != nil {
 		t.Fatal(err)
 	}
 	delete(m.Sources, "returning.go")
 
-	rep := Compare(viewProvenance(t, view), m)
+	rep := provenance.Compare(viewProvenance(t, view), m)
 	if !rep.Stale || !reflect.DeepEqual(rep.Missing, []string{"returning.go"}) {
 		t.Fatalf("deleted source not reported missing: %+v", rep)
 	}
@@ -140,13 +141,13 @@ func TestMissingSourceIsStale(t *testing.T) {
 // law is a judgment, and the differ reports it as evidence, not a
 // verdict.
 func TestAddedSourceIsReportedButNotStale(t *testing.T) {
-	m, err := ScanScope(scope)
+	m, err := ScanScope(scope, "scope")
 	if err != nil {
 		t.Fatal(err)
 	}
 	m.Sources["renewals.go"] = strings.Repeat("b", 64)
 
-	rep := Compare(viewProvenance(t, view), m)
+	rep := provenance.Compare(viewProvenance(t, view), m)
 	if rep.Stale {
 		t.Error("an added source alone must not make a view stale")
 	}
@@ -155,17 +156,17 @@ func TestAddedSourceIsReportedButNotStale(t *testing.T) {
 	}
 }
 
-// Compare takes data only: given identical inputs it must not consult
+// provenance.Compare takes data only: given identical inputs it must not consult
 // the filesystem, so the same comparison holds wherever it runs.
 func TestCompareTouchesNoFilesystem(t *testing.T) {
 	prov := viewProvenance(t, view)
-	phantom := Manifest{Scope: "phantom", Sources: map[string]string{
+	phantom := provenance.Manifest{Scope: "phantom", Sources: map[string]string{
 		"lending.go":   strings.Repeat("c", 64),
 		"returning.go": strings.Repeat("d", 64),
 	}}
-	rep := Compare(prov, phantom)
-	if len(rep.Changed) != 2 || rep.Scope != "phantom" {
-		t.Fatalf("Compare did not work purely from the submitted manifest: %+v", rep)
+	rep := provenance.Compare(prov, phantom)
+	if len(rep.Changed) != 2 || rep.ScopeSubmitted != "phantom" || !rep.ScopeMismatch {
+		t.Fatalf("provenance.Compare did not work purely from the submitted manifest: %+v", rep)
 	}
 }
 
@@ -173,7 +174,7 @@ func TestCompareTouchesNoFilesystem(t *testing.T) {
 // inference, and the gates' refusals are the worklist handed to whoever
 // does it.
 func TestSkeletonCarriesProvenanceAndDoesNotValidate(t *testing.T) {
-	m, err := ScanScope(scope)
+	m, err := ScanScope(scope, "scope")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,5 +201,84 @@ func TestSkeletonCarriesProvenanceAndDoesNotValidate(t *testing.T) {
 	}
 	if !vacuity {
 		t.Errorf("want the vacuity refusal as the worklist, got %+v", refusals)
+	}
+}
+
+// A manifest from a different scope than the one recorded makes every
+// comparison meaningless, so the mismatch is stated and the view counts
+// as stale rather than quietly green.
+func TestScopeMismatchIsStated(t *testing.T) {
+	m, err := ScanScope(scope, "some-other-scope")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rep := provenance.Compare(viewProvenance(t, view), m)
+	if !rep.ScopeMismatch || !rep.Stale {
+		t.Fatalf("a mismatched scope reported clean: %+v", rep)
+	}
+	if rep.ScopeRecorded != "scope" || rep.ScopeSubmitted != "some-other-scope" {
+		t.Errorf("both scopes must be named: %+v", rep)
+	}
+}
+
+// A symlinked scope root must refuse: walking it yields an empty
+// manifest, which reads downstream as total staleness rather than as
+// the refusal it is.
+func TestSymlinkedScopeRootRefused(t *testing.T) {
+	dir := t.TempDir()
+	real := filepath.Join(dir, "real")
+	if err := os.MkdirAll(real, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(real, "x.go"), []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if _, err := ScanScope(link, "scope"); err == nil {
+		t.Fatal("a symlinked scope root was scanned rather than refused")
+	}
+}
+
+// The caller names the scope; the client never derives identity from a
+// path spelling.
+func TestScopeNameIsCallerSupplied(t *testing.T) {
+	if _, err := ScanScope(scope, ""); err == nil {
+		t.Fatal("an unnamed scope must refuse rather than have a name invented for it")
+	}
+	m, err := ScanScope(scope, "caller-chosen")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Scope != "caller-chosen" {
+		t.Errorf("scope = %q, want the caller's name", m.Scope)
+	}
+}
+
+// Control bytes and other CUE-hostile characters in a path must not
+// produce unparseable output: the skeleton is quoted as CUE, not as Go.
+func TestSkeletonQuotesAsCUE(t *testing.T) {
+	dir := t.TempDir()
+	odd := filepath.Join(dir, "a\x01b\"c.go")
+	if err := os.WriteFile(odd, []byte("package x\n"), 0o644); err != nil {
+		t.Skipf("filesystem rejects the name: %v", err)
+	}
+	m, err := ScanScope(dir, "odd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := Skeleton("odd-subject", m)
+	path := filepath.Join(t.TempDir(), "skeleton.cue")
+	if err := os.WriteFile(path, []byte(out), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// It must be refused for binding nothing, never for being
+	// unparseable: unparseable output at exit 0 is the defect.
+	for _, r := range gate.ValidateTrinity(path) {
+		if r.Check == "trinity/parse" {
+			t.Fatalf("skeleton is not parseable CUE: %s", r.Error())
+		}
 	}
 }

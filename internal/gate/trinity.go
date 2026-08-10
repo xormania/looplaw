@@ -470,7 +470,7 @@ func provenanceChecks(subject string, set cue.Value, infos map[string]*contractI
 				if !contains(sources, src) {
 					refuse("trinity/provenance-source", fmt.Sprintf("derivation %q", addr),
 						fmt.Sprintf("source %q is absent from the provenance baseline", src),
-						"name a source the absorption recorded; an unbaselined source cannot go stale, so it proves nothing")
+						"name a source the absorption baselined in provenance.sources; an unbaselined source cannot go stale, so it proves nothing")
 				}
 			}
 		}
@@ -480,7 +480,7 @@ func provenanceChecks(subject string, set cue.Value, infos map[string]*contractI
 		if !addressed[cid] {
 			refuse("trinity/provenance-coverage", fmt.Sprintf("contract %q", cid),
 				"absorbed but derived from nothing — an unsourced statement cannot go stale, so nothing can ever falsify it",
-				"record what the contract was derived from, or drop it from the view")
+				"state in provenance.derivations what the contract was derived from, or drop it from the view")
 		}
 	}
 

@@ -1,6 +1,6 @@
 // Package gate holds the kernel gates: deterministic checks that refuse
 // with a remedy or pass in silence. Gates are mechanism, never authority
-// (law/registry.cue): they verify preconditions of the record act and
+// (dev/registry.cue): they verify preconditions of the record act and
 // originate nothing.
 package gate
 
@@ -15,7 +15,7 @@ import (
 	"cuelang.org/go/cue/load"
 
 	"github.com/xormania/looplaw/internal/outcome"
-	"github.com/xormania/looplaw/law"
+	"github.com/xormania/looplaw/schema"
 )
 
 // Checks enumerates every check id the trinity gates can emit — the
@@ -125,7 +125,7 @@ func validateTrinityBytes(subject string, data []byte) (cue.Value, []outcome.Ref
 			Check:   "trinity/shape",
 			Subject: subject,
 			Reason:  err.Error(),
-			Remedy:  "align the set with the ratified #TrinitySet schema (law/trinity.cue)",
+			Remedy:  "align the set with the ratified #TrinitySet schema (schema/trinity.cue)",
 		})
 		relational = set
 	}
@@ -146,7 +146,7 @@ func Law(ctx *cue.Context) (cue.Value, error) {
 // exactly as they do on disk.
 func embeddedLaw(ctx *cue.Context) (cue.Value, error) {
 	overlay := map[string]load.Source{}
-	entries, err := law.Files.ReadDir(".")
+	entries, err := schema.Files.ReadDir(".")
 	if err != nil {
 		return cue.Value{}, err
 	}
@@ -154,13 +154,13 @@ func embeddedLaw(ctx *cue.Context) (cue.Value, error) {
 		if !strings.HasSuffix(e.Name(), ".cue") {
 			continue
 		}
-		b, err := law.Files.ReadFile(e.Name())
+		b, err := schema.Files.ReadFile(e.Name())
 		if err != nil {
 			return cue.Value{}, err
 		}
-		overlay["/embedded/law/"+e.Name()] = load.FromBytes(b)
+		overlay["/embedded/schema/"+e.Name()] = load.FromBytes(b)
 	}
-	insts := load.Instances([]string{"./law"}, &load.Config{
+	insts := load.Instances([]string{"./schema"}, &load.Config{
 		Dir:     "/embedded",
 		Overlay: overlay,
 	})

@@ -15,7 +15,6 @@ import (
 	"github.com/xormania/looplaw/internal/diff"
 	"github.com/xormania/looplaw/internal/gate"
 	"github.com/xormania/looplaw/internal/outcome"
-	"github.com/xormania/looplaw/internal/project"
 	"github.com/xormania/looplaw/internal/provenance"
 	"github.com/xormania/looplaw/internal/record"
 	"github.com/xormania/looplaw/internal/store"
@@ -199,22 +198,6 @@ func main() {
 		s.Close()
 		fmt.Printf("%s: state created under %s\n", os.Args[2], store.ProjectPath(root, os.Args[2]))
 		os.Exit(outcome.ExitOK)
-	case "project":
-		if len(os.Args) != 3 || os.Args[2] != "law" {
-			fmt.Fprintln(os.Stderr, "usage: looplaw project law")
-			os.Exit(outcome.ExitUsage)
-		}
-		digest, err := project.LawDigest()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, (&outcome.Refusal{
-				Class: outcome.Abort, Check: "project/law",
-				Subject: "law (embedded)", Reason: err.Error(),
-				Remedy: "the embedded law is broken; replace this binary with one embedding the ratified law",
-			}).Error())
-			os.Exit(outcome.ExitAbort)
-		}
-		fmt.Print(digest)
-		os.Exit(outcome.ExitOK)
 	case "diff":
 		if len(os.Args) != 4 {
 			fmt.Fprintln(os.Stderr, "usage: looplaw diff <goal.cue> <view.cue>")
@@ -330,9 +313,6 @@ commands:
                        said, never that it is true
   verify <project>     recompute every hash and link in the ledger
   export <project>     print the ledger as recorded
-  project law          print the ratified law as a pasteable brief:
-                       invariants, authorities, acts, term cards, and
-                       the vocabulary that is refused
   status <view> <scope> report which sources moved under an absorbed
                        view and which statements they were derived from
   diff <goal> <view>   compute the gaps between goal-law and a view
@@ -340,7 +320,7 @@ commands:
                        planning feed, printed as JSON — a diff that
                        finds gaps is a successful run, exit 0
 
-The rest of the kernel surface (serve, submit, diff, project, verify,
-status, export) arrives as it is designed; see proj/looplaw-spec.md §10.
+The rest of the kernel surface (ratify, serve) arrives as it is
+designed; see proj/looplaw-spec.md §10.
 `)
 }

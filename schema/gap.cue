@@ -1,20 +1,6 @@
 // The gap schema — the differ's output and the planning feed.
 //
-// RATIFIED: PR #12 merged by xormania 2026-08-10 (the recorded act per
-// law/README.md). Amendments only by new PR.
-//
-// A gap measures contract disequilibrium: goal-law against the absorbed
-// current view. A gap is a planning state, never an error state — a red
-// for law is work, not failure. Lifecycle: open → in-work → satisfied,
-// or → proven-too-expensive, which initiates the amendment path. Two
-// terminal paths, no third; a gap is never silently abandoned.
-//
-// The differ is a read path: it computes gaps and holds no authority —
-// gaps inform planning decisions and decide nothing themselves. A
-// persisted gap enters the store as a claim of the differ's computation
-// (recorded, never believed) — 'gap record' names no record kind. Only
-// the differ derives gaps; parties report circumstances as claims.
-package law
+package schema
 
 // Structural kinds (law against view), the v0 set. "violated" and
 // "unproven" join when receipts feed the differ — reopening trigger:

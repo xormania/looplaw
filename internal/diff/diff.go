@@ -1,6 +1,6 @@
 // Package diff is the differ: a read path that computes gaps — the
 // structured disequilibrium between goal-law and a view — and holds no
-// authority. Gaps inform planning and decide nothing (law/gap.cue); a
+// authority. Gaps inform planning and decide nothing (schema/gap.cue); a
 // gap is a planning state, never an error state, so a run that finds
 // gaps is a successful run.
 //
@@ -34,7 +34,7 @@ var Checks = []string{
 	"diff/self-check",
 }
 
-// Gap mirrors law/gap.cue #Gap. Status is always "open" in v0 (the
+// Gap mirrors schema/gap.cue #Gap. Status is always "open" in v0 (the
 // fuller lifecycle binds when the store assumes gap custody).
 type Gap struct {
 	ID       string  `json:"id"`

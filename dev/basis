@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Design-basis housekeeping (named for what it maintains, not for law:
+# law is what an accountable authority ratifies, and it lives in the
+# ledger): regenerate the digest from dev/*.cue and
+# report what is still proposed after its batch was settled. Missing
+# that flip is the process error made most often here, and it is
+# invisible until somebody greps for it.
+#
+# This covers dev/ — this project's own design basis. The schemas the
+# binary enforces are law/, and they carry no status.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+go run ./dev/cmd/digest > dev/DIGEST.md
+if git diff --quiet -- dev/DIGEST.md; then
+	echo "digest current"
+else
+	echo "digest regenerated:"
+	git diff --stat -- dev/DIGEST.md
+fi

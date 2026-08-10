@@ -19,7 +19,11 @@ func TestRefusalStreamGolden(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var b strings.Builder
 			for _, r := range ValidateTrinity(tc.attack) {
-				b.WriteString(r.Error() + "\n")
+				// The path is where the input happened to live, not
+				// part of the refusal's meaning: recording it would
+				// make every file move rewrite outputs that did not
+				// change.
+				b.WriteString(strings.ReplaceAll(r.Error(), tc.attack, "<input>") + "\n")
 			}
 			golden.Assert(t, tc.file, b.String())
 		})

@@ -4,7 +4,14 @@
 // mismatch is a contract change asking to be noticed, not a test to
 // silence.
 //
-// Record with: LOOPLAW_GOLDEN_UPDATE=1 go test ./...
+// Record with: LOOPLAW_GOLDEN_UPDATE=1 go test ./... -count=1
+//
+// Through the environment rather than a flag: a flag exists only in
+// packages that import this one, so a repository-wide "go test ./...
+// -update" fails in every package that has no goldens. An environment
+// variable is ignored harmlessly by all of them. The -count=1 defeats
+// the test cache, which has replayed a stale failure over a golden
+// that had already been re-recorded.
 package golden
 
 import (
@@ -13,14 +20,10 @@ import (
 	"testing"
 )
 
-// Recording is opt-in through the environment rather than a flag: a
-// flag exists only in packages that import this one, so a repo-wide
-// "go test ./... -update" fails in every package that has no goldens.
-// An environment variable is ignored harmlessly by all of them.
 func updating() bool { return os.Getenv("LOOPLAW_GOLDEN_UPDATE") != "" }
 
 // Assert compares got against the recorded golden file, or records it
-// when -update is passed.
+// when LOOPLAW_GOLDEN_UPDATE is set.
 func Assert(t *testing.T, path, got string) {
 	t.Helper()
 	if updating() {
@@ -35,7 +38,7 @@ func Assert(t *testing.T, path, got string) {
 	}
 	want, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("golden %s missing: %v — run LOOPLAW_GOLDEN_UPDATE=1 go test ./... to record it", path, err)
+		t.Fatalf("golden %s missing: %v — run LOOPLAW_GOLDEN_UPDATE=1 go test ./... -count=1 to record it", path, err)
 	}
 	if string(want) != got {
 		t.Errorf("output differs from golden %s.\nIf the change is deliberate, re-record with LOOPLAW_GOLDEN_UPDATE=1 and say why in the message.\n--- want ---\n%s\n--- got ---\n%s",

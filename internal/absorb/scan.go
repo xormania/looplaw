@@ -6,40 +6,32 @@
 //
 // The lane matters. This package reads files because the client may
 // (loopstrap materializes a tree and invokes the client inside it); the
-// kernel never does (T0-4). The comparison half — compare.go — takes
-// data only and touches no filesystem, so the staleness check is the
-// same computation wherever it runs.
+// kernel never does (T0-4). The comparison half lives in
+// internal/provenance and takes data only, so a client submits a
+// manifest and the kernel compares it — the split the spec requires,
+// made visible in the package boundary rather than promised in a
+// comment.
 package absorb
 
 import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
+	"unicode/utf8"
+
+	"cuelang.org/go/cue/literal"
+
+	"github.com/xormania/looplaw/internal/provenance"
 )
 
-// Manifest is a content-hash baseline over a scope: relative path to
-// sha256, plus the scope name the client used.
-type Manifest struct {
-	Scope   string            `json:"scope"`
-	Sources map[string]string `json:"sources"`
-}
-
-// Paths returns the manifest's paths in sorted order — every output
-// derived from a manifest is deterministic (T0-3 is the kernel's rule;
-// client output honors it so runs are comparable).
-func (m Manifest) Paths() []string {
-	paths := make([]string, 0, len(m.Sources))
-	for p := range m.Sources {
-		paths = append(paths, p)
-	}
-	sort.Strings(paths)
-	return paths
-}
+// Manifest is the kernel's submitted-manifest type; the client builds
+// one and hands it over.
+type Manifest = provenance.Manifest
 
 // skipDirs are never absorbed: version-control internals, dependency
 // caches, and looplaw's own state are not the subject's design.
@@ -49,19 +41,30 @@ var skipDirs = map[string]bool{
 }
 
 // ScanScope walks a scope directory and hashes every regular file,
-// refusing symlinks rather than following them (a symlink's target is
+// refusing symlinks rather than following them (a symlink's target lies
 // outside the scope the client was handed, so absorbing through one
-// would source law from unscoped content).
-func ScanScope(root string) (Manifest, error) {
-	info, err := os.Stat(root)
+// would derive statements from content no baseline covers). The scope
+// name is supplied by the caller: identity is never derived from a path
+// spelling.
+func ScanScope(root, scopeName string) (Manifest, error) {
+	// Lstat, not Stat: a symlinked root would otherwise walk as a
+	// non-directory and yield an empty manifest, which reads downstream
+	// as total staleness rather than as the refusal it is.
+	info, err := os.Lstat(root)
 	if err != nil {
 		return Manifest{}, fmt.Errorf("scan scope: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return Manifest{}, fmt.Errorf("scan scope: %s is a symlink; hand the client the scope itself, not a link to it", root)
 	}
 	if !info.IsDir() {
 		return Manifest{}, fmt.Errorf("scan scope: %s is not a directory", root)
 	}
+	if scopeName == "" {
+		return Manifest{}, fmt.Errorf("scan scope: no scope name supplied; the caller names the scope, the client never derives it from a path")
+	}
 
-	m := Manifest{Scope: filepath.Base(strings.TrimRight(root, string(filepath.Separator))), Sources: map[string]string{}}
+	m := Manifest{Scope: scopeName, Sources: map[string]string{}}
 	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -79,12 +82,27 @@ func ScanScope(root string) (Manifest, error) {
 		if !d.Type().IsRegular() {
 			return nil // symlinks, sockets, devices: not scope content
 		}
-		data, err := os.ReadFile(path)
+		slash := filepath.ToSlash(rel)
+		// A path that is not valid UTF-8 cannot be written into CUE
+		// without lossy replacement, and two distinct paths could then
+		// collide in the baseline — a silent provenance forgery.
+		if !utf8.ValidString(slash) {
+			return fmt.Errorf("path is not valid UTF-8 and cannot be baselined without collision risk: %q", slash)
+		}
+		f, err := os.Open(path)
 		if err != nil {
 			return err
 		}
-		sum := sha256.Sum256(data)
-		m.Sources[filepath.ToSlash(rel)] = hex.EncodeToString(sum[:])
+		h := sha256.New()
+		// Streamed, not read whole: a large file in a scope must draw a
+		// refusal with a remedy, never a runtime fatal no caller can
+		// catch.
+		if _, err := io.Copy(h, f); err != nil {
+			f.Close()
+			return err
+		}
+		f.Close()
+		m.Sources[slash] = hex.EncodeToString(h.Sum(nil))
 		return nil
 	})
 	if err != nil {
@@ -94,24 +112,32 @@ func ScanScope(root string) (Manifest, error) {
 }
 
 // Skeleton renders a draft view: the provenance block filled from the
-// manifest, the law regions left empty for authoring. It is deliberately
-// not a valid set — the gates refuse a set that binds nothing — because
-// the authoring is inference and belongs to the agent, not the binary.
-// The refusals are the worklist.
+// manifest, the statement regions left empty for authoring. It is
+// deliberately not a valid set — the gates refuse a set that binds
+// nothing — because the authoring is inference and belongs to the
+// agent, not the binary. The refusals are the worklist.
+//
+// Values are quoted through CUE's own literal quoter: Go's %q emits
+// \x escapes that CUE cannot parse, so a control byte in a path would
+// otherwise produce unparseable output at exit 0.
 func Skeleton(subject string, m Manifest) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, `// DRAFT VIEW SKELETON — not yet a valid set.
 //
-// Provenance below was computed from the scope; the law regions are
-// empty and the gates will refuse this set until they are authored.
+// Provenance below was computed from the scope; the statement regions
+// are empty and the gates will refuse this set until they are authored.
 // Those refusals are the worklist. Every contract authored here must
 // also be addressed in provenance.derivations, naming the sources it
 // was derived from — an unsourced statement cannot go stale, so nothing
 // can ever falsify it.
 //
-// This view is evidence, never law: it records what a party claims the
-// scope currently is. Law is authored and ratified separately.
-subject:        %q
+// This view is evidence, never law: it states what a party claims the
+// scope currently is — submitted as a claim, recorded never believed.
+// Law is authored and ratified separately.
+//
+// Declare experience_declared_absent yourself: silence is not a
+// declaration, so the binary leaves it to the author.
+subject:        %s
 schema_version: "0"
 
 registry: {}
@@ -119,15 +145,22 @@ invariants: {}
 lexicon: {}
 contracts: {}
 experience: {}
-experience_declared_absent: true
+// experience_declared_absent: true|false
 
 provenance: {
-	scope: %q
+	scope: %s
 	sources: {
-`, subject, m.Scope)
+`, q(subject), q(m.Scope))
 	for _, p := range m.Paths() {
-		fmt.Fprintf(&b, "\t\t%q: %q\n", p, m.Sources[p])
+		fmt.Fprintf(&b, "\t\t%s: %s\n", q(p), q(m.Sources[p]))
 	}
 	b.WriteString("\t}\n\tderivations: {\n\t\t// \"C-EXAMPLE-1\": [\"path/read.go\"]\n\t}\n}\n")
 	return b.String()
+}
+
+// q quotes a value as CUE, not as Go: %q's \x escapes are not CUE
+// syntax, so a control byte in a path would make the skeleton
+// unparseable.
+func q(s string) string {
+	return literal.String.Quote(s)
 }

@@ -145,6 +145,7 @@ func TestEveryDiffCheckHasAProvingRed(t *testing.T) {
 	proven := map[string]bool{
 		"diff/side":             true, // TestInvalidSideRefusedAndNamed
 		"diff/subject-mismatch": true, // TestSubjectMismatchRefused
+		"diff/goal-provenance":  true, // TestAbsorbedViewRefusedAsGoalLaw
 	}
 	for _, check := range Checks {
 		if proven[check] {
@@ -257,5 +258,35 @@ func TestBothSidesRefusalOrderIsDeterministic(t *testing.T) {
 	}
 	if len(first) == 0 || first[0] != "goal" {
 		t.Fatalf("goal side must come first: %v", first)
+	}
+}
+
+// Evidence never sets the standard it is measured against: an absorbed
+// view on the goal side would let a party's claim become the law
+// reality is compared to (T0-2). Reproduced by review before this red
+// existed — both orientations were accepted, and the inverted one
+// emitted fill orders directing ratified law to conform to a claim.
+func TestAbsorbedViewRefusedAsGoalLaw(t *testing.T) {
+	const absorbed = "../absorb/testdata/view.cue"
+
+	gaps, refusals := Diff(absorbed, view)
+	if gaps != nil {
+		t.Fatalf("an absorbed view was accepted as goal-law: %+v", gaps)
+	}
+	if len(refusals) != 1 || refusals[0].Check != "diff/goal-provenance" {
+		t.Fatalf("want a single diff/goal-provenance refusal, got %+v", refusals)
+	}
+	if refusals[0].Remedy == "" {
+		t.Error("refusal without a remedy")
+	}
+
+	// The view side stays unconstrained: with or without provenance it
+	// is legitimately a view.
+	if _, refusals := Diff(goal, absorbed); len(refusals) != 0 {
+		for _, r := range refusals {
+			if r.Check == "diff/goal-provenance" {
+				t.Errorf("provenance on the view side was refused: %s", r.Error())
+			}
+		}
 	}
 }

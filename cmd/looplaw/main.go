@@ -14,6 +14,7 @@ import (
 	"github.com/xormania/looplaw/internal/diff"
 	"github.com/xormania/looplaw/internal/gate"
 	"github.com/xormania/looplaw/internal/outcome"
+	"github.com/xormania/looplaw/internal/provenance"
 )
 
 const version = "0.0.0-dev"
@@ -32,9 +33,16 @@ func main() {
 			fmt.Fprintln(os.Stderr, "usage: looplaw validate <set.cue>")
 			os.Exit(outcome.ExitUsage)
 		}
-		refusals := gate.ValidateTrinity(os.Args[2])
+		set, refusals := gate.LoadSet(os.Args[2])
 		if len(refusals) == 0 {
-			fmt.Println("ok")
+			// Which lane the set is in is the distinction the gates now
+			// draw, so the verdict line carries it: a bare "ok" over a
+			// party's claim reads as acceptance of its content.
+			if set.LookupPath(cue.ParsePath("provenance")).Exists() {
+				fmt.Println("ok (absorbed view — evidence, not law)")
+			} else {
+				fmt.Println("ok (authored set)")
+			}
 			os.Exit(outcome.ExitOK)
 		}
 		exit := outcome.ExitOK
@@ -50,7 +58,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, "usage: looplaw absorb <scope-dir> <subject>")
 			os.Exit(outcome.ExitUsage)
 		}
-		m, err := absorb.ScanScope(os.Args[2])
+		m, err := absorb.ScanScope(os.Args[2], os.Args[3])
 		if err != nil {
 			fmt.Fprintln(os.Stderr, (&outcome.Refusal{
 				Class: outcome.Abort, Check: "absorb/scope",
@@ -59,9 +67,9 @@ func main() {
 			}).Error())
 			os.Exit(outcome.ExitAbort)
 		}
-		// The skeleton carries machine-computed provenance and empty law
-		// regions: authoring the law is inference, and it belongs to the
-		// agent driving this tool, never to the binary.
+		// The skeleton carries machine-computed provenance and empty
+		// statement regions: authoring them is inference, and it belongs
+		// to the agent driving this tool, never to the binary.
 		fmt.Print(absorb.Skeleton(os.Args[3], m))
 		os.Exit(outcome.ExitOK)
 	case "status":
@@ -85,12 +93,13 @@ func main() {
 			fmt.Fprintln(os.Stderr, (&outcome.Refusal{
 				Class: outcome.Rejection, Check: "status/no-provenance",
 				Subject: os.Args[2],
-				Reason:  "the set carries no provenance, so it is authored law, not an absorbed view",
-				Remedy:  "run status against an absorbed view; authored law has nothing to go stale against",
+				Reason:  "the set carries no provenance, so it is an authored set, not an absorbed view",
+				Remedy:  "run status against an absorbed view; an authored set carries no baseline to go stale against",
 			}).Error())
 			os.Exit(outcome.ExitRejection)
 		}
-		m, err := absorb.ScanScope(os.Args[3])
+		recordedScope, _ := prov.LookupPath(cue.ParsePath("scope")).String()
+		m, err := absorb.ScanScope(os.Args[3], recordedScope)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, (&outcome.Refusal{
 				Class: outcome.Abort, Check: "status/scope",
@@ -99,7 +108,7 @@ func main() {
 			}).Error())
 			os.Exit(outcome.ExitAbort)
 		}
-		rep := absorb.Compare(prov, m)
+		rep := provenance.Compare(prov, m)
 		out, err := json.MarshalIndent(rep, "", "  ")
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
@@ -158,11 +167,11 @@ commands:
                        carry their remedy; exit codes follow the failure
                        doctrine (0 ok, 1 rejection, 3 abort)
   absorb <scope> <subj> scan a scope and print a draft view skeleton
-                       with machine-computed provenance; the law regions
-                       are left for authoring (that work is inference)
+                       with machine-computed provenance; the statement
+                       regions are left for authoring (that is inference)
   status <view> <scope> report which sources moved under an absorbed
                        view and which statements they were derived from
-  diff <goal> <view>   compute gap records between goal-law and a view
+  diff <goal> <view>   compute the gaps between goal-law and a view
                        (both must pass the gates); the gap list is the
                        planning feed, printed as JSON — a diff that
                        finds gaps is a successful run, exit 0

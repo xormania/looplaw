@@ -29,6 +29,7 @@ import (
 // a red for each or declares a reasoned exemption.
 var Checks = []string{
 	"diff/side",
+	"diff/goal-provenance",
 	"diff/subject-mismatch",
 	"diff/self-check",
 }
@@ -76,6 +77,22 @@ func Diff(goalPath, viewPath string) ([]Gap, []outcome.Refusal) {
 	}
 	if len(refusals) > 0 {
 		return nil, refusals
+	}
+
+	// Evidence never sets the standard it is measured against: a set
+	// carrying provenance is an absorbed view, so accepting one as the
+	// goal side would let a party's claim become the law reality is
+	// compared to (T0-2, nothing ascending confers standing). The view
+	// side is unconstrained — with or without provenance it is
+	// legitimately a view.
+	if goal.LookupPath(cue.ParsePath("provenance")).Exists() {
+		return nil, []outcome.Refusal{{
+			Class:   outcome.Rejection,
+			Check:   "diff/goal-provenance",
+			Subject: goalPath,
+			Reason:  "the goal side carries provenance, so it is an absorbed view — evidence, not goal-law",
+			Remedy:  "diff against ratified goal-law; a view becomes law only through the aa's amendment path",
+		}}
 	}
 
 	goalSubject, _ := goal.LookupPath(cue.ParsePath("subject")).String()

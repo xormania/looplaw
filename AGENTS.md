@@ -108,6 +108,36 @@ Checks that read what the *product* says live with the product
 (`internal/conformance`), so a product edit cannot slip past them.
 Checks that read only `dev/` live in `dev/`.
 
+## The design basis is locked
+
+`dev/*.cue` — the vocabulary, the registry, the Tier 0 invariants — is
+sealed. `dev/LOCKED` holds each file's hash; `dev/lock` compares them and
+runs first in both `dev/check` and CI. A harness may propose a change on
+a branch; only xormania lands one.
+
+**If you are reaching for a word: do not coin one, and do not ask for
+one.** Write the plain sentence. "The golden is out of date" needs no
+term. Nearly every defect this project has had was a coinage that could
+have been a sentence — `aa` for accountable authority, `actor` for party,
+`drift` reserved as ours while the spec used it for what the provenance
+check reports. Raise a term only once it has recurred across batches, in
+a pull request body, batched with real work. The lexicon is meant to be
+static; changing it is dev-lane work, and dev-lane work is rare.
+
+The lock is tamper-evident, not tamper-proof, and that is the design
+rather than a shortfall. Nothing inside a repository stops an agent with
+write access — file permissions least of all, since `git checkout`
+overwrites a read-only tracked file and resets its mode, and committed
+content can be changed through plumbing without the file on disk ever
+being written. So the goal is not prevention but that no change is
+silent: turning the check green again means updating `dev/LOCKED`, which
+puts a line in the diff saying the basis was unlocked here. CI is what
+catches the plumbing path, because it hashes a tree checked out from the
+commit.
+
+When xormania has consented: `dev/lock --seal`, and commit `dev/LOCKED`
+with the change it covers.
+
 Kernel code (`internal/gate`, `internal/provenance`, `internal/store`)
 never reads a work tree and never infers: it decides over submitted
 claims, manifests, and recorded state. Client code (`internal/absorb`)

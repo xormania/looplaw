@@ -7,6 +7,11 @@ cd "$(dirname "$0")/.."
 
 step() { printf '\n\033[1m== %s\033[0m\n' "$1"; }
 
+# First, and before anything slow: if the design basis was changed
+# without consent, that is what you need to know, not a gofmt diff.
+step "design basis lock"
+dev/lock
+
 step "format"
 if [ -n "$(gofmt -l .)" ]; then
 	gofmt -l .
@@ -28,9 +33,9 @@ step "test"
 go test ./...
 
 step "recorded outputs match what the code emits"
-# Compared against generated output, not against git: a deliberate
-# change staged for this commit is not drift, and CI checks the
-# committed state separately.
+# Compared against generated output, not against git: a change staged
+# for this commit is intended, not stale, and CI checks the committed
+# state separately.
 go test ./... -run Golden -count=1
 go run ./dev/cmd/digest > /tmp/looplaw-digest-check.md
 diff -q /tmp/looplaw-digest-check.md dev/DIGEST.md >/dev/null || { echo "digest stale; run dev/basis"; exit 1; }

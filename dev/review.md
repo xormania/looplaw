@@ -11,6 +11,10 @@ Written to be followed by hand. A harness with orchestration can drive
 it (a Claude session has it saved as `Workflow({name: "review"})`);
 nothing here depends on that.
 
+Match depth to risk. A batch that changes no product behavior does not
+need three adversarial lenses, and reviewing it anyway costs more than
+it finds.
+
 ## Shape
 
 Two passes, and the second is what makes the first trustworthy.
@@ -26,6 +30,13 @@ Two passes, and the second is what makes the first trustworthy.
 A finding without a command, an observed output, and a failure scenario
 is not a finding. A red for the wrong reason proves nothing — check
 that what you reproduced is what the finding actually claims.
+
+Keep the writing short, and not for tidiness: a finding that does not
+survive refutation is discarded whole, so every sentence spent
+justifying one before it is checked is a sentence thrown away. A note
+is one line. Give each lens the list of changed files rather than the
+repository, or it will read the repository to find out which files
+changed.
 
 ## The three lenses
 

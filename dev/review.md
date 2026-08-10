@@ -77,7 +77,7 @@ unratified artifacts treated as law.
   `internal/gate/testdata/attacks/` with its expected refusal declared
   in `index.cue`. The corpus is why a defect cannot return quietly, and
   why the next reviewer starts from what has already been tried.
-- **Fix with a proving red.** A fix without a witness is a fix that can
+- **Fix with a proving red.** A fix without a demonstration is a fix that can
   be undone silently.
 - **Record what was rejected.** A considered-and-rejected finding, and
   why, belongs in the pull request — unrecorded rejections get

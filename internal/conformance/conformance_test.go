@@ -97,6 +97,108 @@ func TestProductTextObeysItsOwnRefusedVocabulary(t *testing.T) {
 	}
 }
 
+// No undeclared short form of a phrase the lexicon names may appear in
+// product text. The method allows bare shorthand inside a lexicon for
+// economy, but only declared, with the qualified form required in every
+// output register (collision-resistant-lexicon-method §39, §113, §197);
+// the #Entry.aliases field is where a declaration goes, and it is
+// exhaustive by construction.
+//
+// This is narrow on purpose. The general form — flag every short opaque
+// token — was tried and produced forty false alarms on innocent prose
+// (act, law, gap, see, may), which would have bought an allowlist that
+// grows with every sentence. Deriving the banned tokens from the
+// lexicon's own phrases costs no list at all and fires only on the
+// defect that has actually happened: "aa" for accountable authority, 132
+// sites, undetected across eight batches and several adversarial reviews
+// because a two-letter word is exactly what a reader's eye skips.
+func TestProductTextUsesNoUndeclaredShortForm(t *testing.T) {
+	banned := lexiconInitialisms(t)
+	if len(banned) == 0 {
+		t.Fatal("no lexicon phrase yielded a short form to check")
+	}
+	for _, src := range productText(t) {
+		lower := strings.ToLower(stripPaths(src.text))
+		for tok, phrase := range banned {
+			re := regexp.MustCompile(`\b` + regexp.QuoteMeta(tok) + `\b`)
+			if re.MatchString(lower) {
+				t.Errorf("the product says %q, the initials of %q (%s).\n"+
+					"Write the phrase out, or declare the short form in that entry's aliases — the method requires the qualified form in every output register.\n  %s",
+					tok, phrase, src.where, excerpt(src.text, tok))
+			}
+		}
+	}
+}
+
+// lexiconInitialisms derives the forbidden short forms rather than
+// listing them: an authority is "<id> authority" by the registry's own
+// naming, and reserved_future states its phrase before the em dash.
+// Anything a lexicon entry declares as an alias is exempt, which is what
+// makes the aliases field load-bearing instead of decorative.
+func lexiconInitialisms(t *testing.T) map[string]string {
+	t.Helper()
+	v := devPackage(t)
+
+	var phrases []string
+	iter, err := v.LookupPath(cue.ParsePath("registry.authorities")).Fields()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for iter.Next() {
+		phrases = append(phrases, iter.Selector().Unquoted()+" authority")
+	}
+	future, err := v.LookupPath(cue.ParsePath("reserved_future")).List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for future.Next() {
+		s, err := future.Value().String()
+		if err != nil {
+			continue
+		}
+		phrase, _, _ := strings.Cut(s, " — ")
+		phrases = append(phrases, strings.TrimPrefix(phrase, "the "))
+	}
+
+	declared := map[string]bool{}
+	entries, err := v.LookupPath(cue.ParsePath("lexicon")).Fields()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for entries.Next() {
+		as, err := entries.Value().LookupPath(cue.ParsePath("aliases")).List()
+		if err != nil {
+			continue
+		}
+		for as.Next() {
+			s, _ := as.Value().String()
+			alias, _, _ := strings.Cut(s, " — ")
+			declared[strings.ToLower(strings.TrimSpace(alias))] = true
+		}
+	}
+
+	out := map[string]string{}
+	for _, p := range phrases {
+		words := strings.Fields(p)
+		if len(words) < 2 {
+			continue
+		}
+		var initials string
+		ok := true
+		for _, w := range words {
+			if w == "" || !('a' <= w[0] && w[0] <= 'z') {
+				ok = false
+				break
+			}
+			initials += string(w[0])
+		}
+		if ok && !declared[initials] {
+			out[initials] = p
+		}
+	}
+	return out
+}
+
 // productText collects ratified law, every recorded output, and the
 // string literals of non-test product code. Literals rather than whole
 // files: a comment explaining a golden is dev-lane talk about the code,

@@ -76,7 +76,7 @@ driven by whatever automation a harness has.
 
 - **Every check has a proving red.** `gate.Checks` and `diff.Checks`
   enumerate what each package can emit; a check with no red and no
-  declared exemption fails the witness-coverage test.
+  declared exemption fails the demonstration-coverage test.
 - **A red for the wrong reason proves nothing.** Mutations assert the
   refusal names the mutated thing, and any additional check a mutation
   draws must be declared in `alsoDraws`.
@@ -114,14 +114,43 @@ claims, manifests, and recorded state. Client code (`internal/absorb`)
 may read a scope it was handed. Derivation — what law a scope implies —
 is inference and belongs to the agent driving the tool, not the binary.
 
+## The design basis is locked
+
+`dev/*.cue` — the vocabulary, the registry, the Tier 0 invariants — is
+sealed. `dev/LOCKED` holds each file's hash; `dev/lock` compares them and
+runs first in both `dev/check` and CI. A harness may propose a change on
+a branch; master takes pull requests only, and only xormania merges.
+
+**If you are reaching for a word: do not coin one, and do not ask for
+one.** Write the plain sentence. "The golden is out of date" needs no
+term. Nearly every defect this project has had was a coinage that could
+have been a sentence — `aa` for accountable authority, `actor` for party,
+`drift` reserved as ours while the spec used it for what the provenance
+check reports. Raise a term only once it has recurred across batches, in
+a pull request body, batched with real work. The lexicon is meant to be
+static; changing it is dev-lane work, and dev-lane work is rare.
+
+The lock is tamper-evident, not tamper-proof, and that is the design
+rather than a shortfall. Nothing inside a repository stops an agent with
+write access — file permissions least of all, since `git checkout`
+overwrites a read-only tracked file and resets its mode, and committed
+content can be changed through plumbing without the file on disk ever
+being written. So the goal is not prevention but that no change is
+silent: turning the check green again means updating `dev/LOCKED`, which
+puts a line in the diff saying the basis was unlocked here. CI is what
+catches the plumbing path, because it hashes a tree checked out from the
+commit.
+
+When xormania has consented: `dev/lock --seal`, and commit `dev/LOCKED`
+with the change it covers.
+
 ## Contributing
 
 `CONTRIBUTING.md` is authoritative: branch per theme, one unit of work
 per commit, batch a coherent theme into one draft PR, xormania-only
 attribution with no AI trailers, and only xormania marks ready or
-merges. For `schema/` changes the merge *is* the ratification act —
-entries arrive `status: "proposed"` and flip in the following batch
-(`dev/README.md`).
+merges. Merging ratifies nothing — ratification is a recorded act in the
+ledger, which is the thing this product exists to replace merging with.
 
 Working notes live in `proj/` (gitignored — scope, not secrecy).
 

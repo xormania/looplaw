@@ -20,7 +20,7 @@ import (
 
 // Checks enumerates every check id the trinity gates can emit — the
 // gates' action space, enumerable by design. The test suite proves a red
-// for each (an unwitnessed gate is an unproven behavior); adding a check
+// for each (an undemonstrated gate is an unproven behavior); adding a check
 // here without a proving red fails the suite.
 var Checks = []string{
 	"trinity/load",

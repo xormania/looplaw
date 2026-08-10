@@ -21,7 +21,7 @@ package dev
 #Act: {
 	verb:      string
 	changes:   string // the standing change this act alone produces
-	authority: "aa" | "recording" // pointer into registry.authorities
+	authority: "accountable" | "recording" // pointer into registry.authorities
 	rationale: string
 	trigger?:  string
 }
@@ -43,7 +43,7 @@ registry: {
 
 registry: {
 	authorities: {
-		aa: {
+		accountable: {
 			holder: "the deployment's accountable authority — a role: one human per deployment, singular, non-delegable"
 			holds:  "all law-making acts (ratify, amend, withdraw, defer, grant); accountability assumed through these recorded acts"
 			rationale: "contract method's accountability doctrine + the goal-contract-is-law ruling; no component is ever accountable"
@@ -104,28 +104,28 @@ registry: {
 	acts: {
 		ratify: {
 			changes:   "a draft becomes law (goal contract, lexicon entry, registry change, Tier 0 invariant, standing grant)"
-			authority: "aa"
+			authority: "accountable"
 			rationale: "the only law-making act; nothing else confers standing on law"
 		}
 		amend: {
 			changes:   "ratified law is replaced by a new version; the predecessor is archived, never deleted"
-			authority: "aa"
+			authority: "accountable"
 			rationale: "re-enters the artifact loop; never-fork — exactly one live version"
 		}
 		withdraw: {
 			changes:   "a law clause or goal is retired without replacement"
-			authority: "aa"
+			authority: "accountable"
 			rationale: "the proven-too-expensive exit; design-time retirement — no collision with run-time decommission, which stays reserved for the commission family"
 			trigger:   "if the process-vocabulary lexicon sweep dispositions 'withdraw' differently, rename by amendment"
 		}
 		defer: {
 			changes:   "a gap or clause is parked with destination, authority, and trigger"
-			authority: "aa"
+			authority: "accountable"
 			rationale: "deferral discipline: nothing defers into the void; triggers are monitored"
 		}
 		grant: {
 			changes:   "a standing grant licenses a class of automatic admissions (e.g. guest-mode working sets)"
-			authority: "aa"
+			authority: "accountable"
 			rationale: "the process method's device for hands-free throughput: ratify the class once, gates check membership per submission"
 			trigger:   "grant record schema to be fixed when the first grant is drafted"
 		}

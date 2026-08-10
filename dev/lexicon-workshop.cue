@@ -1,6 +1,6 @@
 // The workshop's own words: what we call things while building
 // looplaw, as opposed to the vocabulary the product uses
-// (dev/lexicon-product.cue) or the schema the binary enforces (law/).
+// (dev/lexicon-product.cue) or the schema the binary enforces (schema/).
 //
 // Ratified like anything else here — dev-lane names a subject, not a
 // lower standing. It exists because borrowing the product's words for
@@ -10,31 +10,37 @@
 //
 // Deliberately short. This vocabulary is read by one person who
 // self-corrects; the full collision-resistant anatomy would cost more
-// than the drift it prevents.
+// than it prevents.
 package dev
 
-// The standing of a dev-lane artifact, and the tiers this project's
-// vocabulary uses. Named here rather than shared with law/: the
-// product's #Status describes a target set's entries, and a lane
-// boundary is not a place to share a definition across.
-#Status: "proposed" | "ratified" | "corrected" | "withdrawn"
-#Tier:   "CANON" | "REVIEW" | "QUALIFY" | "BANNED"
+// The tiers this project's vocabulary uses. Dev-lane entries carry no
+// standing marker: something merged here is settled, and anything
+// genuinely provisional says so in its own trigger.
+#Tier: "CANON" | "REVIEW" | "QUALIFY" | "BANNED"
 
-// Words that mean something specific to us and must never appear in
-// anything the product says. dev/lexicon_test.go enforces exactly
-// this — the only mechanical rule here, and the only one worth having.
+// Words we take from the specification-CI method rather than coin.
+// These are xormania's, used in the method's sense — listed separately
+// because a term we inherited is not a term we may redefine. Changing
+// one of these means disagreeing with the method, which is a different
+// and larger act than naming a new workshop thing.
+inherited_dev: {
+	corpus:   "A kept collection of fixtures, frozen with its expected verdict. The attack corpus holds every adversarial set that has ever found a defect."
+	fixture:  "An authored input a test runs against — input, expected failure, expected pass. Fixture zero is the canonical green set."
+	mutation: "A single edit to a green fixture that must draw a declared refusal."
+}
+
+// Words coined here, meaning something specific to us, which must never
+// appear in anything the product says. internal/conformance enforces
+// that direction; TestVocabulariesDoNotIntersect enforces that no word
+// sits in both this lexicon and the product's.
 reserved_dev: {
-	"proving red": "A test that must fail, and fail naming the thing that was broken. A red for the wrong reason proves nothing."
-	witness:       "A test demonstrating that a behavior holds. A proving red is the witness for a refusal; a green fixture is the witness for an acceptance."
+	"proving red":  "A test that must fail, and fail naming the thing that was broken. A red for the wrong reason proves nothing."
+	demonstration: "A test showing that a behavior holds. A proving red is the demonstration for a refusal; a green fixture is the demonstration for an acceptance."
 	cascade:       "An additional check a single-edit mutation draws beyond its declared one. Declared in alsoDraws, never silent."
 	golden:        "A recorded output compared byte for byte. A mismatch is a deliberate shape change asking to be noticed."
-	corpus:        "A kept collection of fixtures. The attack corpus holds every adversarial set that has ever found a defect."
-	fixture:       "An authored input a test runs against. Fixture zero is the canonical green set."
 	attack:        "A preserved input that must be refused, kept because it once found a defect."
-	mutation:      "A single edit to a green fixture that must draw a declared refusal."
 	batch:         "One pull request's worth of work."
-	drift:         "A recorded output or fixture falling out of step with the code."
-	lane:          "Which side of the workshop boundary something is on, dev or prod."
+	"dev-lane":    "The workshop: building looplaw. Its counterpart is prod-lane, the installed product. The compound is the term — bare 'lane' belongs to no one, and the spec uses it for kernel-versus-client."
 }
 
 // Words that belong to the product, which the workshop therefore does
@@ -50,10 +56,12 @@ reserved_dev: {
 // whether a product word is *discussed* or *borrowed* in workshop prose
 // needs a reader, so that stays a list rather than a test.
 do_not_borrow: [
-	"closure — the contract method's coverage check (act closure). Our equivalent is witness coverage",
+	"closure — the contract method's coverage check (act closure). Ours is demonstration coverage",
+	"drift — what the kernel's provenance check reports, and what sync re-derives against (spec §10). A recorded output that has fallen out of step with the code is stale, not drifted",
 	"claim, receipt, admission, version — record kinds; a test double is a fixture, not a claim",
 	"party — a submitter in the product's model; we are the author, not a party",
 	"gap — the differ's unit; work we have not done is a to-do, not a gap",
-	"ratify, admit, record — acts with named authorities; merging a pull request ratifies law, and nothing else here does",
+	"ratify, admit, record — acts with named authorities. Merging a pull request ratifies nothing: ratification is a recorded act in the ledger, which is the thing this product exists to replace merging with",
 	"verify — a read path over recorded facts; running the suite is checking, not verifying",
+	"pin — the license check's hash comparison (spec §10); a hash we record over our own files is recorded, not pinned",
 ]

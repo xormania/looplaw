@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# The design basis is locked. A harness may propose a change to it on a
+# branch; only xormania lands one.
+#
+# This is tamper-evident, not tamper-proof, and the difference is
+# deliberate rather than a shortfall. Nothing inside a repository stops
+# an agent with write access: it can edit any check, and file permissions
+# do not help — git checkout overwrites a read-only tracked file and
+# resets its mode, and committed content can be changed through git
+# plumbing without the working-tree file ever being written. So the aim
+# is not prevention. The aim is that no change is silent: making this
+# script pass again requires updating dev/LOCKED, which puts a line in
+# the diff saying the basis was unlocked in this commit.
+#
+#   dev/lock          verify (dev/check and CI run this)
+#   dev/lock --seal   re-record the hashes, after xormania has consented
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+readonly RECORD=dev/LOCKED
+
+# Every .cue file under dev/ is locked, discovered rather than listed:
+# a hardcoded list would leave a new file unlocked by default, which is
+# the wrong default for the one directory that governs vocabulary.
+mapfile -t FILES < <(find dev -maxdepth 1 -name '*.cue' | sort)
+
+if [ "${1:-}" = "--seal" ]; then
+	sha256sum "${FILES[@]}" >"$RECORD"
+	echo "sealed ${#FILES[@]} files into $RECORD:"
+	sed 's/^/  /' "$RECORD"
+	echo
+	echo "Commit $RECORD together with the change it covers — the pair is what"
+	echo "records that the basis was unlocked deliberately."
+	exit 0
+fi
+
+fail() {
+	cat >&2 <<-'EOF'
+
+		  The design basis is locked, and xormania consents to changes to it.
+
+		  If you were reaching for a word: do not coin one and do not ask for
+		  one. Write the plain sentence — "the golden is out of date" needs no
+		  term. Raise a term only when it has recurred across batches, in a
+		  pull request body, batched with real work.
+
+		  If xormania has consented: run dev/lock --seal and commit dev/LOCKED
+		  with the change.
+	EOF
+	exit 1
+}
+
+if [ ! -f "$RECORD" ]; then
+	echo "no $RECORD: the design basis has never been sealed" >&2
+	fail
+fi
+
+# The set, before the contents. A file added to dev/ that no hash covers
+# would otherwise be unlocked simply by being new.
+locked_paths=$(awk '{print $2}' "$RECORD" | sort)
+present_paths=$(printf '%s\n' "${FILES[@]}" | sort)
+if [ "$locked_paths" != "$present_paths" ]; then
+	echo "the locked set does not match dev/*.cue:" >&2
+	diff <(echo "$locked_paths") <(echo "$present_paths") |
+		sed -e 's/^</  no longer present: /' -e 's/^>/  present but unlocked: /' |
+		grep -E 'present' >&2 || true
+	fail
+fi
+
+if ! out=$(sha256sum -c "$RECORD" --quiet 2>&1); then
+	echo "the design basis differs from what is recorded in $RECORD:" >&2
+	echo "$out" | sed 's/^/  /' >&2
+	fail
+fi
+
+echo "design basis unchanged (${#FILES[@]} files)"

@@ -29,7 +29,7 @@ type mutation struct {
 	wantIn    string // substring the refusal must name (the mutated thing)
 	// Checks the mutation legitimately cascades into, beyond wantCheck.
 	// Declared, never silent: an undeclared cascade means the red is
-	// partly proving a gate it was not written for, so the witness-coverage test
+	// partly proving a gate it was not written for, so the demonstration-coverage test
 	// would credit the wrong check.
 	alsoDraws []string
 }
@@ -135,7 +135,7 @@ var mutations = []mutation{
 		wantIn:    "set.cue",
 	},
 	{
-		// The supplier side must have its own direct witness: coverage of
+		// The supplier side must have its own direct demonstration: coverage of
 		// the client side proves nothing about the supplier branch.
 		name:      "unregistered-supplier",
 		old:       "client:   \"borrower\"\n\t\t\tsupplier: \"librarian\"\n\t\t}\n\t\tacts: [\"return\"]",
@@ -341,7 +341,7 @@ func TestMutationsAreRedForTheirDeclaredReason(t *testing.T) {
 					found = true
 				}
 				if !declared[r.Check] {
-					t.Errorf("undeclared cascade: this one-edit mutation also drew %s — declare it in alsoDraws or narrow the edit, or the witness-coverage test credits a gate this red does not prove\n  %s",
+					t.Errorf("undeclared cascade: this one-edit mutation also drew %s — declare it in alsoDraws or narrow the edit, or the demonstration-coverage test credits a gate this red does not prove\n  %s",
 						r.Check, r.Error())
 				}
 				if r.Class != outcome.Rejection && r.Class != outcome.Finding {
@@ -555,7 +555,7 @@ func TestUnreadablePathAborts(t *testing.T) {
 }
 
 // Every check the gates can emit has a proving red — an intentional
-// failure demonstrating the gate fires. An unwitnessed gate is an
+// failure demonstrating the gate fires. An undemonstrated gate is an
 // unproven behavior; a check added to Checks without a proving red (or a
 // declared, reasoned exemption) fails here.
 func TestEveryGateHasAProvingRed(t *testing.T) {
@@ -585,7 +585,7 @@ func TestEveryGateHasAProvingRed(t *testing.T) {
 			t.Logf("exempt (declared): %s — %s", check, reason)
 			continue
 		}
-		t.Errorf("gate %s has no proving red and no declared exemption — an unwitnessed gate is an unproven behavior", check)
+		t.Errorf("gate %s has no proving red and no declared exemption — an undemonstrated gate is an unproven behavior", check)
 	}
 	for check := range exempt {
 		if proven[check] {
@@ -596,7 +596,7 @@ func TestEveryGateHasAProvingRed(t *testing.T) {
 
 // Provenance reds. The absorbed-view fixture lives in the absorber's
 // testdata; these mutate it by one edit each, so the gate's provenance
-// lane is witnessed the same way every other lane is.
+// lane is demonstrated the same way every other lane is.
 const provFixture = "../absorb/testdata/view.cue"
 
 func TestProvenanceRedsAreRedForTheirDeclaredReason(t *testing.T) {

@@ -1,4 +1,10 @@
-// The trinity — the product's set model, v0. Batch 4, status: proposed.
+// The trinity — the product's set model.
+//
+// v0 RATIFIED: PR #8 merged by xormania 2026-08-09 (the recorded act per
+// law/README.md). The decomposition additions (#Interior, #Wire,
+// #Contract.interior) are a proposed amendment in this batch; on
+// ratification the predecessor version is archived in history, never
+// deleted.
 //
 // A TARGET PROJECT's contract set instantiates these definitions;
 // looplaw's gates validate instances. This file is looplaw's definitional
@@ -12,10 +18,15 @@
 // Form follows the System Design Contract Method §3 (parties · acts ·
 // preconditions · guarantees · local invariants + cited globals ·
 // synchronization · blame-and-evidence · markers) and §4 binding levels.
-// Deliberately unbound in v0 — open gaps reported to the accountable
+// Deliberately unbound — open gaps reported to the accountable
 // authority, each with its reopening trigger:
-//   - decomposition relations (parent/child sets, assembly satisfaction)
-//     — trigger: the next law batch, with its own fixtures
+//   - CROSS-SET decomposition (a child set in its own file/scope, for
+//     chunk handoff) — trigger: the store assumes set custody; this
+//     amendment binds IN-SET decomposition only (one system, one set,
+//     the contract tree within it)
+//   - semantic weakening of preconditions in refinement — v0 binds
+//     id-equality only (a shared-client child may state exactly the
+//     parent's precondition ids); judging 'weaker' needs the judge seam
 //   - quantitative QoS clauses — trigger: any guarantee depending on a
 //     quantitative bound
 //   - wire compatibility with the fugit seal schema — trigger: that
@@ -95,6 +106,46 @@ package law
 	blame: [...{violation_class: string, at_fault: #PartyRef, evidence: string}]
 	status:   #Status
 	trigger?: string
+	// The contract's decomposition, when its interior is designed.
+	interior?: #Interior
+}
+
+// A wire: dataflow inside an interior — a child's guarantee feeds a
+// DIFFERENT child's precondition (a self-wire feeds nothing: the
+// guarantee exists only after the act whose precondition it claims to
+// feed, and is refused). The wiring must be GROUNDABLE: under one-shot
+// act semantics a child can act once its preconditions are owed by the
+// shared client or fed by a child that can already act, so a closed
+// feed loop with no entry executes nothing and is refused. Ruled: this
+// supersedes the earlier cycles-permitted note; reopening trigger —
+// act semantics gaining multiplicity (streaming/iterative flows), at
+// which point legitimate feedback returns as its own construct.
+#Wire: {
+	from: {child: string, guarantee: string}
+	to: {child: string, precondition: string}
+}
+
+// The interior of a contract: its decomposition, designed. The boundary
+// is held — the children, unified along their wiring, jointly present
+// the parent's guarantees — and beyond what presents and wires state,
+// the interior stays free (black box: how a child is filled is
+// invisible here too). Refinement discipline (contract method §9): a
+// child sharing the parent's client may state only precondition ids the
+// parent states; children cite every invariant the parent cites, never
+// fewer.
+#Interior: {
+	children: [string, ...string] // contract ids in this set, each listed once
+	wires: [...#Wire]
+	// Assembly satisfaction: every guarantee of the parent contract is
+	// presented by exactly one child guarantee, one-to-one — a child
+	// guarantee presents at most one parent guarantee, or the boundary
+	// claims more than the assembly produces. Ruled with it: every
+	// obligation has exactly one satisfier of record — a precondition
+	// both client-owed and wire-fed is refused (blame adjudicates from
+	// recorded evidence and must be able to name the failed satisfier);
+	// reopening trigger — a legitimate dual-source case, at which point
+	// precedence gets ruled.
+	presents: [PG=string]: {child: string, guarantee: string}
 }
 
 // An experience entry: the judgment register. Advisory force always —

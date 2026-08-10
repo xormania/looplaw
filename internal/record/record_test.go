@@ -1,9 +1,13 @@
 package record
 
 import (
+	"database/sql"
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	_ "modernc.org/sqlite"
 
 	"github.com/xormania/looplaw/internal/gate"
 	"github.com/xormania/looplaw/internal/outcome"
@@ -12,12 +16,34 @@ import (
 
 func open(t *testing.T) *store.Store {
 	t.Helper()
-	s, err := store.Open(t.TempDir())
+	s, _ := openAt(t)
+	return s
+}
+
+func openAt(t *testing.T) (*store.Store, string) {
+	t.Helper()
+	dir := t.TempDir()
+	s, err := store.Open(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { s.Close() })
-	return s
+	return s, dir
+}
+
+// tamper corrupts the ledger from outside, the way anything with the
+// file would: the product exposes no way to rewrite a recorded fact, so
+// the test does not get one either.
+func tamper(t *testing.T, dir string, seq int64, body string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", filepath.Join(dir, "looplaw.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec("UPDATE records SET body = ? WHERE seq = ?", body, seq); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func goodClaim() gate.Submission {
@@ -152,13 +178,11 @@ func TestEverySubmissionCheckHasAProvingRed(t *testing.T) {
 // path commits nothing, and what re-verification cannot process is
 // never skipped.
 func TestTamperedLedgerIsAFinding(t *testing.T) {
-	s := open(t)
+	s, dir := openAt(t)
 	if _, refusals := Submit(s, goodReceipt()); len(refusals) != 0 {
 		t.Fatalf("refused: %+v", refusals)
 	}
-	if err := s.Tamper(1, "forged"); err != nil {
-		t.Fatal(err)
-	}
+	tamper(t, dir, 1, "forged")
 	n, refusal := Verify(s)
 	if refusal == nil {
 		t.Fatal("a tampered ledger verified clean")

@@ -269,14 +269,6 @@ func (s *Store) AppendAll(drafts []Draft) ([]Record, error) {
 	return out, nil
 }
 
-// Tamper rewrites a record's body in place. It exists for tests that
-// must prove the chain notices: nothing in the product mutates a
-// recorded fact, and the append-only ledger has no other writer.
-func (s *Store) Tamper(seq int64, body string) error {
-	_, err := s.db.Exec("UPDATE records SET body = ? WHERE seq = ?", body, seq)
-	return err
-}
-
 // Records returns the full ledger in sequence order.
 func (s *Store) Records() ([]Record, error) {
 	rows, err := s.db.Query("SELECT seq, kind, rectype, subject, body, actor, at, prev, hash FROM records ORDER BY seq")

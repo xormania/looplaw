@@ -108,12 +108,18 @@ Checks that read what the *product* says live with the product
 (`internal/conformance`), so a product edit cannot slip past them.
 Checks that read only `dev/` live in `dev/`.
 
+Kernel code (`internal/gate`, `internal/provenance`, `internal/store`)
+never reads a work tree and never infers: it decides over submitted
+claims, manifests, and recorded state. Client code (`internal/absorb`)
+may read a scope it was handed. Derivation — what law a scope implies —
+is inference and belongs to the agent driving the tool, not the binary.
+
 ## The design basis is locked
 
 `dev/*.cue` — the vocabulary, the registry, the Tier 0 invariants — is
 sealed. `dev/LOCKED` holds each file's hash; `dev/lock` compares them and
 runs first in both `dev/check` and CI. A harness may propose a change on
-a branch; only xormania lands one.
+a branch; master takes pull requests only, and only xormania merges.
 
 **If you are reaching for a word: do not coin one, and do not ask for
 one.** Write the plain sentence. "The golden is out of date" needs no
@@ -138,20 +144,13 @@ commit.
 When xormania has consented: `dev/lock --seal`, and commit `dev/LOCKED`
 with the change it covers.
 
-Kernel code (`internal/gate`, `internal/provenance`, `internal/store`)
-never reads a work tree and never infers: it decides over submitted
-claims, manifests, and recorded state. Client code (`internal/absorb`)
-may read a scope it was handed. Derivation — what law a scope implies —
-is inference and belongs to the agent driving the tool, not the binary.
-
 ## Contributing
 
 `CONTRIBUTING.md` is authoritative: branch per theme, one unit of work
 per commit, batch a coherent theme into one draft PR, xormania-only
 attribution with no AI trailers, and only xormania marks ready or
-merges. For `schema/` changes the merge *is* the ratification act —
-entries arrive `status: "proposed"` and flip in the following batch
-(`dev/README.md`).
+merges. Merging ratifies nothing — ratification is a recorded act in the
+ledger, which is the thing this product exists to replace merging with.
 
 Working notes live in `proj/` (gitignored — scope, not secrecy).
 

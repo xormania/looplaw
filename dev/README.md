@@ -4,6 +4,9 @@ Dev-lane: everything here governs how looplaw is built. What the product
 enforces is `schema/` — the schemas the binary embeds and applies to other
 projects' law.
 
+`dev/lanes` is where the boundary is written down: which paths are
+which, and what a commit may touch.
+
 Dev-lane is a subject, not a lower standing. The registry, invariants and
 vocabulary here are ratified and amended deliberately. Plain CUE, no
 private dialect; working notes stay in `proj/` (gitignored).

@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# Every tracked path belongs to exactly one lane, and the dependency
+# between them runs one way.
+#
+# dev-lane is the workshop: what builds looplaw. prod-lane is looplaw.
+# The classification is exhaustive on purpose — a path belonging to
+# neither is not a gap in this list, it is a design question that has not
+# been answered, and it should surface when the file is added rather than
+# months later. README.md was unclassified until it was ruled prod-lane;
+# so were the old law/ paths before that directory was split.
+#
+# Checks, in order of what they cost to get wrong:
+#   1. every tracked path is in exactly one lane
+#   2. no product code imports dev/ — the workshop may constrain what the
+#      product says, and the product may not depend on the workshop
+#   3. commits touching both lanes are reported, never blocked (see below)
+set -uo pipefail
+cd "$(dirname "$0")/.."
+
+# Prefixes, longest-match irrelevant because the two sets are disjoint by
+# construction — check 1 fails loudly if that ever stops being true.
+DEV_PATHS='^(dev/|\.github/|\.claude/|\.serena/|AGENTS\.md|CLAUDE\.md|CONTRIBUTING\.md|\.gitignore)'
+PROD_PATHS='^(cmd/|internal/|schema/|tools/|go\.mod|go\.sum|README\.md|LICENSE)'
+
+fail=0
+
+# 1 · exhaustive, exclusive classification
+unclassified=$(git ls-files | grep -vE "$DEV_PATHS" | grep -vE "$PROD_PATHS" || true)
+if [ -n "$unclassified" ]; then
+	echo "paths belonging to neither lane:" >&2
+	echo "$unclassified" | sed 's/^/  /' >&2
+	cat >&2 <<-'EOF'
+
+		  Every tracked path is dev-lane (what builds looplaw) or prod-lane
+		  (looplaw itself). A path in neither is an unanswered design
+		  question, not a missing list entry: decide which lane it is in,
+		  then add its prefix to dev/lanes.
+	EOF
+	fail=1
+fi
+
+both=$(git ls-files | grep -E "$DEV_PATHS" | grep -E "$PROD_PATHS" || true)
+if [ -n "$both" ]; then
+	echo "paths matching both lanes — the prefix sets have stopped being disjoint:" >&2
+	echo "$both" | sed 's/^/  /' >&2
+	fail=1
+fi
+
+# 2 · the dependency runs one way
+#
+# The workshop constrains what the product says: internal/conformance
+# reads dev/*.cue to enforce the lexicon. That is a read of data at test
+# time, not a build dependency, and CI proves the distinction by deleting
+# dev/ and building. A Go import would make it a real dependency, which
+# is the thing to keep out.
+importers=$(git ls-files 'cmd/**/*.go' 'internal/**/*.go' 'schema/**/*.go' |
+	xargs grep -lE '"github\.com/xormania/looplaw/dev' 2>/dev/null || true)
+if [ -n "$importers" ]; then
+	echo "product code importing the workshop:" >&2
+	echo "$importers" | sed 's/^/  /' >&2
+	cat >&2 <<-'EOF'
+
+		  prod-lane is not tied to dev-lane: the product builds and runs with
+		  dev/ deleted, and CI proves it on every push. An import breaks that
+		  property at the build level. If the product needs a fact that lives
+		  in dev/, either the fact belongs in schema/ or the check belongs in
+		  a test.
+	EOF
+	fail=1
+fi
+
+# 3 · a commit touches one lane, or both plus dev/LOCKED
+#
+# One legitimate change spans both lanes: a vocabulary correction. The
+# lexicon governs what the product says, so a term and its uses have to
+# move together — split them and the intermediate commit has the product
+# using a word the lexicon already refuses, which fails conformance and
+# leaves a landmine for git bisect.
+#
+# That case is exactly the case that unseals the design basis, so the
+# lock is the escape hatch and no new marker is needed. Everything else
+# splits cleanly: documentation lagging code by one commit breaks
+# nothing.
+#
+# Before the basis was locked, 12 of 31 commits crossed lanes. Since the
+# lock existed, every cross-lane commit has also re-sealed — which is
+# what makes the rule affordable rather than merely principled.
+# Overridable so the report itself can be exercised: with no cross-lane
+# commit on the current branch there is nothing for it to print, and a
+# reporter that has never been seen to print is not known to work.
+base=$(git merge-base HEAD "${LOOPLAW_LANES_BASE:-origin/master}" 2>/dev/null || echo "")
+if [ -n "$base" ]; then
+	bad="" allowed=""
+	while read -r sha subject; do
+		[ -z "$sha" ] && continue
+		files=$(git show --format= --name-only "$sha")
+		d=$(echo "$files" | grep -cE "$DEV_PATHS" || true)
+		p=$(echo "$files" | grep -cE "$PROD_PATHS" || true)
+		[ "$d" -gt 0 ] && [ "$p" -gt 0 ] || continue
+		if echo "$files" | grep -q '^dev/LOCKED$'; then
+			allowed="${allowed}  ${sha} ${subject}"$'\n'
+		else
+			bad="${bad}  ${sha} ${subject}"$'\n'
+		fi
+	done < <(git log --no-merges --format='%h %s' "$base"..HEAD 2>/dev/null)
+
+	if [ -n "$allowed" ]; then
+		echo "cross-lane commits, allowed because they re-seal the basis:"
+		printf '%s' "$allowed"
+	fi
+	if [ -n "$bad" ]; then
+		echo "commits touching both lanes without re-sealing the design basis:" >&2
+		printf '%s' "$bad" >&2
+		cat >&2 <<-'EOF'
+
+		  A commit belongs to one lane. The exception is a vocabulary
+		  correction, where a term and its uses in product text have to move
+		  together — and that case re-seals dev/LOCKED, which is how it is
+		  recognised here.
+
+		  If this is not a vocabulary change, split it: the workshop half and
+		  the product half are separate units of work, and neither breaks
+		  while the other is missing.
+		EOF
+		fail=1
+	fi
+fi
+
+[ "$fail" -eq 0 ] && echo "lanes: every tracked path classified, no product import of dev/"
+exit "$fail"

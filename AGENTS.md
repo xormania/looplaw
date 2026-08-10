@@ -108,6 +108,16 @@ Checks that read what the *product* says live with the product
 (`internal/conformance`), so a product edit cannot slip past them.
 Checks that read only `dev/` live in `dev/`.
 
+`dev/lanes` holds the classification and enforces three things: every
+tracked path is in exactly one lane — a path in neither is an unanswered
+design question, not a missing list entry; no product code imports
+`dev/`; and a commit touches one lane, or both plus `dev/LOCKED`. That
+last exception is a vocabulary correction, where a term and its uses in
+product text must move together — and that is the case that re-seals the
+basis, so the lock recognises it without any extra marker. Anything else
+splits into two units of work, neither of which breaks while the other
+is missing.
+
 Kernel code (`internal/gate`, `internal/provenance`, `internal/store`)
 never reads a work tree and never infers: it decides over submitted
 claims, manifests, and recorded state. Client code (`internal/absorb`)

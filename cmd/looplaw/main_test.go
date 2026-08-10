@@ -35,7 +35,15 @@ func TestMain(m *testing.M) {
 
 func run(t *testing.T, args ...string) (stdout, stderr string, exit int) {
 	t.Helper()
+	return runEnv(t, nil, args...)
+}
+
+func runEnv(t *testing.T, env []string, args ...string) (stdout, stderr string, exit int) {
+	t.Helper()
 	cmd := exec.Command(bin, args...)
+	if env != nil {
+		cmd.Env = append(os.Environ(), env...)
+	}
 	var so, se strings.Builder
 	cmd.Stdout, cmd.Stderr = &so, &se
 	err := cmd.Run()
@@ -64,6 +72,56 @@ func mutate(t *testing.T, old, new string) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+// The store-backed verbs run against a state root of their own, so the
+// behavior suite never touches a real one.
+func TestRecordActBehavior(t *testing.T) {
+	root := t.TempDir()
+	env := []string{"LOOPLAW_ROOT=" + root, "LOOPLAW_PARTY=behavior:test"}
+
+	body := filepath.Join(t.TempDir(), "claim.json")
+	if err := os.WriteFile(body, []byte(`{"states":"a contract exists"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// State is never created implicitly: every verb refuses a project
+	// no init act has made.
+	for _, args := range [][]string{{"submit", "ghost", "claim", "s", body}, {"verify", "ghost"}, {"export", "ghost"}} {
+		if _, stderr, exit := runEnv(t, env, args...); exit != 1 || !strings.Contains(stderr, "project/state") {
+			t.Errorf("%v against an uninitialized project: exit=%d stderr=%s", args, exit, stderr)
+		}
+	}
+
+	if _, stderr, exit := runEnv(t, env, "init", "demo"); exit != 0 {
+		t.Fatalf("init: exit=%d %s", exit, stderr)
+	}
+	if _, stderr, exit := runEnv(t, env, "init", "demo"); exit != 1 || !strings.Contains(stderr, "init/project") {
+		t.Errorf("a second init must refuse: exit=%d %s", exit, stderr)
+	}
+
+	stdout, stderr, exit := runEnv(t, env, "submit", "demo", "claim", "scope-x", body)
+	if exit != 0 {
+		t.Fatalf("submit: exit=%d %s", exit, stderr)
+	}
+	if !strings.Contains(stdout, "claim seq 1") || !strings.Contains(stdout, "admission seq 2") {
+		t.Errorf("submit must report the content and its admission: %q", stdout)
+	}
+
+	if stdout, _, exit := runEnv(t, env, "verify", "demo"); exit != 0 || !strings.Contains(stdout, "2 records, chain verified") {
+		t.Errorf("verify: exit=%d %q", exit, stdout)
+	}
+	if stdout, _, exit := runEnv(t, env, "export", "demo"); exit != 0 || !strings.Contains(stdout, `"type": "admission"`) {
+		t.Errorf("export: exit=%d %q", exit, stdout)
+	}
+
+	// An unattributed submission is refused, and refuses on stderr.
+	noParty := []string{"LOOPLAW_ROOT=" + root}
+	if stdout, stderr, exit := runEnv(t, noParty, "submit", "demo", "claim", "s", body); exit != 1 {
+		t.Errorf("unattributed submit: exit=%d", exit)
+	} else if !strings.Contains(stderr, "submit/party") || strings.TrimSpace(stdout) != "" {
+		t.Errorf("refusal must name submit/party on stderr only: out=%q err=%q", stdout, stderr)
+	}
 }
 
 func TestBehaviorContract(t *testing.T) {

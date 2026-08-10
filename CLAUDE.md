@@ -35,7 +35,7 @@ are recorded, never believed.
     go build ./... && go vet ./... && go test ./...   # fast signal
     go run cuelang.org/go/cmd/cue vet ./law/          # the second producer
     go test -race ./...                               # before pushing
-    go test ./... -run Golden -update                 # re-record goldens
+    LOOPLAW_GOLDEN_UPDATE=1 go test ./...             # re-record goldens
 
 CI runs a fast lane and a race/differential lane in parallel; fuzzing
 runs nightly, not per push.

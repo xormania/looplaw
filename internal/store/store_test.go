@@ -149,3 +149,47 @@ func TestDefaultRootPrecedence(t *testing.T) {
 		t.Errorf("home fallback wrong, got %q", root)
 	}
 }
+
+func TestProjectScopingIsExplicit(t *testing.T) {
+	root := t.TempDir()
+
+	if _, err := OpenProject(root, "loop-sys"); err == nil {
+		t.Fatal("opening a never-initialized project must refuse — state is never created implicitly")
+	}
+
+	s, err := InitProject(root, "loop-sys")
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	if _, err := s.Append(Law, "admission", "x", "y", "t"); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+
+	if _, err := InitProject(root, "loop-sys"); err == nil {
+		t.Fatal("double init must refuse")
+	}
+	if _, err := InitProject(root, "Bad Key!"); err == nil {
+		t.Fatal("a key outside the grammar must refuse")
+	}
+
+	s2, err := OpenProject(root, "loop-sys")
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	defer s2.Close()
+	if n, err := s2.Verify(); err != nil || n != 1 {
+		t.Fatalf("reopened ledger: n=%d err=%v", n, err)
+	}
+
+	if _, err := OpenProject(root, "other-sys"); err == nil {
+		t.Fatal("missing key must refuse")
+	} else if !strings.Contains(err.Error(), "loop-sys") {
+		t.Errorf("refusal must name existing keys: %v", err)
+	}
+
+	keys, _ := ListProjects(root)
+	if len(keys) != 1 || keys[0] != "loop-sys" {
+		t.Errorf("ListProjects = %v", keys)
+	}
+}

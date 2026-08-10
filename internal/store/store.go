@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -68,6 +69,56 @@ func DefaultRoot() (string, error) {
 		return "", fmt.Errorf("resolve state root: %w", err)
 	}
 	return filepath.Join(home, ".local", "state", "looplaw"), nil
+}
+
+// Project keys share the subject grammar, so they are filesystem-safe
+// by construction.
+var projectKeyRE = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+
+// ProjectPath is where a project's ledger lives under a state root.
+func ProjectPath(root, project string) string {
+	return filepath.Join(root, "projects", project)
+}
+
+// InitProject explicitly creates a project's state dir and ledger. State
+// is never created implicitly: submit/diff against a missing key refuse
+// rather than minting a fork (the app-shape ruling).
+func InitProject(root, project string) (*Store, error) {
+	if !projectKeyRE.MatchString(project) {
+		return nil, fmt.Errorf("init project: key %q does not match %s", project, projectKeyRE)
+	}
+	dir := ProjectPath(root, project)
+	if _, err := os.Stat(dir); err == nil {
+		return nil, fmt.Errorf("init project: %q already exists under %s", project, root)
+	}
+	return Open(dir)
+}
+
+// OpenProject opens an existing project's ledger and refuses a missing
+// one, naming the keys that do exist so a renamed or mistyped key is
+// loud, never a silent fork.
+func OpenProject(root, project string) (*Store, error) {
+	dir := ProjectPath(root, project)
+	if _, err := os.Stat(dir); err != nil {
+		existing, _ := ListProjects(root)
+		return nil, fmt.Errorf("open project: no state for %q under %s (existing: %v) — projects are created only by the explicit init act", project, root, existing)
+	}
+	return Open(dir)
+}
+
+// ListProjects names the project keys a state root holds.
+func ListProjects(root string) ([]string, error) {
+	entries, err := os.ReadDir(filepath.Join(root, "projects"))
+	if err != nil {
+		return nil, nil
+	}
+	var keys []string
+	for _, e := range entries {
+		if e.IsDir() {
+			keys = append(keys, e.Name())
+		}
+	}
+	return keys, nil
 }
 
 const schema = `

@@ -476,7 +476,7 @@ func provenanceChecks(subject string, set cue.Value, infos map[string]*contractI
 		}
 	}
 
-	for cid := range infos {
+	for _, cid := range sortedKeys(infos) {
 		if !addressed[cid] {
 			refuse("trinity/provenance-coverage", fmt.Sprintf("contract %q", cid),
 				"absorbed but derived from nothing — an unsourced statement cannot go stale, so nothing can ever falsify it",
@@ -555,7 +555,8 @@ func decompositionChecks(subject string, infos map[string]*contractInfo) []outco
 
 	// Children resolve; the containment relation is single-parent.
 	parents := map[string][]string{}
-	for cid, info := range infos {
+	for _, cid := range sortedKeys(infos) {
+		info := infos[cid]
 		seen := map[string]bool{}
 		for _, ch := range info.children {
 			if seen[ch] {
@@ -574,7 +575,8 @@ func decompositionChecks(subject string, infos map[string]*contractInfo) []outco
 			parents[ch] = append(parents[ch], cid)
 		}
 	}
-	for ch, ps := range parents {
+	for _, ch := range sortedKeys(parents) {
+		ps := parents[ch]
 		if len(ps) > 1 {
 			refuse("trinity/decomp-tree", ch,
 				fmt.Sprintf("a child of %d interiors (%s) — containment is a tree, one parent per child", len(ps), strings.Join(ps, ", ")),
@@ -606,7 +608,7 @@ func decompositionChecks(subject string, infos map[string]*contractInfo) []outco
 		color[cid] = black
 		return true
 	}
-	for cid := range infos {
+	for _, cid := range sortedKeys(infos) {
 		if color[cid] == white && !visit(cid) {
 			refuse("trinity/decomp-tree", cid,
 				"containment cycle: the contract contains itself through its interior",
@@ -615,7 +617,8 @@ func decompositionChecks(subject string, infos map[string]*contractInfo) []outco
 	}
 
 	// Per-interior gates.
-	for cid, info := range infos {
+	for _, cid := range sortedKeys(infos) {
+		info := infos[cid]
 		if !info.hasInterior {
 			continue
 		}
@@ -768,9 +771,10 @@ func decompositionChecks(subject string, infos map[string]*contractInfo) []outco
 		// nothing and is refused — an obligation that no execution order
 		// can ever meet is not law, it is decoration.
 		grounded := map[string]bool{}
+		childIDs := sortedKeys(childSet)
 		for changed := true; changed; {
 			changed = false
-			for ch := range childSet {
+			for _, ch := range childIDs {
 				if grounded[ch] {
 					continue
 				}
@@ -798,7 +802,7 @@ func decompositionChecks(subject string, infos map[string]*contractInfo) []outco
 				}
 			}
 		}
-		for ch := range childSet {
+		for _, ch := range childIDs {
 			if !grounded[ch] {
 				refuse("trinity/decomp-grounded", ch,
 					fmt.Sprintf("cannot be reached by any execution order inside the interior of %s — its feeds never ground in client-owed input", cid),
@@ -873,6 +877,18 @@ func structList(v cue.Value, path string) []cue.Value {
 		out = append(out, list.Value())
 	}
 	return out
+}
+
+// sortedKeys walks a map deterministically: the refusal stream is
+// protocol, so its order honors T0-3 exactly as the checks' verdicts do
+// — identical inputs, identical output, run to run.
+func sortedKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func contains(list []string, s string) bool {

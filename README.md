@@ -5,7 +5,7 @@ shapes of a project's law are declared in CUE, and a Go gate refuses
 anything the law does not admit.
 
 The idea: when software is built by agent loops, the constraints have to
-live somewhere agents cannot argue with. Here they live in `law/` as CUE —
+live somewhere agents cannot argue with. Here they live in `schema/` as CUE —
 authorities, invariants, a controlled vocabulary, and the schema for a
 project's contract set (its parties, acts, preconditions, guarantees,
 blame assignments, and judgment register). The Go side holds no policy of
@@ -15,7 +15,7 @@ schema, and the rest are refused before anything acts on them. Changing
 what is permitted is a data change with a reviewable diff, not a code
 change.
 
-The law is CUE; Go is the enforcer. From `law/trinity.cue`, verbatim:
+The law is CUE; Go is the enforcer. From `schema/trinity.cue`, verbatim:
 
 ```cue
 // An experience entry: the judgment register. Advisory force always —
@@ -36,7 +36,7 @@ running check: the constraint is the data.
 
 ## How the pieces fit
 
-- **`law/` declares.** Four CUE files: the authority registry (who may
+- **`schema/` declares.** Four CUE files: the authority registry (who may
   perform which act — exactly two authorities exist), nine global
   invariants, a controlled lexicon (reserved verbs with anti-definitions;
   banned vocabulary — which binds the binary's own refusal strings), and
@@ -88,5 +88,5 @@ yet: a server, store-backed workflows, or any loop integration — the gate
 is a command, not a daemon. The design intent is that an agent loop can
 only occupy states its law admits; today that holds for the one path
 implemented: a contract set either satisfies the law or is refused with a
-named remedy. Amendments to `law/` are ordinary reviewed diffs, followed
+named remedy. Amendments to `schema/` are ordinary reviewed diffs, followed
 by a rebuild, since the law ships inside the binary.

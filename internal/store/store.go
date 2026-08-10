@@ -1,7 +1,7 @@
 // Package store is the recording authority's bones: an append-only,
 // hash-chained record ledger in SQLite.
 //
-// Per the ratified registry (law/registry.cue): records — claims,
+// Per the ratified registry (dev/registry.cue): records — claims,
 // receipts, admissions, versions — commit here; recording settles that a
 // thing was said, never that it is true. Every record carries the ratified
 // law-side/evidence-side kind marker. The chain makes the ledger

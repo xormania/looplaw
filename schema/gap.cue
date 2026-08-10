@@ -14,7 +14,7 @@
 // persisted gap enters the store as a claim of the differ's computation
 // (recorded, never believed) — 'gap record' names no record kind. Only
 // the differ derives gaps; parties report circumstances as claims.
-package law
+package schema
 
 // Structural kinds (law against view), the v0 set. "violated" and
 // "unproven" join when receipts feed the differ — reopening trigger:

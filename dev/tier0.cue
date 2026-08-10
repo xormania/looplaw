@@ -1,14 +1,14 @@
 // Tier 0 — global invariants. Batch 2.
 //
 // RATIFIED: PR #5 merged by xormania 2026-08-09 (the recorded act per
-// law/README.md §3); statuses flipped in the following batch as the
+// dev/README.md §3); statuses flipped in the following batch as the
 // protocol prescribes. Amendments only by new PR from here on.
 //
 // Every contract at every level is bound by this tier. No contract may
 // weaken an invariant, restate it divergently, or locally re-derive it;
 // contracts cite invariants by id only. Each invariant fixes exactly one
 // authority placement or one prohibition (composites get split).
-// Ratification protocol: law/README.md.
+// Ratification protocol: dev/README.md.
 package dev
 
 #Invariant: {

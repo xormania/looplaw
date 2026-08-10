@@ -34,7 +34,7 @@
 //     schema is ratified and its wire shape is fixed
 //   - a reserved-acts registry with two-way closure, and the legality of
 //     self-party contracts (client == supplier) — trigger: the aa rules
-package law
+package schema
 
 // The standing of an entry in a target set, and the tiers its lexicon
 // uses: the product defines these because the product enforces them.

@@ -8,7 +8,7 @@ and any equivalent) are pointers to this file, never second copies.
 ## What this is
 
 A contract-set validator for agent-driven development. The permissible
-shapes of a project's law are declared in `law/*.cue`; a Go gate embeds
+shapes of a project's law are declared in `schema/*.cue`; a Go gate embeds
 that law at build time and refuses anything it does not admit. The Go
 side holds no policy of its own.
 
@@ -22,7 +22,7 @@ governed by the ratified lexicon. **Read the digest first:**
 18KB, generated from the law the binary carries: invariants, authorities
 and acts, a pasteable card per reserved term, and the vocabulary that is
 refused. `dev/DIGEST.md` is the committed copy. Open the full text in
-`law/*.cue` only when exact wording is at stake — the corpus is 91KB and
+`schema/*.cue` only when exact wording is at stake — the corpus is 91KB and
 re-reading it to check one sentence is the expensive habit this digest
 exists to retire.
 
@@ -93,9 +93,9 @@ is inference and belongs to the agent driving the tool, not the binary.
 `CONTRIBUTING.md` is authoritative: branch per theme, one unit of work
 per commit, batch a coherent theme into one draft PR, xormania-only
 attribution with no AI trailers, and only xormania marks ready or
-merges. For `law/` changes the merge *is* the ratification act —
+merges. For `schema/` changes the merge *is* the ratification act —
 entries arrive `status: "proposed"` and flip in the following batch
-(`law/README.md`).
+(`dev/README.md`).
 
 Working notes live in `proj/` (gitignored — scope, not secrecy).
 

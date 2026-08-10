@@ -14,7 +14,7 @@ Pointers that save the most:
 
 ## Package map
 
-- `law/` — ratified law as CUE: registry (authorities, acts), tier0
+- `schema/` — ratified law as CUE: registry (authorities, acts), tier0
   (invariants), lexicon (reserved terms, refused vocabulary), trinity
   (the set schema, interiors, provenance), gap.
 - `internal/gate` — shape gate over embedded law + the relational lane;

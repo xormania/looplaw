@@ -8,7 +8,7 @@
 //
 // Batch 3 RATIFIED: PR #7 merged by xormania 2026-08-09. Batch 5 (the
 // noun layer + the admit/version-row amendments) RATIFIED: PR #12 merged
-// by xormania 2026-08-10 (the recorded acts per law/README.md).
+// by xormania 2026-08-10 (the recorded acts per dev/README.md).
 // Amendments only by new PR.
 //
 // SCOPE OF REGISTER (per the collision-resistant lexicon method §9): this
@@ -16,7 +16,7 @@
 // agent consumes as authoritative. Dev-lane documents (CONTRIBUTING.md,
 // proj/ notes) are out of scope; design conversation is unpoliced.
 // Lane: models the product; 'aa' is the per-deployment accountable
-// authority role, never a person. Ratification protocol: law/README.md.
+// authority role, never a person. Ratification protocol: dev/README.md.
 //
 // RENDERING RULE for violation examples: a violation string is shown only
 // to ban it. Render it only with a '✗ banned:' prefix and its rewrite

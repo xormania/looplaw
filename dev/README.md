@@ -1,7 +1,7 @@
 # dev/ — this project's design basis, and how it is ratified
 
 Dev-lane: everything here governs how looplaw is built. What the product
-enforces is `law/` — the schemas the binary embeds and applies to other
+enforces is `schema/` — the schemas the binary embeds and applies to other
 people's law.
 
 Dev-lane is a subject, not a lower standing. The registry, invariants and
@@ -23,7 +23,7 @@ convenience, not a model.
 
 Proposals may come from anywhere — authority to ratify may not.
 
-1. An agent (or anyone) opens a **draft PR** changing `law/`: new entries
+1. An agent (or anyone) opens a **draft PR** changing `schema/`: new entries
    arrive with `status: "proposed"` and a rationale; the PR body carries
    the per-decision recommendation.
 2. The accountable authority reviews the diff. Inline comments are
@@ -40,5 +40,5 @@ Proposals may come from anywhere — authority to ratify may not.
 5. Entries provisionally ruled under the reversibility rule carry a
    `trigger:` — the recorded event that reopens them.
 
-Machine check: `cue vet ./dev/` and `cue vet ./law/` both pass, and CI
+Machine check: `cue vet ./dev/` and `cue vet ./schema/` both pass, and CI
 runs them.

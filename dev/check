@@ -21,7 +21,7 @@ step "build"
 go build ./...
 
 step "law and design basis (second producer)"
-go run cuelang.org/go/cmd/cue vet ./law/
+go run cuelang.org/go/cmd/cue vet ./schema/
 go run cuelang.org/go/cmd/cue vet ./dev/
 
 step "test"

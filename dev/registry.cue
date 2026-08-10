@@ -1,7 +1,7 @@
 // The product's authority registry and privileged acts — batch 1.
 //
 // RATIFIED: PR #4 merged by xormania 2026-08-09 (the recorded act per
-// law/README.md §3); statuses flipped in the following batch as the
+// dev/README.md §3); statuses flipped in the following batch as the
 // protocol prescribes. Amendments only by new PR from here on.
 //
 // DEV-LANE, and ratified: this is looplaw's own design basis, not the

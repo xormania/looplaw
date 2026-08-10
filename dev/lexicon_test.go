@@ -56,7 +56,7 @@ func productText(t *testing.T) []source {
 
 	add := func(where, text string) { out = append(out, source{where, text}) }
 
-	for _, glob := range []string{"../law/*.cue", "../law/*.md", "../internal/*/testdata/golden/*"} {
+	for _, glob := range []string{"../schema/*.cue", "../schema/*.md", "../internal/*/testdata/golden/*"} {
 		paths, err := filepath.Glob(glob)
 		if err != nil {
 			t.Fatal(err)

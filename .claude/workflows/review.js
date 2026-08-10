@@ -110,7 +110,7 @@ ${TERSE}`,
 Changed files:
 ${fileList}
 
-Read ${REPO}/law/DIGEST.md — the ratified law as a brief (invariants, authorities, acts, a card per reserved term, refused vocabulary). It is 18KB against the corpus's 91KB; open law/*.cue only for a passage the digest does not settle.
+Read ${REPO}/dev/DIGEST.md — the ratified law as a brief (invariants, authorities, acts, a card per reserved term, refused vocabulary). It is 18KB against the corpus's 91KB; open law/*.cue only for a passage the digest does not settle.
 
 You own the strings; the correctness lens owns behavior. Audit every user-facing string the batch adds or changes — refusal reasons, remedies, usage text, schema comments, generated output — for refused vocabulary, authority relocation (a reserved verb handed to a subject that does not hold it), status laundering (evidence treated as law, a claim treated as believed, processing treated as a standing change), and behavior contradicting a ratified statement. Quote the offending string and give its replacement.
 ${TERSE}`,
@@ -122,7 +122,7 @@ ${TERSE}`,
 Changed files:
 ${fileList}
 
-Ratified rules (see ${REPO}/law/DIGEST.md): the kernel performs no inference and never fetches or inspects work-product content — it decides over submitted claims, manifests, and recorded state; gates are mechanism, never authority; only the store records; law descends and only evidence ascends.
+Ratified rules (see ${REPO}/dev/DIGEST.md): the kernel performs no inference and never fetches or inspects work-product content — it decides over submitted claims, manifests, and recorded state; gates are mechanism, never authority; only the store records; law descends and only evidence ascends.
 
 Look for kernel paths that read a tree, client output implying standing it cannot confer, dev-lane conveniences shipped in product code, and unratified artifacts treated as law.
 ${TERSE}`,

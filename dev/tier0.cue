@@ -9,7 +9,7 @@
 // contracts cite invariants by id only. Each invariant fixes exactly one
 // authority placement or one prohibition (composites get split).
 // Ratification protocol: law/README.md.
-package law
+package dev
 
 #Invariant: {
 	id:        =~"^T0-[0-9]+$"

@@ -1,5 +1,10 @@
-// The lexicon — batch 3: the reserved act verbs + the process-vocabulary
-// disposition.
+// The vocabulary this project reserves for what the product says: the
+// act verbs, the terms its output uses, and the words it refuses.
+//
+// DEV-LANE, and ratified. It governs our authoring — every refusal,
+// remedy, usage line and schema comment the binary emits — rather than
+// anyone's input. The schema the binary enforces on input is law/.
+// The workshop's own words are dev/lexicon-workshop.cue.
 //
 // Batch 3 RATIFIED: PR #7 merged by xormania 2026-08-09. Batch 5 (the
 // noun layer + the admit/version-row amendments) RATIFIED: PR #12 merged
@@ -20,9 +25,7 @@
 //
 // Entry texts were drafted against cold prior-probe measurements and
 // adversarially verified (evidence: proj/law-batch-3-evidence.md).
-package law
-
-#Tier: "CANON" | "REVIEW" | "QUALIFY" | "BANNED"
+package dev
 
 // A canonical entry: the unit of specification. Field semantics follow
 // the method's entry anatomy (§6); every 'not' item ends in an

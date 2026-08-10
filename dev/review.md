@@ -57,7 +57,7 @@ in the order they have appeared:
   included
 - inputs the schema permits that no check examines at all
 
-**Law conformance.** Read `law/DIGEST.md` first — the ratified law as a
+**Law conformance.** Read `dev/DIGEST.md` first — the ratified law as a
 brief. Audit every user-facing string the batch adds: refused
 vocabulary, authority relocation (a reserved verb handed to a subject
 that does not hold it), status laundering (evidence treated as law, a

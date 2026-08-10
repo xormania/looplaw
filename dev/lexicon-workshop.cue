@@ -1,19 +1,24 @@
-// The dev-lane lexicon: the words we use to talk about building
-// looplaw, as opposed to the words looplaw's law reserves.
+// The workshop's own words: what we call things while building
+// looplaw, as opposed to the vocabulary the product uses
+// (dev/lexicon-product.cue) or the schema the binary enforces (law/).
 //
-// DEV-LANE. This file is not law. It ships in no binary, is embedded
-// nowhere, has no authority, and needs no ratification — a correction
-// is the whole amendment path. It exists for one reason: the product's
-// lexicon governs what the tool says to its users, and borrowing its
-// words for our workshop talk (or leaking ours into its output) is the
-// conflation that has already cost us once. "actor" was coined here for
-// something law already called a party, and it reached the ledger
-// schema before anyone noticed.
+// Ratified like anything else here — dev-lane names a subject, not a
+// lower standing. It exists because borrowing the product's words for
+// workshop talk, or leaking ours into its output, is a conflation that
+// has already cost us: "actor" was coined here for something already
+// called a party, and reached the ledger schema before anyone noticed.
 //
-// Deliberately short. Dev vocabulary is read by one person who
+// Deliberately short. This vocabulary is read by one person who
 // self-corrects; the full collision-resistant anatomy would cost more
 // than the drift it prevents.
 package dev
+
+// The standing of a dev-lane artifact, and the tiers this project's
+// vocabulary uses. Named here rather than shared with law/: the
+// product's #Status describes a target set's entries, and a lane
+// boundary is not a place to share a definition across.
+#Status: "proposed" | "ratified" | "corrected" | "withdrawn"
+#Tier:   "CANON" | "REVIEW" | "QUALIFY" | "BANNED"
 
 // Words that mean something specific to us and must never appear in
 // anything the product says. dev/lexicon_test.go enforces exactly

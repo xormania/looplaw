@@ -40,8 +40,8 @@ initial_prompt: |
 
   Two habits that save the most here:
   - For anything about vocabulary, authority, or what the law says, read
-    law/DIGEST.md (18KB, generated from the law the binary carries), not
-    law/*.cue (91KB). Open the full text only when exact wording matters.
+    dev/DIGEST.md (18KB, generated from the law the binary carries), not
+    dev/*.cue. Open the full text only when exact wording matters.
   - Run dev/check before pushing; it is CI's fast lane in the same order.
     dev/law regenerates the digest and reports ratification debt.
 

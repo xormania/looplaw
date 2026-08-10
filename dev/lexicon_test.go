@@ -19,11 +19,12 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 )
 
-// Product-facing text is what a reader of the product sees: ratified
-// law, the strings the binary emits, and every recorded output. Test
-// files are dev-lane by nature and internal/golden is dev-lane
-// infrastructure, so both are out of scope — a test may say "proving
-// red" as often as it likes.
+// Product-facing text is what a reader of the product sees: the schemas
+// the binary enforces, the strings it emits, and every recorded output.
+// Everything under dev/ is workshop text by definition, test files are
+// dev-lane by nature, and internal/golden is dev-lane infrastructure —
+// all out of scope, so a test may say "proving red" as often as it
+// likes.
 func TestDevWordsNeverReachTheProduct(t *testing.T) {
 	reserved := reservedDev(t)
 	if len(reserved) == 0 {
@@ -108,7 +109,7 @@ func productText(t *testing.T) []source {
 
 func reservedDev(t *testing.T) []string {
 	t.Helper()
-	b, err := os.ReadFile("lexicon.cue")
+	b, err := os.ReadFile("lexicon-workshop.cue")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +131,7 @@ func reservedDev(t *testing.T) []string {
 // Every reserved term states what it means: a word without a meaning
 // cannot be misused consistently.
 func TestEveryDevTermStatesItsMeaning(t *testing.T) {
-	b, err := os.ReadFile("lexicon.cue")
+	b, err := os.ReadFile("lexicon-workshop.cue")
 	if err != nil {
 		t.Fatal(err)
 	}

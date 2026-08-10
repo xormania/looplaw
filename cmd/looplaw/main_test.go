@@ -95,9 +95,6 @@ func TestBehaviorContract(t *testing.T) {
 		{"status-unchanged-scope", []string{"status", "../../internal/absorb/testdata/view.cue", "../../internal/absorb/testdata/scope"}, 0, `"stale": false`, ""},
 		{"status-on-authored-law-rejects", []string{"status", fixture, "../../internal/absorb/testdata/scope"}, 1, "", "status/no-provenance"},
 		{"status-usage", []string{"status", fixture}, 64, "", "usage: looplaw status"},
-		{"project-law-prints-the-brief", []string{"project", "law"}, 0, "Ratified law — digest", ""},
-		{"project-usage", []string{"project"}, 64, "", "usage: looplaw project law"},
-		{"project-unknown-projection", []string{"project", "vibes"}, 64, "", "usage: looplaw project law"},
 	}
 
 	for _, c := range cases {

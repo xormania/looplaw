@@ -4,13 +4,13 @@
 // law/README.md §3); statuses flipped in the following batch as the
 // protocol prescribes. Amendments only by new PR from here on.
 //
-// Models looplaw as installed and operated by any deployment. "aa" is a
-// role (one human per deployment, singular, non-delegable), never a
-// component: accountability is assumed through recorded acts, never
-// placed. Ratification protocol: law/README.md.
-package law
-
-#Status: "proposed" | "ratified" | "corrected" | "withdrawn"
+// DEV-LANE, and ratified: this is looplaw's own design basis, not the
+// schema the binary enforces (that is law/). It models the product —
+// "aa" is a role, one human per deployment, singular, non-delegable,
+// never a component — but it is a statement about how this project is
+// built, so it governs our authoring rather than anyone's input.
+// Ratification protocol: dev/README.md.
+package dev
 
 #Authority: {
 	id:        string

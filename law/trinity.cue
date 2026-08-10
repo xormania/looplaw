@@ -36,6 +36,11 @@
 //     self-party contracts (client == supplier) — trigger: the aa rules
 package law
 
+// The standing of an entry in a target set, and the tiers its lexicon
+// uses: the product defines these because the product enforces them.
+#Status: "proposed" | "ratified" | "corrected" | "withdrawn"
+#Tier:   "CANON" | "REVIEW" | "QUALIFY" | "BANNED"
+
 // Reference grammars: party and act ids share one grammar; every
 // reference field carries it, so an empty or malformed reference is
 // refused by shape, and the relational lane only ever adjudicates

@@ -1,43 +1,60 @@
-// Package project renders projections of ratified law: the minimal
-// governed context a reader needs, rather than the whole corpus.
+// Command digest renders this project's own design basis — the dev-lane
+// registry, invariants and vocabulary under dev/ — as the brief a
+// reader actually needs.
 //
-// The lexicon method prescribes this — digests and term cards delivered
-// as focused slices, verbatim, never paraphrased — and the reason is
-// economy as much as fidelity: an agent that must read every ratified
-// file to check one sentence pays for the corpus every time. The digest
-// is derived from the law the binary carries, so it cannot drift from
-// what the gates enforce.
-package project
+// A dev tool, not product surface: the product enforces schemas on
+// other people's law and has no business printing ours. The lexicon
+// method prescribes the digest — focused slices, verbatim, never
+// paraphrased — and the reason is economy as much as fidelity: reading
+// every file to check one sentence pays for the whole corpus each time.
+package main
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
-
-	"github.com/xormania/looplaw/internal/gate"
+	"cuelang.org/go/cue/load"
 )
 
-// LawDigest renders the ratified law as the pasteable brief: the
+func main() {
+	out, err := Digest("./dev")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "digest:", err)
+		os.Exit(1)
+	}
+	fmt.Print(out)
+}
+
+// Digest renders the design basis as the pasteable brief: the
 // invariants, the authorities and acts, each reserved term's
 // prompt-register card, and the vocabulary that is refused. Output is
 // deterministic.
-func LawDigest() (string, error) {
+func Digest(dir string) (string, error) {
 	ctx := cuecontext.New()
-	law, err := gate.Law(ctx)
-	if err != nil {
-		return "", err
+	insts := load.Instances([]string{dir}, nil)
+	if len(insts) == 0 || insts[0].Err != nil {
+		if len(insts) == 0 {
+			return "", fmt.Errorf("no instance at %s", dir)
+		}
+		return "", insts[0].Err
+	}
+	law := ctx.BuildInstance(insts[0])
+	if law.Err() != nil {
+		return "", law.Err()
 	}
 
 	var b strings.Builder
-	b.WriteString(`# Ratified law — digest
+	b.WriteString(`# looplaw's design basis — digest
 
-Derived from the law this binary carries, so it cannot drift from what
-the gates enforce. The prompt cards below are written to be pasted
-verbatim; read the full text in law/*.cue when exact wording is at
-stake.
+Generated from dev/*.cue by dev/law, so it cannot drift from the files
+it summarises. The prompt cards below are written to be pasted
+verbatim; read the full text in dev/*.cue when exact wording is at
+stake. The schema the binary enforces on input is law/, and it is not
+summarised here.
 
 `)
 

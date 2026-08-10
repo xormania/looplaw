@@ -1,9 +1,10 @@
-# Ratified law — digest
+# looplaw's design basis — digest
 
-Derived from the law this binary carries, so it cannot drift from what
-the gates enforce. The prompt cards below are written to be pasted
-verbatim; read the full text in law/*.cue when exact wording is at
-stake.
+Generated from dev/*.cue by dev/law, so it cannot drift from the files
+it summarises. The prompt cards below are written to be pasted
+verbatim; read the full text in dev/*.cue when exact wording is at
+stake. The schema the binary enforces on input is law/, and it is not
+summarised here.
 
 ## Invariants (cited by id, never restated)
 

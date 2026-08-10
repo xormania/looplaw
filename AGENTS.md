@@ -17,11 +17,11 @@ side holds no policy of its own.
 Every refusal string, remedy, comment, usage line, and schema doc is
 governed by the ratified lexicon. **Read the digest first:**
 
-    go run ./cmd/looplaw project law
+    go run ./dev/cmd/digest
 
 18KB, generated from the law the binary carries: invariants, authorities
 and acts, a pasteable card per reserved term, and the vocabulary that is
-refused. `law/DIGEST.md` is the committed copy. Open the full text in
+refused. `dev/DIGEST.md` is the committed copy. Open the full text in
 `law/*.cue` only when exact wording is at stake — the corpus is 91KB and
 re-reading it to check one sentence is the expensive habit this digest
 exists to retire.

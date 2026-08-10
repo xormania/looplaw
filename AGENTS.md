@@ -39,7 +39,9 @@ are recorded, never believed.
 
 The tracked config (`.serena/project.yml`) turns on richer Go
 diagnostics, skips recorded outputs when searching, and points a new
-session at the digest rather than the corpus.
+session at the digest rather than the corpus; `dev/serena-memories/`
+holds the project memories, kept as pointers to this file rather than a
+second copy of it.
 
 ## Verifying
 

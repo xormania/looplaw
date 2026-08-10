@@ -14,4 +14,13 @@ if [ ! -d "$central" ]; then
 fi
 cp .serena/project.yml "$central/project.yml"
 echo "synced .serena/project.yml -> $central/project.yml"
+
+# Memories live in the same central state, so they are equally invisible
+# to a fresh clone or another machine. The tracked copies are thin
+# pointers rather than a second brief.
+mkdir -p "$central/memories"
+for m in dev/serena-memories/*.md; do
+	cp "$m" "$central/memories/$(basename "$m")"
+	echo "synced $m -> $central/memories/$(basename "$m")"
+done
 echo "restart the language server (or the session) for language-server settings to take effect"

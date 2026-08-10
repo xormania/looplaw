@@ -8,3 +8,5 @@ One Claude-specific convenience: the review protocol in `dev/review.md`
 is automated as a saved workflow —
 
     Workflow({name: "review", args: {target: "…", focus: "…"}})
+
+— which any other harness runs by following `dev/review.md` directly.

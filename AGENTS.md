@@ -19,20 +19,24 @@ governed by the ratified lexicon. **Read the digest first:**
 
     go run ./dev/cmd/digest
 
-18KB, generated from the law the binary carries: invariants, authorities
-and acts, a pasteable card per reserved term, and the vocabulary that is
-refused. `dev/DIGEST.md` is the committed copy. Open the full text in
-`schema/*.cue` only when exact wording is at stake — the corpus is 91KB and
-re-reading it to check one sentence is the expensive habit this digest
-exists to retire.
+18KB, generated from `dev/*.cue` — this project's design basis, not the
+schemas the binary embeds: invariants, authorities and acts, a pasteable
+card per reserved term, and the vocabulary that is refused.
+`dev/DIGEST.md` is the committed copy. Open the full text in `dev/*.cue`
+only when exact wording is at stake — the corpus is 91KB and re-reading
+it to check one sentence is the expensive habit this digest exists to
+retire.
 
 The traps that catch newcomers: `commit`, `merge`, `push`, `build`,
 `deploy`, `release`, `publish`, `ship`, `rollback` are banned bare;
 `authorize`, `permit`, `allow`, `approve` are banned outright; `version`
 and `environment` need qualification. A denial is not a failure. Claims
 are recorded, never believed. The outright bans are enforced by
-`go test ./dev/` over everything the product says, so a slip fails
-rather than waiting for review.
+`go test ./internal/conformance/` over everything the product says, so a
+slip fails rather than waiting for review. That check lives with the
+product because it reads the product: filed under `dev/`, anything
+filtering on paths would skip it exactly when a product edit is what
+introduced the violation.
 
 The reverse direction matters more and is also enforced: workshop
 concepts must not borrow the product's words, and nothing under `dev/`

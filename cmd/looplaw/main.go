@@ -149,6 +149,30 @@ func main() {
 			fmt.Printf("%s seq %d %s\n", r.Type, r.Seq, r.Hash)
 		}
 		os.Exit(outcome.ExitOK)
+	case "declare":
+		if len(os.Args) != 4 {
+			fmt.Fprintln(os.Stderr, "usage: looplaw declare <project> <proposed.cue>")
+			os.Exit(outcome.ExitUsage)
+		}
+		st := openProject(os.Args[2])
+		defer st.Close()
+		recs, refusals := record.Declare(st, os.Args[3], party())
+		if len(refusals) > 0 {
+			refuse(refusals...)
+		}
+		// A declaration is a party saying what the law should become. It
+		// is recorded so it can be adjudicated, and it binds nothing
+		// until the accountable authority ratifies it.
+		for _, r := range recs {
+			fmt.Printf("%s seq %d %s\n", r.Type, r.Seq, r.Hash)
+		}
+		law, _ := record.CurrentLaw(st)
+		if law == nil {
+			fmt.Println("no law is ratified for this project: recorded as a first declaration, binding nothing")
+		} else {
+			fmt.Printf("declared against law %s; binds nothing until ratified\n", law.Hash[:12])
+		}
+		os.Exit(outcome.ExitOK)
 	case "verify":
 		if len(os.Args) != 3 {
 			fmt.Fprintln(os.Stderr, "usage: looplaw verify <project>")
@@ -311,6 +335,10 @@ commands:
                        record a claim or a receipt, with the admission
                        of its entry; recording settles that a thing was
                        said, never that it is true
+  declare <project> <proposed.cue>
+                       record a proposed goal set as a claim; the gates
+                       check it and their refusals are the worklist. A
+                       declaration binds nothing until it is ratified
   verify <project>     recompute every hash and link in the ledger
   export <project>     print the ledger as recorded
   status <view> <scope> report which sources moved under an absorbed

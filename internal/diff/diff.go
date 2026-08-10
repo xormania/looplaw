@@ -4,8 +4,10 @@
 // gap is a planning state, never an error state, so a run that finds
 // gaps is a successful run.
 //
-// v0 compares law against law at the contracts region, clause grain
-// where clauses exist. The absorbed current view arrives with the
+// v0 compares law against law at the CONTRACTS REGION ONLY, clause
+// grain where clauses exist — registry, invariants, lexicon, and
+// experience deltas are not yet compared, so an empty gap list means
+// contract equilibrium, not whole-set equivalence. The absorbed current view arrives with the
 // absorber; until then the view side is any set file. Gap ids are
 // deterministic per run (sorted address order) and ephemeral until the
 // store assumes gap custody.
@@ -58,12 +60,15 @@ func Diff(goalPath, viewPath string) ([]Gap, []outcome.Refusal) {
 	view, viewRefusals := gate.LoadSet(viewPath)
 
 	var refusals []outcome.Refusal
-	for side, rs := range map[string][]outcome.Refusal{"goal": goalRefusals, "view": viewRefusals} {
-		for _, r := range rs {
+	for _, side := range []struct {
+		name string
+		rs   []outcome.Refusal
+	}{{"goal", goalRefusals}, {"view", viewRefusals}} {
+		for _, r := range side.rs {
 			refusals = append(refusals, outcome.Refusal{
 				Class:   outcome.Rejection,
 				Check:   "diff/side",
-				Subject: fmt.Sprintf("%s side (%s)", side, r.Subject),
+				Subject: fmt.Sprintf("%s side (%s)", side.name, r.Subject),
 				Reason:  r.Error(),
 				Remedy:  "both sides must pass the trinity gates before a diff means anything",
 			})
@@ -150,14 +155,19 @@ func Diff(goalPath, viewPath string) ([]Gap, []outcome.Refusal) {
 }
 
 type clauseInfo struct {
-	text string
+	text    string
+	records string
+}
+
+func (c clauseInfo) hash() string {
+	return hashOf(hashDelim(c.text) + hashDelim(c.records))
 }
 
 type contractInfo struct {
 	hash        string
 	fieldsHash  string
 	hasInterior bool
-	clauses     map[string]clauseInfo // "P-1", "G-1", "LI-1" keys prefixed by region
+	clauses     map[string]clauseInfo // raw clause ids; disjoint across regions by the shape gate's P-/G-/LI- grammar closure
 }
 
 func contractsOf(set cue.Value) map[string]contractInfo {
@@ -179,14 +189,45 @@ func contractsOf(set cue.Value) map[string]contractInfo {
 			for citer.Next() {
 				cid := citer.Selector().Unquoted()
 				text, _ := citer.Value().LookupPath(cue.ParsePath("text")).String()
-				if records, err := citer.Value().LookupPath(cue.ParsePath("records")).String(); err == nil {
-					text += "\x00records:" + records
-				}
-				info.clauses[cid] = clauseInfo{text: text}
+				records, _ := citer.Value().LookupPath(cue.ParsePath("records")).String()
+				info.clauses[cid] = clauseInfo{text: text, records: records}
 			}
 		}
 
-		info.hasInterior = c.LookupPath(cue.ParsePath("interior")).Exists()
+		interior := c.LookupPath(cue.ParsePath("interior"))
+		info.hasInterior = interior.Exists()
+		var interiorFields string
+		if info.hasInterior {
+			for _, ch := range listStrings(interior, "children") {
+				interiorFields += hashDelim(ch)
+			}
+			interiorFields += "|wires|"
+			if liter, err := interior.LookupPath(cue.ParsePath("wires")).List(); err == nil {
+				for liter.Next() {
+					w := liter.Value()
+					for _, p := range []string{"from.child", "from.guarantee", "to.child", "to.precondition"} {
+						v, _ := w.LookupPath(cue.ParsePath(p)).String()
+						interiorFields += hashDelim(v)
+					}
+				}
+			}
+			interiorFields += "|presents|"
+			presents := map[string]string{}
+			var pkeys []string
+			if piter, err := interior.LookupPath(cue.ParsePath("presents")).Fields(); err == nil {
+				for piter.Next() {
+					child, _ := piter.Value().LookupPath(cue.ParsePath("child")).String()
+					g, _ := piter.Value().LookupPath(cue.ParsePath("guarantee")).String()
+					k := piter.Selector().Unquoted()
+					presents[k] = hashDelim(child) + hashDelim(g)
+					pkeys = append(pkeys, k)
+				}
+			}
+			sort.Strings(pkeys)
+			for _, k := range pkeys {
+				interiorFields += hashDelim(k) + presents[k]
+			}
+		}
 
 		var fields string
 		for _, p := range []string{"parties.client", "parties.supplier", "synchronization"} {
@@ -203,7 +244,7 @@ func contractsOf(set cue.Value) map[string]contractInfo {
 			}
 			fields += "|"
 		}
-		fields += fmt.Sprintf("interior:%v", info.hasInterior)
+		fields += fmt.Sprintf("interior:%v|", info.hasInterior) + interiorFields
 		info.fieldsHash = hashOf(fields)
 
 		var whole string
@@ -213,7 +254,7 @@ func contractsOf(set cue.Value) map[string]contractInfo {
 		}
 		sort.Strings(cids)
 		for _, cid := range cids {
-			whole += hashDelim(cid) + hashDelim(info.clauses[cid].text)
+			whole += hashDelim(cid) + info.clauses[cid].hash()
 		}
 		info.hash = hashOf(fields + whole)
 
@@ -241,11 +282,11 @@ func diffClauses(add func(contract, clause, kind, work, detail, gh, vh string), 
 		v, inView := vc.clauses[id]
 		switch {
 		case inGoal && !inView:
-			add(contract, id, "absent", "fill", "clause absent from the view", hashOf(g.text), "")
+			add(contract, id, "absent", "fill", "clause absent from the view", g.hash(), "")
 		case !inGoal && inView:
-			add(contract, id, "added", "fill", "clause present in the view but absent from goal-law", "", hashOf(v.text))
-		case g.text != v.text:
-			add(contract, id, "changed", "fill", "clause text differs between goal-law and the view", hashOf(g.text), hashOf(v.text))
+			add(contract, id, "added", "fill", "clause present in the view but absent from goal-law", "", v.hash())
+		case g != v:
+			add(contract, id, "changed", "fill", "clause text differs between goal-law and the view", g.hash(), v.hash())
 		}
 	}
 }
@@ -253,6 +294,20 @@ func diffClauses(add func(contract, clause, kind, work, detail, gh, vh string), 
 func hashOf(s string) string {
 	sum := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(sum[:])
+}
+
+func listStrings(v cue.Value, path string) []string {
+	var out []string
+	liter, err := v.LookupPath(cue.ParsePath(path)).List()
+	if err != nil {
+		return nil
+	}
+	for liter.Next() {
+		if s, err := liter.Value().String(); err == nil {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 func hashDelim(s string) string {

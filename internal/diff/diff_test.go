@@ -157,3 +157,105 @@ func TestEveryDiffCheckHasAProvingRed(t *testing.T) {
 		t.Errorf("check %s has no proving red and no declared exemption", check)
 	}
 }
+
+// Rewiring an interior — same clauses, different presents target — is a
+// contract-grain changed gap, never equilibrium (review finding,
+// reproduced before this red existed).
+func TestInteriorRewiringIsAChangedGap(t *testing.T) {
+	base, err := os.ReadFile(goal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rewired := strings.Replace(string(base),
+		`"G-1": {child: "C-ISSUE-1", guarantee: "G-1"}`,
+		`"G-1": {child: "C-STANDING-1", guarantee: "G-1"}`, 1)
+	if rewired == string(base) {
+		t.Fatal("rewire did not apply — fixture drifted")
+	}
+	path := filepath.Join(t.TempDir(), "set.cue")
+	if err := os.WriteFile(path, []byte(rewired), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gaps, refusals := Diff(goal, path)
+	if len(refusals) != 0 {
+		t.Fatalf("refused: %+v", refusals)
+	}
+	found := false
+	for _, g := range gaps {
+		if g.Address.Contract == "C-LEND-1" && g.Kind == "changed" && g.Address.Clause == "" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("interior rewiring produced no contract-grain changed gap: %+v", gaps)
+	}
+}
+
+// A crafted NUL boundary in clause text cannot forge equality between
+// materially different guarantees (review finding: delimiter injection).
+func TestDelimiterInjectionCannotForgeEquality(t *testing.T) {
+	base, err := os.ReadFile(goal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	origText := `{text: "The loan is retired and the retirement is recorded; the book is lendable again.", records: "the return record"}`
+	a := strings.Replace(string(base), origText,
+		`{text: "The loan is retired.", records: "A\\u0000records:B"}`, 1)
+	b := strings.Replace(string(base), origText,
+		`{text: "The loan is retired.\\u0000records:A", records: "B"}`, 1)
+	if a == string(base) || b == string(base) {
+		t.Fatal("injection rewrite did not apply — fixture drifted")
+	}
+	dir := t.TempDir()
+	pa, pb := filepath.Join(dir, "a.cue"), filepath.Join(dir, "b.cue")
+	if err := os.WriteFile(pa, []byte(a), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(pb, []byte(b), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gaps, refusals := Diff(pa, pb)
+	if len(refusals) != 0 {
+		t.Fatalf("refused: %+v", refusals)
+	}
+	found := false
+	for _, g := range gaps {
+		if g.Address.Contract == "C-RETURN-1" && g.Address.Clause == "G-1" && g.Kind == "changed" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("forged boundary compared equal — injection survives: %+v", gaps)
+	}
+}
+
+// When both sides fail their gates, the refusal stream is deterministic:
+// goal side first, then view, every run.
+func TestBothSidesRefusalOrderIsDeterministic(t *testing.T) {
+	base, err := os.ReadFile(goal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	broken := strings.Replace(string(base), `status: "ratified"`, `status: "vibes"`, 1)
+	dir := t.TempDir()
+	p := filepath.Join(dir, "broken.cue")
+	if err := os.WriteFile(p, []byte(broken), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var first []string
+	for i := 0; i < 6; i++ {
+		_, refusals := Diff(p, p)
+		var order []string
+		for _, r := range refusals {
+			order = append(order, r.Subject[:4])
+		}
+		if first == nil {
+			first = order
+		} else if !reflect.DeepEqual(first, order) {
+			t.Fatalf("refusal order varies across runs: %v vs %v", first, order)
+		}
+	}
+	if len(first) == 0 || first[0] != "goal" {
+		t.Fatalf("goal side must come first: %v", first)
+	}
+}

@@ -8,6 +8,9 @@ import (
 	"fmt"
 	"os"
 
+	"cuelang.org/go/cue"
+
+	"github.com/xormania/looplaw/internal/absorb"
 	"github.com/xormania/looplaw/internal/diff"
 	"github.com/xormania/looplaw/internal/gate"
 	"github.com/xormania/looplaw/internal/outcome"
@@ -42,6 +45,71 @@ func main() {
 			}
 		}
 		os.Exit(exit)
+	case "absorb":
+		if len(os.Args) != 4 || os.Args[3] == "" {
+			fmt.Fprintln(os.Stderr, "usage: looplaw absorb <scope-dir> <subject>")
+			os.Exit(outcome.ExitUsage)
+		}
+		m, err := absorb.ScanScope(os.Args[2])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, (&outcome.Refusal{
+				Class: outcome.Abort, Check: "absorb/scope",
+				Subject: os.Args[2], Reason: err.Error(),
+				Remedy: "point the absorber at a readable scope directory",
+			}).Error())
+			os.Exit(outcome.ExitAbort)
+		}
+		// The skeleton carries machine-computed provenance and empty law
+		// regions: authoring the law is inference, and it belongs to the
+		// agent driving this tool, never to the binary.
+		fmt.Print(absorb.Skeleton(os.Args[3], m))
+		os.Exit(outcome.ExitOK)
+	case "status":
+		if len(os.Args) != 4 {
+			fmt.Fprintln(os.Stderr, "usage: looplaw status <view.cue> <scope-dir>")
+			os.Exit(outcome.ExitUsage)
+		}
+		view, refusals := gate.LoadSet(os.Args[2])
+		if len(refusals) > 0 {
+			exit := outcome.ExitOK
+			for _, r := range refusals {
+				fmt.Fprintln(os.Stderr, r.Error())
+				if c := r.Class.ExitCode(); c > exit {
+					exit = c
+				}
+			}
+			os.Exit(exit)
+		}
+		prov := view.LookupPath(cue.ParsePath("provenance"))
+		if !prov.Exists() {
+			fmt.Fprintln(os.Stderr, (&outcome.Refusal{
+				Class: outcome.Rejection, Check: "status/no-provenance",
+				Subject: os.Args[2],
+				Reason:  "the set carries no provenance, so it is authored law, not an absorbed view",
+				Remedy:  "run status against an absorbed view; authored law has nothing to go stale against",
+			}).Error())
+			os.Exit(outcome.ExitRejection)
+		}
+		m, err := absorb.ScanScope(os.Args[3])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, (&outcome.Refusal{
+				Class: outcome.Abort, Check: "status/scope",
+				Subject: os.Args[3], Reason: err.Error(),
+				Remedy: "point status at a readable scope directory",
+			}).Error())
+			os.Exit(outcome.ExitAbort)
+		}
+		rep := absorb.Compare(prov, m)
+		out, err := json.MarshalIndent(rep, "", "  ")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(outcome.ExitAbort)
+		}
+		// Staleness is evidence, never a verdict: a stale view is owed a
+		// re-derivation, which is the client's work — so a stale report
+		// is a successful run.
+		fmt.Println(string(out))
+		os.Exit(outcome.ExitOK)
 	case "diff":
 		if len(os.Args) != 4 {
 			fmt.Fprintln(os.Stderr, "usage: looplaw diff <goal.cue> <view.cue>")
@@ -89,6 +157,11 @@ commands:
   validate <set.cue>   run the trinity gates over a target set; refusals
                        carry their remedy; exit codes follow the failure
                        doctrine (0 ok, 1 rejection, 3 abort)
+  absorb <scope> <subj> scan a scope and print a draft view skeleton
+                       with machine-computed provenance; the law regions
+                       are left for authoring (that work is inference)
+  status <view> <scope> report which sources moved under an absorbed
+                       view and which statements they were derived from
   diff <goal> <view>   compute gap records between goal-law and a view
                        (both must pass the gates); the gap list is the
                        planning feed, printed as JSON — a diff that

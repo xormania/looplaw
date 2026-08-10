@@ -537,6 +537,10 @@ func TestEveryGateHasAProvingRed(t *testing.T) {
 		"trinity/vacuity":           true, // TestVacuousSetRefused
 		"trinity/region-unreadable": true, // TestUnreadableRegionIsFinding
 		"trinity/decomp-grounded":   true, // TestUngroundedInteriorRefused
+		// TestProvenanceRedsAreRedForTheirDeclaredReason
+		"trinity/provenance-address":  true,
+		"trinity/provenance-source":   true,
+		"trinity/provenance-coverage": true,
 	}
 	for _, m := range mutations {
 		proven[m.wantCheck] = true
@@ -555,6 +559,96 @@ func TestEveryGateHasAProvingRed(t *testing.T) {
 	for check := range exempt {
 		if proven[check] {
 			t.Errorf("gate %s is exempted AND proven — delete the stale exemption", check)
+		}
+	}
+}
+
+// Provenance reds. The absorbed-view fixture lives in the absorber's
+// testdata; these mutate it by one edit each, so the gate's provenance
+// lane is witnessed the same way every other lane is.
+const provFixture = "../absorb/testdata/view.cue"
+
+func TestProvenanceRedsAreRedForTheirDeclaredReason(t *testing.T) {
+	base, err := os.ReadFile(provFixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if refusals := ValidateTrinity(provFixture); len(refusals) != 0 {
+		t.Fatalf("the absorbed-view fixture must be green: %+v", refusals)
+	}
+
+	cases := []mutation{
+		{
+			name:      "provenance-address-unknown-contract",
+			old:       `"C-LEND-1":       ["lending.go"]`,
+			new:       `"C-GHOST-1":      ["lending.go"]`,
+			wantCheck: "trinity/provenance-address",
+			wantIn:    `"C-GHOST-1"`,
+		},
+		{
+			name:      "provenance-address-unknown-clause",
+			old:       `"C-LEND-1/G-1":   ["lending.go"]`,
+			new:       `"C-LEND-1/G-9":   ["lending.go"]`,
+			wantCheck: "trinity/provenance-address",
+			wantIn:    `"G-9"`,
+		},
+		{
+			name:      "provenance-unbaselined-source",
+			old:       `"C-RETURN-1":     ["returning.go"]`,
+			new:       `"C-RETURN-1":     ["phantom.go"]`,
+			wantCheck: "trinity/provenance-source",
+			wantIn:    `"phantom.go"`,
+		},
+		{
+			// Both C-RETURN-1 derivations go: a clause-grain address
+			// still covers its contract, so coverage only fails when
+			// nothing addresses the contract at all.
+			name:      "provenance-uncovered-contract",
+			old:       "\t\t\"C-RETURN-1\":     [\"returning.go\"]\n\t\t\"C-RETURN-1/G-1\": [\"returning.go\"]",
+			new:       "\t\t\"C-LEND-1/P-1\":   [\"lending.go\"]",
+			wantCheck: "trinity/provenance-coverage",
+			wantIn:    `"C-RETURN-1"`,
+		},
+	}
+
+	for _, m := range cases {
+		t.Run(m.name, func(t *testing.T) {
+			if !strings.Contains(string(base), m.old) {
+				t.Fatalf("mutation target drifted from the fixture: %q", m.old)
+			}
+			mutated := strings.Replace(string(base), m.old, m.new, 1)
+			path := filepath.Join(t.TempDir(), "view.cue")
+			if err := os.WriteFile(path, []byte(mutated), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			refusals := ValidateTrinity(path)
+			found := false
+			for _, r := range refusals {
+				if r.Check == m.wantCheck && strings.Contains(r.Error(), m.wantIn) {
+					found = true
+				}
+				if r.Remedy == "" {
+					t.Errorf("refusal without a remedy: %s", r.Error())
+				}
+			}
+			if !found {
+				var got []string
+				for _, r := range refusals {
+					got = append(got, r.Error())
+				}
+				t.Errorf("red, but not for the declared reason.\nwant %s naming %s\ngot:\n  %s",
+					m.wantCheck, m.wantIn, strings.Join(got, "\n  "))
+			}
+		})
+	}
+}
+
+// Authored law carries no provenance and the provenance lane stays
+// silent over it — law is authored and ratified, never derived.
+func TestAuthoredLawSkipsTheProvenanceLane(t *testing.T) {
+	for _, r := range ValidateTrinity(fixture) {
+		if strings.HasPrefix(r.Check, "trinity/provenance") {
+			t.Errorf("provenance lane fired on authored law: %s", r.Error())
 		}
 	}
 }

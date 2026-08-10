@@ -48,6 +48,9 @@ var Checks = []string{
 	"trinity/decomp-refinement",
 	"trinity/decomp-satisfier",
 	"trinity/decomp-grounded",
+	"trinity/provenance-address",
+	"trinity/provenance-source",
+	"trinity/provenance-coverage",
 }
 
 // ValidateTrinity runs the trinity gates over one target set file:
@@ -328,6 +331,7 @@ func relationalChecks(subject string, set cue.Value) []outcome.Refusal {
 	}
 
 	refusals = append(refusals, decompositionChecks(subject, infos)...)
+	refusals = append(refusals, provenanceChecks(subject, set, infos)...)
 
 	// Parties coverage: every registered party appears in some contract.
 	// A party in no contract is an unplaced component — a design defect,
@@ -420,18 +424,82 @@ func relationalChecks(subject string, set cue.Value) []outcome.Refusal {
 	return refusals
 }
 
+// provenanceChecks gate an absorbed view's provenance as data: every
+// addressed statement exists, every named source is in the baseline,
+// and every contract is addressed — an absorbed statement with no
+// derivation is unfalsifiable. The kernel reads no tree here; it
+// compares what was submitted.
+func provenanceChecks(subject string, set cue.Value, infos map[string]*contractInfo) []outcome.Refusal {
+	prov := set.LookupPath(cue.ParsePath("provenance"))
+	if !prov.Exists() {
+		return nil // authored law, not an absorbed view
+	}
+
+	var refusals []outcome.Refusal
+	refuse := func(check, subj, reason, remedy string) {
+		refusals = append(refusals, outcome.Refusal{
+			Class: outcome.Rejection, Check: check,
+			Subject: fmt.Sprintf("%s: %s", subject, subj),
+			Reason:  reason, Remedy: remedy,
+		})
+	}
+
+	sources, _ := fieldNames(prov, "sources")
+	addressed := map[string]bool{}
+
+	if iter, err := regionFields(prov, "derivations"); err == nil {
+		for iter.Next() {
+			addr := iter.Selector().Unquoted()
+			contract, clause, _ := strings.Cut(addr, "/")
+			info, ok := infos[contract]
+			switch {
+			case !ok:
+				refuse("trinity/provenance-address", fmt.Sprintf("derivation %q", addr),
+					fmt.Sprintf("contract %q is not in the set", contract),
+					"address a contract the set states, or drop the derivation")
+			case clause != "" && !contains(info.preconditions, clause) &&
+				!contains(info.guarantees, clause) && !contains(info.localInvariants, clause):
+				refuse("trinity/provenance-address", fmt.Sprintf("derivation %q", addr),
+					fmt.Sprintf("contract %q states no clause %q", contract, clause),
+					"address a clause the contract states, or address the contract alone")
+			default:
+				addressed[contract] = true
+			}
+
+			for _, src := range stringListValue(iter.Value()) {
+				if !contains(sources, src) {
+					refuse("trinity/provenance-source", fmt.Sprintf("derivation %q", addr),
+						fmt.Sprintf("source %q is absent from the provenance baseline", src),
+						"name a source the absorption recorded; an unbaselined source cannot go stale, so it proves nothing")
+				}
+			}
+		}
+	}
+
+	for cid := range infos {
+		if !addressed[cid] {
+			refuse("trinity/provenance-coverage", fmt.Sprintf("contract %q", cid),
+				"absorbed but derived from nothing — an unsourced statement cannot go stale, so nothing can ever falsify it",
+				"record what the contract was derived from, or drop it from the view")
+		}
+	}
+
+	return refusals
+}
+
 // contractInfo is the relational lane's view of one contract, collected
 // in a single pass so the decomposition checks work over data, not
 // repeated CUE lookups.
 type contractInfo struct {
-	client        string
-	preconditions []string
-	guarantees    []string
-	cites         []string
-	hasInterior   bool
-	children      []string
-	wires         []wireInfo
-	presents      map[string][2]string // parent guarantee -> (child, child guarantee)
+	client          string
+	preconditions   []string
+	guarantees      []string
+	localInvariants []string
+	cites           []string
+	hasInterior     bool
+	children        []string
+	wires           []wireInfo
+	presents        map[string][2]string // parent guarantee -> (child, child guarantee)
 }
 
 type wireInfo struct {
@@ -444,6 +512,7 @@ func collectContract(c cue.Value) *contractInfo {
 	info.client, _ = c.LookupPath(cue.ParsePath("parties.client")).String()
 	info.preconditions, _ = fieldNames(c, "preconditions")
 	info.guarantees, _ = fieldNames(c, "guarantees")
+	info.localInvariants, _ = fieldNames(c, "invariants_local")
 	info.cites = stringList(c, "cites")
 
 	interior := c.LookupPath(cue.ParsePath("interior"))
@@ -762,6 +831,22 @@ func fieldNames(v cue.Value, path string) ([]string, error) {
 		names = append(names, iter.Selector().Unquoted())
 	}
 	return names, nil
+}
+
+// stringListValue reads a list value directly (the caller already holds
+// it), as opposed to stringList which looks one up by path.
+func stringListValue(v cue.Value) []string {
+	var out []string
+	list, err := v.List()
+	if err != nil {
+		return nil
+	}
+	for list.Next() {
+		if s, err := list.Value().String(); err == nil {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 func stringList(v cue.Value, path string) []string {

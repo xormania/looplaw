@@ -110,7 +110,7 @@ ${TERSE}`,
 Changed files:
 ${fileList}
 
-Read ${REPO}/dev/DIGEST.md — the ratified law as a brief (invariants, authorities, acts, a card per reserved term, refused vocabulary). It is 18KB against the corpus's 91KB; open schema/*.cue only for a passage the digest does not settle.
+Read ${REPO}/dev/DIGEST.md — this project's design basis as a brief (invariants, authorities, acts, a card per reserved term, refused vocabulary). It is 18KB against the corpus's 91KB; open dev/*.cue only for a passage the digest does not settle, and schema/*.cue only for the shape a set must take.
 
 You own the strings; the correctness lens owns behavior. Audit every user-facing string the batch adds or changes — refusal reasons, remedies, usage text, schema comments, generated output — for refused vocabulary, authority relocation (a reserved verb handed to a subject that does not hold it), status laundering (evidence treated as law, a claim treated as believed, processing treated as a standing change), and behavior contradicting a ratified statement. Quote the offending string and give its replacement.
 ${TERSE}`,

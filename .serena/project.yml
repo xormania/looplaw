@@ -40,10 +40,11 @@ initial_prompt: |
 
   Two habits that save the most here:
   - For anything about vocabulary, authority, or what the law says, read
-    dev/DIGEST.md (18KB, generated from the law the binary carries), not
-    dev/*.cue. Open the full text only when exact wording matters.
+    dev/DIGEST.md (18KB, generated from dev/*.cue — this project's design
+    basis, not the schemas the binary embeds). Open the full text in
+    dev/*.cue only when exact wording matters.
   - Run dev/check before pushing; it is CI's fast lane in the same order.
-    dev/basis regenerates the digest and reports ratification debt.
+    dev/basis regenerates dev/DIGEST.md.
 
   Before inventing an adversarial input, look in
   internal/gate/testdata/attacks/ — every attack that has ever found a

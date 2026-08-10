@@ -7,6 +7,7 @@ package gate
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -45,6 +46,8 @@ var Checks = []string{
 	"trinity/decomp-dangling",
 	"trinity/decomp-cites",
 	"trinity/decomp-refinement",
+	"trinity/decomp-satisfier",
+	"trinity/decomp-grounded",
 }
 
 // ValidateTrinity runs the trinity gates over one target set file:
@@ -468,7 +471,15 @@ func decompositionChecks(subject string, infos map[string]*contractInfo) []outco
 	// Children resolve; the containment relation is single-parent.
 	parents := map[string][]string{}
 	for cid, info := range infos {
+		seen := map[string]bool{}
 		for _, ch := range info.children {
+			if seen[ch] {
+				refuse("trinity/decomp-resolve", cid,
+					fmt.Sprintf("child %q is listed twice in the interior", ch),
+					"list each child once")
+				continue
+			}
+			seen[ch] = true
 			if _, ok := infos[ch]; !ok {
 				refuse("trinity/decomp-resolve", cid,
 					fmt.Sprintf("interior child %q is not a contract in the set", ch),
@@ -539,7 +550,25 @@ func decompositionChecks(subject string, infos map[string]*contractInfo) []outco
 					"map the guarantee to the child guarantee that presents it")
 			}
 		}
-		for pg, target := range info.presents {
+		// Presenting is one-to-one: a child guarantee presents at most
+		// one parent guarantee, or the boundary claims more than the
+		// assembly produces. Keys are walked sorted so the named
+		// collider is deterministic.
+		presentKeys := make([]string, 0, len(info.presents))
+		for pg := range info.presents {
+			presentKeys = append(presentKeys, pg)
+		}
+		sort.Strings(presentKeys)
+		usedTarget := map[[2]string]string{}
+		for _, pg := range presentKeys {
+			target := info.presents[pg]
+			if first, dup := usedTarget[target]; dup {
+				refuse("trinity/decomp-presents", fmt.Sprintf("%s guarantee %q", cid, pg),
+					fmt.Sprintf("presented by %s.%q, which already presents %q — one child guarantee presents at most one parent guarantee", target[0], target[1], first),
+					"present each parent guarantee through its own child guarantee")
+			} else {
+				usedTarget[target] = pg
+			}
 			if !contains(info.guarantees, pg) {
 				refuse("trinity/decomp-presents", fmt.Sprintf("%s presents %q", cid, pg),
 					"maps a guarantee the parent does not state",
@@ -559,10 +588,19 @@ func decompositionChecks(subject string, infos map[string]*contractInfo) []outco
 			}
 		}
 
-		// Wires resolve inside the interior.
+		// Wires resolve inside the interior. A wire names two different
+		// children: a self-wire feeds nothing — the guarantee exists only
+		// after the act whose precondition it claims to feed.
 		fed := map[string]map[string]bool{}
+		fedBy := map[string]map[string][]string{} // child -> precondition -> feeding children
 		for _, w := range info.wires {
 			bad := false
+			if w.fromChild == w.toChild {
+				refuse("trinity/decomp-wire", cid,
+					fmt.Sprintf("wire from %q to itself — a wire feeds a sibling, and a child's guarantee cannot feed its own precondition", w.fromChild),
+					"wire the precondition from a sibling's guarantee, or restate the interior")
+				continue
+			}
 			if !childSet[w.fromChild] {
 				refuse("trinity/decomp-wire", cid,
 					fmt.Sprintf("wire from %q, not a child of this interior", w.fromChild),
@@ -588,8 +626,10 @@ func decompositionChecks(subject string, infos map[string]*contractInfo) []outco
 			if !bad {
 				if fed[w.toChild] == nil {
 					fed[w.toChild] = map[string]bool{}
+					fedBy[w.toChild] = map[string][]string{}
 				}
 				fed[w.toChild][w.toPrecondition] = true
+				fedBy[w.toChild][w.toPrecondition] = append(fedBy[w.toChild][w.toPrecondition], w.fromChild)
 			}
 		}
 
@@ -597,15 +637,25 @@ func decompositionChecks(subject string, infos map[string]*contractInfo) []outco
 		// shared client owes: a child precondition is either fed by a
 		// wire, or (for a child sharing the parent's client) one the
 		// parent itself states.
+		walked := map[string]bool{}
 		for _, ch := range info.children {
 			ci, ok := infos[ch]
-			if !ok {
+			if !ok || walked[ch] {
 				continue
 			}
+			walked[ch] = true
 			for _, p := range ci.preconditions {
+				clientOwed := ci.client == info.client && contains(info.preconditions, p)
 				switch {
+				case fed[ch][p] && clientOwed:
+					// One obligation, one satisfier of record: blame
+					// adjudicates from recorded evidence, and two
+					// satisfiers make the failed one unnameable.
+					refuse("trinity/decomp-satisfier", fmt.Sprintf("%s precondition %q", ch, p),
+						"owed by the shared client and fed by a wire — two satisfiers of record for one obligation",
+						"remove the wire or the shared obligation; every obligation has exactly one satisfier of record")
 				case fed[ch][p]:
-				case ci.client == info.client && contains(info.preconditions, p):
+				case clientOwed:
 				case ci.client == info.client:
 					refuse("trinity/decomp-refinement", fmt.Sprintf("%s precondition %q", ch, p),
 						fmt.Sprintf("imposes an obligation on the shared client that the parent %s does not state", cid),
@@ -624,6 +674,50 @@ func decompositionChecks(subject string, infos map[string]*contractInfo) []outco
 						fmt.Sprintf("does not cite %q, inherited from %s — invariants are inherited, never weakened", inv, cid),
 						"cite the parent's invariants in the child")
 				}
+			}
+		}
+
+		// Groundability: the interior must be executable. A child can act
+		// once every precondition is owed by the shared client or fed by
+		// a child that can already act; a closed feed loop grounds
+		// nothing and is refused — an obligation that no execution order
+		// can ever meet is not law, it is decoration.
+		grounded := map[string]bool{}
+		for changed := true; changed; {
+			changed = false
+			for ch := range childSet {
+				if grounded[ch] {
+					continue
+				}
+				ci := infos[ch]
+				ok := true
+				for _, p := range ci.preconditions {
+					if ci.client == info.client && contains(info.preconditions, p) {
+						continue
+					}
+					fedByGrounded := false
+					for _, f := range fedBy[ch][p] {
+						if grounded[f] {
+							fedByGrounded = true
+							break
+						}
+					}
+					if !fedByGrounded {
+						ok = false
+						break
+					}
+				}
+				if ok {
+					grounded[ch] = true
+					changed = true
+				}
+			}
+		}
+		for ch := range childSet {
+			if !grounded[ch] {
+				refuse("trinity/decomp-grounded", ch,
+					fmt.Sprintf("cannot be reached by any execution order inside the interior of %s — its feeds never ground in client-owed input", cid),
+					"feed the child from a groundable sibling or the shared client; a feed loop with no entry executes nothing")
 			}
 		}
 	}

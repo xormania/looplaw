@@ -258,6 +258,31 @@ var mutations = []mutation{
 		wantCheck: "trinity/decomp-refinement",
 		wantIn:    `"P-9"`,
 	},
+	{
+		// A self-wire "feeds" a precondition from the very act it gates —
+		// the one-line laundering attack; refused outright.
+		name:      "decomp-self-wire",
+		old:       `{from: {child: "C-STANDING-1", guarantee: "G-1"}, to: {child: "C-ISSUE-1", precondition: "P-1"}},`,
+		new:       `{from: {child: "C-ISSUE-1", guarantee: "G-1"}, to: {child: "C-ISSUE-1", precondition: "P-1"}},`,
+		wantCheck: "trinity/decomp-wire",
+		wantIn:    "itself",
+	},
+	{
+		// A precondition both client-owed and wire-fed has two satisfiers
+		// of record; blame could not name the failed one.
+		name:      "decomp-double-satisfier",
+		old:       "wires: [\n\t\t\t\t{from: {child: \"C-STANDING-1\", guarantee: \"G-1\"}, to: {child: \"C-ISSUE-1\", precondition: \"P-1\"}},\n\t\t\t]",
+		new:       "wires: [\n\t\t\t\t{from: {child: \"C-STANDING-1\", guarantee: \"G-1\"}, to: {child: \"C-ISSUE-1\", precondition: \"P-1\"}},\n\t\t\t\t{from: {child: \"C-ISSUE-1\", guarantee: \"G-1\"}, to: {child: \"C-STANDING-1\", precondition: \"P-1\"}},\n\t\t\t]",
+		wantCheck: "trinity/decomp-satisfier",
+		wantIn:    `"P-1"`,
+	},
+	{
+		name:      "decomp-duplicate-child",
+		old:       `children: ["C-STANDING-1", "C-ISSUE-1"]`,
+		new:       `children: ["C-STANDING-1", "C-ISSUE-1", "C-STANDING-1"]`,
+		wantCheck: "trinity/decomp-resolve",
+		wantIn:    "listed twice",
+	},
 }
 
 func TestMutationsAreRedForTheirDeclaredReason(t *testing.T) {
@@ -374,6 +399,120 @@ func TestUnreadableRegionIsFinding(t *testing.T) {
 	}
 }
 
+// Presenting is one-to-one: two parent guarantees sharing one child
+// guarantee means the boundary claims more than the assembly produces.
+// Needs two edits (a second parent guarantee + its mapping), so it lives
+// outside the single-edit mutation table.
+func TestPresentsInjectivityRefused(t *testing.T) {
+	base, err := os.ReadFile(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(base)
+	s = strings.Replace(s,
+		"\"G-1\": {text: \"A loan exists naming the book, the borrower, and the due date.\", records: \"the loan record\"}",
+		"\"G-1\": {text: \"A loan exists naming the book, the borrower, and the due date.\", records: \"the loan record\"}\n\t\t\t\"G-2\": {text: \"A lending receipt is issued to the borrower.\", records: \"the lending receipt\"}",
+		1)
+	s = strings.Replace(s,
+		"\"G-1\": {child: \"C-ISSUE-1\", guarantee: \"G-1\"}",
+		"\"G-1\": {child: \"C-ISSUE-1\", guarantee: \"G-1\"}\n\t\t\t\t\"G-2\": {child: \"C-ISSUE-1\", guarantee: \"G-1\"}",
+		1)
+	if s == string(base) {
+		t.Fatal("injectivity rewrite did not apply — fixture drifted")
+	}
+	path := filepath.Join(t.TempDir(), "set.cue")
+	if err := os.WriteFile(path, []byte(s), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, r := range ValidateTrinity(path) {
+		if r.Check == "trinity/decomp-presents" && strings.Contains(r.Error(), "already presents") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("two parent guarantees sharing one child guarantee were not refused")
+	}
+}
+
+// A closed feed loop with no entry executes nothing: pure mutual
+// feedback between children, with zero client-owed input, is refused as
+// ungroundable.
+func TestUngroundedInteriorRefused(t *testing.T) {
+	set := `subject:        "loop-sys"
+schema_version: "0"
+registry: {
+	boss: {name: "the boss", note: "outer client", authority_free: true}
+	w1: {name: "worker one", note: "supplier", authority_free: false}
+	w2: {name: "worker two", note: "supplier", authority_free: false}
+}
+invariants: {}
+lexicon: {}
+contracts: {
+	"C-P-1": {
+		name: "the parent"
+		parties: {client: "boss", supplier: "w1"}
+		acts: ["outer-act"]
+		preconditions: {}
+		guarantees: {}
+		invariants_local: {}
+		cites: []
+		blame: []
+		status: "ratified"
+		interior: {
+			children: ["C-A-1", "C-B-1"]
+			wires: [
+				{from: {child: "C-A-1", guarantee: "G-1"}, to: {child: "C-B-1", precondition: "P-1"}},
+				{from: {child: "C-B-1", guarantee: "G-1"}, to: {child: "C-A-1", precondition: "P-1"}},
+			]
+			presents: {}
+		}
+	}
+	"C-A-1": {
+		name: "child a"
+		parties: {client: "w2", supplier: "w1"}
+		acts: ["a-act"]
+		preconditions: {"P-1": {text: "B's output exists."}}
+		guarantees: {"G-1": {text: "A's output exists.", records: "the a record"}}
+		invariants_local: {}
+		cites: []
+		blame: []
+		status: "ratified"
+	}
+	"C-B-1": {
+		name: "child b"
+		parties: {client: "w1", supplier: "w2"}
+		acts: ["b-act"]
+		preconditions: {"P-1": {text: "A's output exists."}}
+		guarantees: {"G-1": {text: "B's output exists.", records: "the b record"}}
+		invariants_local: {}
+		cites: []
+		blame: []
+		status: "ratified"
+	}
+}
+experience: {}
+experience_declared_absent: true
+`
+	path := filepath.Join(t.TempDir(), "set.cue")
+	if err := os.WriteFile(path, []byte(set), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	refusals := ValidateTrinity(path)
+	grounded := 0
+	for _, r := range refusals {
+		if r.Check == "trinity/decomp-grounded" {
+			grounded++
+		}
+		if r.Check == "trinity/decomp-dangling" || r.Check == "trinity/decomp-wire" {
+			t.Errorf("the loop should fail grounding, not wiring: %s", r.Error())
+		}
+	}
+	if grounded != 2 {
+		t.Fatalf("want both loop children refused as ungroundable, got %d refusals: %+v", grounded, refusals)
+	}
+}
+
 func TestUnreadablePathAborts(t *testing.T) {
 	refusals := ValidateTrinity("testdata/does-not-exist.cue")
 	if len(refusals) != 1 || refusals[0].Class != outcome.Abort {
@@ -397,6 +536,7 @@ func TestEveryGateHasAProvingRed(t *testing.T) {
 		"trinity/load":              true, // TestUnreadablePathAborts
 		"trinity/vacuity":           true, // TestVacuousSetRefused
 		"trinity/region-unreadable": true, // TestUnreadableRegionIsFinding
+		"trinity/decomp-grounded":   true, // TestUngroundedInteriorRefused
 	}
 	for _, m := range mutations {
 		proven[m.wantCheck] = true

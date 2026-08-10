@@ -110,10 +110,16 @@ package law
 	interior?: #Interior
 }
 
-// A wire: dataflow inside an interior — a child's guarantee feeds
-// another child's precondition. Cycles between wires are permitted
-// (feedback is legitimate dataflow); the containment tree, not the
-// wiring, must be acyclic.
+// A wire: dataflow inside an interior — a child's guarantee feeds a
+// DIFFERENT child's precondition (a self-wire feeds nothing: the
+// guarantee exists only after the act whose precondition it claims to
+// feed, and is refused). The wiring must be GROUNDABLE: under one-shot
+// act semantics a child can act once its preconditions are owed by the
+// shared client or fed by a child that can already act, so a closed
+// feed loop with no entry executes nothing and is refused. Ruled: this
+// supersedes the earlier cycles-permitted note; reopening trigger —
+// act semantics gaining multiplicity (streaming/iterative flows), at
+// which point legitimate feedback returns as its own construct.
 #Wire: {
 	from: {child: string, guarantee: string}
 	to: {child: string, precondition: string}
@@ -128,10 +134,17 @@ package law
 // parent states; children cite every invariant the parent cites, never
 // fewer.
 #Interior: {
-	children: [string, ...string] // contract ids in this set
+	children: [string, ...string] // contract ids in this set, each listed once
 	wires: [...#Wire]
 	// Assembly satisfaction: every guarantee of the parent contract is
-	// presented by exactly one child guarantee.
+	// presented by exactly one child guarantee, one-to-one — a child
+	// guarantee presents at most one parent guarantee, or the boundary
+	// claims more than the assembly produces. Ruled with it: every
+	// obligation has exactly one satisfier of record — a precondition
+	// both client-owed and wire-fed is refused (blame adjudicates from
+	// recorded evidence and must be able to name the failed satisfier);
+	// reopening trigger — a legitimate dual-source case, at which point
+	// precedence gets ruled.
 	presents: [PG=string]: {child: string, guarantee: string}
 }
 

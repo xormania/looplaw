@@ -18,20 +18,3 @@ else
 	echo "digest regenerated:"
 	git diff --stat -- dev/DIGEST.md
 fi
-
-printf '\n== status by file\n'
-for f in dev/*.cue; do
-	proposed=$(grep -c 'status: *"proposed"' "$f" 2>/dev/null || true)
-	ratified=$(grep -c 'status: *"ratified"' "$f" 2>/dev/null || true)
-	[ "$proposed" = "0" ] && [ "$ratified" = "0" ] && continue
-	printf '%-22s ratified %-4s proposed %s\n' "$(basename "$f")" "$ratified" "$proposed"
-done
-
-total=$(grep -rc 'status: *"proposed"' dev/*.cue 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
-printf '\n'
-if [ "$total" = "0" ]; then
-	echo "no proposed entries: nothing awaits ratification"
-else
-	echo "$total proposed entries. If their batch is merged, the flip is owed:"
-	echo "  a merge settled them here; flip status and cite it in the file header"
-fi

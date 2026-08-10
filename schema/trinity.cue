@@ -1,39 +1,5 @@
 // The trinity — the product's set model.
 //
-// v0 RATIFIED: PR #8 merged by xormania 2026-08-09. The decomposition
-// amendment (#Interior, #Wire, #Contract.interior, the groundability and
-// one-satisfier rulings) RATIFIED: PR #11 merged by xormania 2026-08-10
-// (the recorded acts per law/README.md); predecessors archived in
-// history, never deleted. The provenance amendment (#Provenance,
-// #TrinitySet.provenance) is proposed in this batch.
-//
-// A TARGET PROJECT's contract set instantiates these definitions;
-// looplaw's gates validate instances. This file is looplaw's definitional
-// contract for the wire format; it becomes law when the accountable
-// authority ratifies it — the aa's ratification merge is the recorded act
-// (law/README.md). Lane note: everything here models an arbitrary target
-// system, not looplaw and not any operator. The target system names its
-// own parties and authorities in its own registry; looplaw's aa/recording
-// authorities never appear in a target set.
-//
-// Form follows the System Design Contract Method §3 (parties · acts ·
-// preconditions · guarantees · local invariants + cited globals ·
-// synchronization · blame-and-evidence · markers) and §4 binding levels.
-// Deliberately unbound — open gaps reported to the accountable
-// authority, each with its reopening trigger:
-//   - CROSS-SET decomposition (a child set in its own file/scope, for
-//     chunk handoff) — trigger: the store assumes set custody; this
-//     amendment binds IN-SET decomposition only (one system, one set,
-//     the contract tree within it)
-//   - semantic weakening of preconditions in refinement — v0 binds
-//     id-equality only (a shared-client child may state exactly the
-//     parent's precondition ids); judging 'weaker' needs the judge seam
-//   - quantitative QoS clauses — trigger: any guarantee depending on a
-//     quantitative bound
-//   - wire compatibility with the fugit seal schema — trigger: that
-//     schema is ratified and its wire shape is fixed
-//   - a reserved-acts registry with two-way closure, and the legality of
-//     self-party contracts (client == supplier) — trigger: the aa rules
 package schema
 
 // The standing of an entry in a target set, and the tiers its lexicon

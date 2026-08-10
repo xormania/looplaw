@@ -4,9 +4,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
+	"github.com/xormania/looplaw/internal/diff"
 	"github.com/xormania/looplaw/internal/gate"
 	"github.com/xormania/looplaw/internal/outcome"
 )
@@ -40,6 +42,38 @@ func main() {
 			}
 		}
 		os.Exit(exit)
+	case "diff":
+		if len(os.Args) != 4 {
+			fmt.Fprintln(os.Stderr, "usage: looplaw diff <goal.cue> <view.cue>")
+			os.Exit(outcome.ExitUsage)
+		}
+		gaps, refusals := diff.Diff(os.Args[2], os.Args[3])
+		if len(refusals) > 0 {
+			exit := outcome.ExitOK
+			for _, r := range refusals {
+				fmt.Fprintln(os.Stderr, r.Error())
+				if c := r.Class.ExitCode(); c > exit {
+					exit = c
+				}
+			}
+			os.Exit(exit)
+		}
+		// A gap is a planning state, never an error state: a diff that
+		// finds gaps is a successful run. Output is the planning feed.
+		out, err := json.MarshalIndent(gaps, "", "  ")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, (&outcome.Refusal{
+				Class: outcome.Abort, Check: "diff/output",
+				Subject: "gap list", Reason: err.Error(),
+				Remedy: "this binary is broken — do not consume its output",
+			}).Error())
+			os.Exit(outcome.ExitAbort)
+		}
+		if gaps == nil {
+			out = []byte("[]")
+		}
+		fmt.Println(string(out))
+		os.Exit(outcome.ExitOK)
 	default:
 		fmt.Fprintf(os.Stderr, "looplaw: unknown command %q\n", os.Args[1])
 		usage()
@@ -55,6 +89,10 @@ commands:
   validate <set.cue>   run the trinity gates over a target set; refusals
                        carry their remedy; exit codes follow the failure
                        doctrine (0 ok, 1 rejection, 3 abort)
+  diff <goal> <view>   compute gap records between goal-law and a view
+                       (both must pass the gates); the gap list is the
+                       planning feed, printed as JSON — a diff that
+                       finds gaps is a successful run, exit 0
 
 The rest of the kernel surface (serve, submit, diff, project, verify,
 status, export) arrives as it is designed; see proj/looplaw-spec.md §10.

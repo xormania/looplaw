@@ -56,9 +56,18 @@ var Checks = []string{
 // every refusal found — gates report completely rather than stopping at
 // the first no.
 func ValidateTrinity(setPath string) []outcome.Refusal {
+	_, refusals := LoadSet(setPath)
+	return refusals
+}
+
+// LoadSet runs the trinity gates over a set file and also returns the
+// set's value (the unified value when shape passed, the raw value
+// otherwise) for read paths — the differ — to consume. The value is
+// data for derivation only; it carries no standing.
+func LoadSet(setPath string) (cue.Value, []outcome.Refusal) {
 	data, err := os.ReadFile(setPath)
 	if err != nil {
-		return []outcome.Refusal{{
+		return cue.Value{}, []outcome.Refusal{{
 			Class:   outcome.Abort,
 			Check:   "trinity/load",
 			Subject: setPath,
@@ -69,12 +78,12 @@ func ValidateTrinity(setPath string) []outcome.Refusal {
 	return validateTrinityBytes(setPath, data)
 }
 
-func validateTrinityBytes(subject string, data []byte) []outcome.Refusal {
+func validateTrinityBytes(subject string, data []byte) (cue.Value, []outcome.Refusal) {
 	ctx := cuecontext.New()
 
 	schema, err := embeddedLaw(ctx)
 	if err != nil {
-		return []outcome.Refusal{{
+		return cue.Value{}, []outcome.Refusal{{
 			Class:   outcome.Abort,
 			Check:   "trinity/schema-load",
 			Subject: "law (embedded)",
@@ -85,7 +94,7 @@ func validateTrinityBytes(subject string, data []byte) []outcome.Refusal {
 
 	set := ctx.CompileBytes(data, cue.Filename(subject))
 	if set.Err() != nil {
-		return []outcome.Refusal{{
+		return cue.Value{}, []outcome.Refusal{{
 			Class:   outcome.Rejection,
 			Check:   "trinity/parse",
 			Subject: subject,
@@ -119,7 +128,14 @@ func validateTrinityBytes(subject string, data []byte) []outcome.Refusal {
 	}
 
 	refusals = append(refusals, relationalChecks(subject, relational)...)
-	return refusals
+	return relational, refusals
+}
+
+// Law exposes the embedded ratified law package to read paths (the
+// differ self-checks its output against #Gap). Data for derivation
+// only; no standing travels with it.
+func Law(ctx *cue.Context) (cue.Value, error) {
+	return embeddedLaw(ctx)
 }
 
 // embeddedLaw builds the complete ratified law package the binary

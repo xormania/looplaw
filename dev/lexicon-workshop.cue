@@ -44,11 +44,11 @@ reserved_dev: {
 // Borrowing the product's words for workshop things reads as rigor and
 // produces confusion.
 //
-// dev/lexicon_test.go holds three lines: no word appears in both
-// vocabularies, no workshop artifact is named after a product concept,
-// and the product obeys the vocabulary it refuses. Judging whether a
-// product word is *discussed* or *borrowed* in workshop prose needs a
-// reader, so that stays here as a list rather than a test.
+// Two properties, tested: no product concept becomes a workshop thing
+// (no shared word, no artifact named after one), and the product stands
+// without the workshop (it builds and runs with dev/ deleted). Judging
+// whether a product word is *discussed* or *borrowed* in workshop prose
+// needs a reader, so that stays a list rather than a test.
 do_not_borrow: [
 	"closure — the contract method's coverage check (act closure). Our equivalent is witness coverage",
 	"claim, receipt, admission, version — record kinds; a test double is a fixture, not a claim",

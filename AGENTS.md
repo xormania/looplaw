@@ -90,6 +90,20 @@ driven by whatever automation a harness has.
 
 ## The lanes
 
+Two properties, and everything else about the split follows from them:
+
+- **dev-lane is not polluted by prod-lane.** Product concepts never
+  become workshop things — no workshop artifact named after one, and
+  the two vocabularies never intersect. Every conflation this project
+  has had ran this way.
+- **prod-lane is not tied to dev-lane.** The product builds and runs
+  with `dev/` deleted; CI proves it on every push by archiving the tree,
+  removing the workshop, and validating a set with what is left.
+
+Checks that read what the *product* says live with the product
+(`internal/conformance`), so a product edit cannot slip past them.
+Checks that read only `dev/` live in `dev/`.
+
 Kernel code (`internal/gate`, `internal/provenance`, `internal/store`)
 never reads a work tree and never infers: it decides over submitted
 claims, manifests, and recorded state. Client code (`internal/absorb`)

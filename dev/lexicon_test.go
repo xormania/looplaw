@@ -17,7 +17,13 @@ import (
 	"cuelang.org/go/cue/load"
 )
 
-type source struct{ where, text string }
+// devRegions are the two term maps: words coined here and words taken
+// from the specification-CI method. Both are the workshop's vocabulary
+// for every purpose a check has — neither may collide with the
+// product's, and neither may appear in what the product says. They are
+// separate files' worth of judgement, not separate standings: the split
+// records that an inherited term is not ours to redefine.
+var devRegions = []string{"reserved_dev", "inherited_dev"}
 
 func reservedDev(t *testing.T) []string {
 	t.Helper()
@@ -29,13 +35,15 @@ func reservedDev(t *testing.T) []string {
 	if v.Err() != nil {
 		t.Fatalf("dev lexicon: %v", v.Err())
 	}
-	iter, err := v.LookupPath(cue.ParsePath("reserved_dev")).Fields()
-	if err != nil {
-		t.Fatal(err)
-	}
 	var terms []string
-	for iter.Next() {
-		terms = append(terms, iter.Selector().Unquoted())
+	for _, region := range devRegions {
+		iter, err := v.LookupPath(cue.ParsePath(region)).Fields()
+		if err != nil {
+			t.Fatalf("%s: %v", region, err)
+		}
+		for iter.Next() {
+			terms = append(terms, iter.Selector().Unquoted())
+		}
 	}
 	return terms
 }
@@ -48,16 +56,24 @@ func TestEveryDevTermStatesItsMeaning(t *testing.T) {
 		t.Fatal(err)
 	}
 	v := cuecontext.New().CompileBytes(b)
-	for _, region := range []string{"reserved_dev", "shared"} {
+	for _, region := range devRegions {
 		iter, err := v.LookupPath(cue.ParsePath(region)).Fields()
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("%s: %v", region, err)
 		}
+		n := 0
 		for iter.Next() {
+			n++
 			s, err := iter.Value().String()
 			if err != nil || strings.TrimSpace(s) == "" {
 				t.Errorf("%s.%s states no meaning", region, iter.Selector().Unquoted())
 			}
+		}
+		// A region that silently vanished would pass every check in this
+		// file by having nothing to check. "shared" did exactly that
+		// after it was deleted.
+		if n == 0 {
+			t.Errorf("%s names no terms — a region that has emptied out passes every check by having nothing to check", region)
 		}
 	}
 }
@@ -173,14 +189,7 @@ func TestVocabulariesDoNotIntersect(t *testing.T) {
 		ours[strings.ToLower(term)] = true
 	}
 
-	insts := load.Instances([]string{"."}, nil)
-	if len(insts) == 0 || insts[0].Err != nil {
-		t.Fatalf("dev package: %v", insts[0].Err)
-	}
-	v := cuecontext.New().BuildInstance(insts[0])
-	if v.Err() != nil {
-		t.Fatalf("dev package: %v", v.Err())
-	}
+	v := devPackage(t)
 	for _, region := range []string{"lexicon", "process_vocab", "forbidden_vocab"} {
 		iter, err := v.LookupPath(cue.ParsePath(region)).Fields()
 		if err != nil {
@@ -191,6 +200,31 @@ func TestVocabulariesDoNotIntersect(t *testing.T) {
 			if ours[term] {
 				t.Errorf("%q is reserved by both the workshop and the product (%s): a word belongs to one lane or the other, never both",
 					term, region)
+			}
+		}
+	}
+
+	// do_not_borrow is the same claim stated the other way: a word we
+	// have written down as the product's cannot also be one of ours.
+	// Checking only the product lexicon left this hole open, and
+	// "drift" sat in it — reserved here while the spec used it for what
+	// the provenance check reports.
+	yielded, err := v.LookupPath(cue.ParsePath("do_not_borrow")).List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for yielded.Next() {
+		entry, err := yielded.Value().String()
+		if err != nil {
+			continue
+		}
+		// Entries read "term, term — why"; the words before the em dash
+		// are the yielded ones.
+		head, _, _ := strings.Cut(entry, " — ")
+		for _, w := range strings.Split(head, ",") {
+			w = strings.ToLower(strings.TrimSpace(w))
+			if w != "" && ours[w] {
+				t.Errorf("%q is reserved by the workshop and also listed in do_not_borrow: the lexicon contradicts itself about whose word it is", w)
 			}
 		}
 	}

@@ -47,7 +47,7 @@ running check: the constraint is the data.
   relational lane (act closure, party and invariant coverage, reference
   resolution, blame resolution) for what the lattice cannot state. The
   test suite fails if any check lacks a fixture proving it fires — an
-  unwitnessed gate is treated as an unproven behavior.
+  undemonstrated gate is treated as an unproven behavior.
 - **`internal/outcome` classifies.** Every non-passing result is one of
   four classes — rejection, denial, abort, finding — with distinct exit
   codes, and every refusal carries a remedy in a fixed, tested grammar:

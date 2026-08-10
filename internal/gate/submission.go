@@ -11,7 +11,7 @@ import (
 
 // SubmissionChecks enumerates every check the submission gates can
 // emit. As with the trinity gates, the suite proves a red for each: an
-// unwitnessed gate is an unproven behavior.
+// undemonstrated gate is an unproven behavior.
 var SubmissionChecks = []string{
 	"submit/kind",
 	"submit/subject",

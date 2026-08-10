@@ -1,10 +1,10 @@
 # looplaw's design basis — digest
 
-Generated from dev/*.cue, so it cannot drift from the files it
-summarises. The prompt cards below are written to be pasted
+Generated from dev/*.cue, so it cannot fall out of step with the files
+it summarises. The prompt cards below are written to be pasted
 verbatim; read the full text in dev/*.cue when exact wording is at
-stake. The schema the binary enforces on input is law/, and it is not
-summarised here.
+stake. The schema the binary enforces on input is schema/, and it is
+not summarised here.
 
 ## Invariants (cited by id, never restated)
 

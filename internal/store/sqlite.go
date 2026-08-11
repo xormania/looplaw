@@ -1,0 +1,179 @@
+package store
+
+import (
+	"crypto/sha256"
+	"database/sql"
+	"encoding/hex"
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+
+	_ "modernc.org/sqlite"
+)
+
+// The SQLite ledger: the default storage, and the reference for what a
+// Ledger must provide. It seals records into a hash chain, commits them
+// atomically, and re-checks that chain on demand.
+//
+// SQLite is not a placeholder here. The all-or-none promise is a
+// transaction, ordering is a primary key, and the record kind and hash
+// uniqueness are constraints the engine holds rather than Go the caller
+// could bypass. The driver is pure Go, so the binary stays static and
+// cross-compiles — which matters where looplaw runs inside ephemeral
+// containers.
+const sqliteSchema = `
+CREATE TABLE IF NOT EXISTS records (
+	seq     INTEGER PRIMARY KEY,
+	kind    TEXT NOT NULL CHECK (kind IN ('law', 'evidence')),
+	rectype TEXT NOT NULL,
+	subject TEXT NOT NULL,
+	body    TEXT NOT NULL,
+	party   TEXT NOT NULL,
+	at      TEXT NOT NULL,
+	prev    TEXT NOT NULL,
+	hash    TEXT NOT NULL UNIQUE
+);`
+
+type sqliteLedger struct{ db *sql.DB }
+
+func openSQLite(root, project string) (Ledger, error) {
+	dir := root
+	if project != "" {
+		dir = ProjectPath(root, project)
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, fmt.Errorf("open store: %w", err)
+	}
+	db, err := sql.Open("sqlite", filepath.Join(dir, "looplaw.db"))
+	if err != nil {
+		return nil, fmt.Errorf("open store: %w", err)
+	}
+	// One connection: every transaction serializes at the Go level, so
+	// concurrent recorders queue rather than fork the chain or trip
+	// SQLITE_BUSY. The busy timeout covers cross-process contention on
+	// the same file.
+	db.SetMaxOpenConns(1)
+	for _, pragma := range []string{
+		"PRAGMA journal_mode = WAL;",
+		"PRAGMA foreign_keys = ON;",
+		"PRAGMA busy_timeout = 5000;",
+	} {
+		if _, err := db.Exec(pragma); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("open store: %s: %w", pragma, err)
+		}
+	}
+	if _, err := db.Exec(sqliteSchema); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("open store: migrate: %w", err)
+	}
+	return &sqliteLedger{db: db}, nil
+}
+
+// Append seals the drafts into the chain and commits them in one
+// transaction: all of it lands or none does, and no partial state is
+// observable to a later Records. Reading the tail and inserting share
+// the transaction, on the single connection, so concurrent recorders
+// serialize instead of forking the chain.
+//
+// This ledger's identity is a hash over the record and its predecessor.
+// A different ledger may establish identity differently; nothing above
+// the interface depends on how.
+func (b *sqliteLedger) Append(drafts []Draft) ([]Record, error) {
+	tx, err := b.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("append: %w", err)
+	}
+	defer tx.Rollback()
+
+	var prev string
+	var seq int64
+	err = tx.QueryRow("SELECT hash, seq FROM records ORDER BY seq DESC LIMIT 1").Scan(&prev, &seq)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, fmt.Errorf("append: read tail: %w", err)
+	}
+
+	// One timestamp for the act: records committed together are stamped
+	// together, so the ledger shows one act rather than a race.
+	at := time.Now().UTC().Format(time.RFC3339Nano)
+
+	out := make([]Record, 0, len(drafts))
+	for _, d := range drafts {
+		seq++
+		rec := Record{
+			Seq: seq, Kind: d.Kind, Type: d.Type, Subject: d.Subject,
+			Body: d.Body, Party: d.Party, At: at, Prev: prev,
+		}
+		rec.Hash = hashOf(rec.Kind, rec.Type, rec.Subject, rec.Body, rec.Party, rec.At, rec.Prev)
+		if _, err := tx.Exec(
+			"INSERT INTO records (seq, kind, rectype, subject, body, party, at, prev, hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			rec.Seq, string(rec.Kind), rec.Type, rec.Subject, rec.Body, rec.Party, rec.At, rec.Prev, rec.Hash,
+		); err != nil {
+			return nil, fmt.Errorf("append: %w", err)
+		}
+		prev = rec.Hash
+		out = append(out, rec)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("append: %w", err)
+	}
+	return out, nil
+}
+
+func (b *sqliteLedger) Records() ([]Record, error) {
+	rows, err := b.db.Query("SELECT seq, kind, rectype, subject, body, party, at, prev, hash FROM records ORDER BY seq")
+	if err != nil {
+		return nil, fmt.Errorf("read ledger: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Record
+	for rows.Next() {
+		var r Record
+		var kind string
+		if err := rows.Scan(&r.Seq, &kind, &r.Type, &r.Subject, &r.Body, &r.Party, &r.At, &r.Prev, &r.Hash); err != nil {
+			return nil, fmt.Errorf("read ledger: %w", err)
+		}
+		r.Kind = Kind(kind)
+		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read ledger: %w", err)
+	}
+	return out, nil
+}
+
+// Verify recomputes every hash and link. It returns the number of
+// records verified; an error names the first break. Verification here
+// means one thing only: the record being read is the record that was
+// written.
+func (b *sqliteLedger) Verify() (int, error) {
+	recs, err := b.Records()
+	if err != nil {
+		return 0, err
+	}
+	prev := ""
+	for _, r := range recs {
+		if r.Prev != prev {
+			return 0, fmt.Errorf("verify: seq %d: chain break: prev %q, want %q", r.Seq, r.Prev, prev)
+		}
+		want := hashOf(r.Kind, r.Type, r.Subject, r.Body, r.Party, r.At, r.Prev)
+		if r.Hash != want {
+			return 0, fmt.Errorf("verify: seq %d: content does not re-hash to what was recorded", r.Seq)
+		}
+		prev = r.Hash
+	}
+	return len(recs), nil
+}
+
+func (b *sqliteLedger) Close() error { return b.db.Close() }
+
+// hashOf is this ledger's record identity: the content, its timestamp,
+// and its predecessor. Another ledger may establish identity by other
+// means; nothing above the Ledger interface depends on how.
+func hashOf(kind Kind, rectype, subject, body, party, at, prev string) string {
+	sum := sha256.Sum256([]byte(canonical(kind, rectype, subject, body, party, at, prev)))
+	return hex.EncodeToString(sum[:])
+}

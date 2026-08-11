@@ -20,6 +20,8 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
+
+	"github.com/xormania/looplaw/internal/store"
 )
 
 type source struct{ where, text string }
@@ -197,6 +199,43 @@ func lexiconInitialisms(t *testing.T) map[string]string {
 		}
 	}
 	return out
+}
+
+// Every record kind the ledger accepts is a term the product lexicon
+// reserves. The store holds the list — product code cannot import dev/ —
+// and this ties that list to the ratified vocabulary so it cannot drift
+// into naming something the product has not reserved.
+//
+// The defect this exists for: "goal-proposal" and "law-set" were coined
+// as Go string literals and written into the ledger, an hour after a
+// batch spent hardening the vocabulary. Every existing guard missed
+// them, because each looks for a *known* wrong word — banned terms,
+// workshop terms, initialisms, entity natures — and a fresh coinage is
+// none of those. This one asks the opposite question: is the word one
+// the lexicon actually reserves?
+func TestEveryRecordKindIsRatifiedVocabulary(t *testing.T) {
+	entries, err := devPackage(t).LookupPath(cue.ParsePath("lexicon")).Fields()
+	if err != nil {
+		t.Fatal(err)
+	}
+	reserved := map[string]bool{}
+	for entries.Next() {
+		reserved[strings.ToLower(entries.Selector().Unquoted())] = true
+	}
+	if len(reserved) == 0 {
+		t.Fatal("the product lexicon reserves nothing")
+	}
+
+	if len(store.RecordKinds) == 0 {
+		t.Fatal("the ledger accepts no record kinds")
+	}
+	for _, kind := range store.RecordKinds {
+		if !reserved[strings.ToLower(kind)] {
+			t.Errorf("the ledger accepts record kind %q, which the product lexicon does not reserve.\n"+
+				"A record kind is ratified vocabulary, not a spelling choice: either use one the lexicon names, or reserve this one first.",
+				kind)
+		}
+	}
 }
 
 // productText collects ratified law, every recorded output, and the

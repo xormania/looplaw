@@ -144,7 +144,7 @@ func Declare(s *store.Store, path, party string) ([]store.Record, []outcome.Refu
 
 	content := store.Draft{
 		Kind:    store.Evidence,
-		Type:    "goal-proposal",
+		Type:    "claim",
 		Subject: proposedSubject,
 		Body:    string(body),
 		Party:   party,
@@ -186,16 +186,17 @@ func Declare(s *store.Store, path, party string) ([]store.Record, []outcome.Refu
 // missing value: until then every proposal is a first declaration and
 // nothing binds.
 //
-// The live one is the most recent, because ratification is recorded and
-// the chain is append-only: order in the ledger is the order acts
-// happened.
+// A version record is what ratification writes — "the live version is
+// the one the ratification's recorded act names" — and the live one is
+// the most recent, because the chain is append-only: order in the ledger
+// is the order acts happened.
 func CurrentLaw(s *store.Store) (*store.Record, error) {
 	recs, err := s.Records()
 	if err != nil {
 		return nil, err
 	}
 	for i := len(recs) - 1; i >= 0; i-- {
-		if recs[i].Kind == store.Law && recs[i].Type == "law-set" {
+		if recs[i].Kind == store.Law && recs[i].Type == "version" {
 			return &recs[i], nil
 		}
 	}

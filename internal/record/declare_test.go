@@ -38,7 +38,7 @@ func TestDeclarationIsRecordedAsAClaimAndBindsNothing(t *testing.T) {
 	if len(recs) != 2 {
 		t.Fatalf("want the proposal and its admission, got %d records", len(recs))
 	}
-	if recs[0].Type != "goal-proposal" || recs[0].Kind != store.Evidence {
+	if recs[0].Type != "claim" || recs[0].Kind != store.Evidence {
 		t.Errorf("a proposal is evidence-side: got kind=%s type=%s", recs[0].Kind, recs[0].Type)
 	}
 	if recs[1].Type != "admission" {
@@ -50,7 +50,7 @@ func TestDeclarationIsRecordedAsAClaimAndBindsNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	if decl.ContentHash != store.ContentHash(store.Draft{
-		Kind: store.Evidence, Type: "goal-proposal", Subject: recs[0].Subject,
+		Kind: store.Evidence, Type: "claim", Subject: recs[0].Subject,
 		Body: recs[0].Body, Party: "harness:test",
 	}) {
 		t.Error("the admission does not name the content that entered")
@@ -108,7 +108,7 @@ func TestDeclarationAgainstDifferentSubjectIsRefused(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Append(store.Law, "law-set", "other-project", string(body), "harness:test"); err != nil {
+	if _, err := s.Append(store.Law, "version", "other-project", string(body), "harness:test"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -148,7 +148,7 @@ func TestDeclarationNamesTheLawItWasMeasuredAgainst(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lawRec, err := s.Append(store.Law, "law-set", "lend-library", string(body), "harness:test")
+	lawRec, err := s.Append(store.Law, "version", "lend-library", string(body), "harness:test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +174,7 @@ func TestCurrentLawIsTheMostRecentRatifiedSet(t *testing.T) {
 		t.Fatalf("an unratified project holds no law: got %v %v", law, err)
 	}
 	for _, subject := range []string{"first", "second"} {
-		if _, err := s.Append(store.Law, "law-set", subject, "{}", "harness:test"); err != nil {
+		if _, err := s.Append(store.Law, "version", subject, "{}", "harness:test"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -224,7 +224,7 @@ func assertNothingRecorded(t *testing.T, s *store.Store) {
 		t.Fatal(err)
 	}
 	for _, r := range recs {
-		if r.Type == "goal-proposal" || r.Type == "admission" {
+		if r.Type == "claim" || r.Type == "admission" {
 			t.Errorf("a refused declaration left a trace: seq %d %s", r.Seq, r.Type)
 		}
 	}

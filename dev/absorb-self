@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Derive this repository's own component manifest and absorb it, so the
+# derive-absorb seam is exercised against a real graph rather than only
+# a fixture.
+#
+# Checks two things a fixture cannot: that the deriver emits a manifest
+# the ratified shape accepts, confirmed by the independent CUE producer,
+# and that the act renders it without refusing.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+dev/components >"$tmp/components.cue"
+go run cuelang.org/go/cmd/cue export "$tmp/components.cue" -o "$tmp/components.json"
+go run cuelang.org/go/cmd/cue vet ./schema/ "$tmp/components.json" -d '#ComponentManifest'
+go run ./cmd/looplaw absorb "$tmp/components.cue" >"$tmp/view.cue"
+# A literal tab, not the two characters: grep does not read \t in a
+# basic pattern, and a wrong count is a small lie in a check's output.
+echo "derived and absorbed: $(grep -c $'^\t"' "$tmp/components.cue") components"

@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Derive this repository's own component manifest, for absorbing looplaw
+# into looplaw.
+#
+# Deriving is the caller's job, never the kernel's: working out a
+# codebase's components is language-specific, so it lives with whatever
+# reads that language. This one reads Go. A manifest for a Rust or
+# Python target needs a different deriver and the same output shape —
+# #ComponentManifest is all looplaw ships.
+#
+# Workshop tooling: dev-lane derives, prod-lane adjudicates. When
+# loopmate exists this is its first commit, not looplaw's.
+#
+#   dev/components > /tmp/looplaw.cue
+#   go run ./cmd/looplaw absorb /tmp/looplaw.cue
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+module=$(go list -m)
+
+# Package -> its own .go files, and its imports within this module. Test
+# files are excluded: a component is what ships, and a package's tests
+# are the workshop's view of it rather than part of the system.
+printf 'subject: "looplaw"\n\ncomponents: {\n'
+go list -f '{{.ImportPath}}|{{join .GoFiles ","}}|{{.Dir}}' ./... | while IFS='|' read -r pkg files dir; do
+	name=${pkg#"$module"/}
+	[ "$name" = "$module" ] && name="."
+	case "$name" in dev*|tools*) continue ;; esac
+	# A package with no shipping source is not a component: it would
+	# produce a contract no source addresses, and a statement nothing can
+	# falsify is not evidence. Test-only packages land here —
+	# internal/conformance ships no .go file of its own.
+	[ -z "$files" ] && continue
+	printf '\t"%s": {\n\t\tnote: ""\n\t\tsources: {\n' "$name"
+	IFS=',' read -ra list <<<"$files"
+	for f in "${list[@]}"; do
+		[ -z "$f" ] && continue
+		rel="$name/$f"
+		printf '\t\t\t"%s": "%s"\n' "$rel" "$(sha256sum "$dir/$f" | cut -d' ' -f1)"
+	done
+	printf '\t\t}\n\t}\n'
+done
+printf '}\n\ndepends: {\n'
+go list -f '{{.ImportPath}}|{{join .Imports " "}}' ./... | while IFS='|' read -r pkg imports; do
+	name=${pkg#"$module"/}
+	case "$name" in dev*|tools*) continue ;; esac
+	deps=""
+	for i in $imports; do
+		case "$i" in
+		"$module"/*)
+			d=${i#"$module"/}
+			case "$d" in dev*|tools*) continue ;; esac
+			deps="$deps\"$d\", "
+			;;
+		esac
+	done
+	# Not a trailing "&&": under set -e the loop's last command decides the
+	# pipeline's status, so a final package with no dependencies would
+	# make a correct run look failed.
+	if [ -n "$deps" ]; then
+		printf '\t"%s": [%s]\n' "$name" "${deps%, }"
+	fi
+done
+printf '}\n'

@@ -81,17 +81,19 @@ func TestRatifyingWithNoAuthorityBoundIsRefused(t *testing.T) {
 }
 
 // Proving red: only the accountable authority ratifies, and a party
-// cannot confer standing on its own work. This is a denial rather than a
-// rejection — the request is well-formed and the deciding authority
-// declines it.
+// cannot confer standing on its own work.
 func TestOnlyTheAccountableAuthorityRatifies(t *testing.T) {
 	d, p := bound(t, "xor", true)
 	refusals := ratifyRefusals(t, d, p, "lend-library", "agent:worker")
 	if refusals[0].Check != "ratify/authority" {
 		t.Fatalf("want ratify/authority, got %v", refusals)
 	}
-	if refusals[0].Class != outcome.Denial {
-		t.Errorf("declining a well-formed request is a denial, got %v", refusals[0].Class)
+	// The gates never deny: "denial — the deciding authority declines
+	// ... never the gates' judgment". A party that is not the authority
+	// is a precondition the gates check, and they refuse with remedy
+	// like every other gate.
+	if refusals[0].Class != outcome.Rejection {
+		t.Errorf("a gate refuses; only the deciding authority denies. Got %v", refusals[0].Class)
 	}
 	if !strings.Contains(refusals[0].Reason, "agent:worker") {
 		t.Errorf("the refusal must name who asked: %q", refusals[0].Reason)
@@ -164,6 +166,21 @@ func TestBindingNoPartyIsRefused(t *testing.T) {
 	d := declareStore(t)
 	if _, refusal := BindAuthority(d, "xor", ""); refusal == nil {
 		t.Fatal("an empty authority was recorded")
+	}
+	// And a binding nobody is recorded as claiming: recording settles
+	// that a party said a thing, which is unstatable without the party.
+	r, refusal := BindAuthority(d, "", "xor")
+	if refusal == nil {
+		t.Fatal("a binding with no claiming party was recorded")
+	}
+	if refusal.Check != "authority/claimant" {
+		t.Errorf("want authority/claimant, got %s", refusal.Check)
+	}
+	if r != nil {
+		t.Error("a refused binding returned a record")
+	}
+	if got, _ := CurrentAuthority(d); got != "" {
+		t.Errorf("a refused binding took effect: %q", got)
 	}
 }
 

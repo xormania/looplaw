@@ -3,6 +3,7 @@ package record
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/xormania/looplaw/internal/outcome"
 	"github.com/xormania/looplaw/internal/store"
@@ -35,6 +36,13 @@ type AuthorityBinding struct {
 // the authority is one per deployment, so binding it per project would
 // let two projects disagree about who may make law.
 func BindAuthority(s *store.Store, party, bound string) (*store.Record, *outcome.Refusal) {
+	if strings.TrimSpace(party) == "" {
+		return nil, &outcome.Refusal{
+			Class: outcome.Rejection, Check: "authority/claimant", Subject: "party",
+			Reason: "the binding names no claiming party",
+			Remedy: "name the claiming party (LOOPLAW_PARTY); recording settles that a party said a thing, which is unstatable without the party",
+		}
+	}
 	if bound == "" {
 		return nil, &outcome.Refusal{
 			Class: outcome.Rejection, Check: "authority/party", Subject: "authority",

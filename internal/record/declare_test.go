@@ -1,8 +1,10 @@
 package record
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -119,6 +121,7 @@ func TestDeclarationAgainstDifferentSubjectIsRefused(t *testing.T) {
 	if !strings.Contains(refusals[0].Reason, "other-project") {
 		t.Errorf("the refusal must name both subjects: %q", refusals[0].Reason)
 	}
+	assertNothingRecorded(t, s)
 }
 
 // A set that cannot pass the trinity gates cannot become law, and the
@@ -227,5 +230,96 @@ func assertNothingRecorded(t *testing.T, s *store.Store) {
 		if r.Type == "claim" || r.Type == "admission" {
 			t.Errorf("a refused declaration left a trace: seq %d %s", r.Seq, r.Type)
 		}
+	}
+}
+
+// The subject check has to be reachable without ratified law, or it can
+// never fire: nothing ratifies yet, so a ledger would quietly accumulate
+// proposals about different subjects. The first declaration settles what
+// this ledger is about.
+func TestFirstDeclarationSettlesTheSubject(t *testing.T) {
+	s := declareStore(t)
+	if _, refusals := Declare(s, fixtureZero, "harness:test"); len(refusals) > 0 {
+		t.Fatalf("the first declaration should pass, got %v", refusals)
+	}
+
+	src, err := os.ReadFile(fixtureZero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := filepath.Join(t.TempDir(), "other.cue")
+	if err := os.WriteFile(other, bytes.Replace(src,
+		[]byte(`subject:        "lend-library"`),
+		[]byte(`subject:        "other-thing"`), 1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, refusals := Declare(s, other, "harness:test")
+	if len(refusals) != 1 || refusals[0].Check != "declare/subject-mismatch" {
+		t.Fatalf("want declare/subject-mismatch against the prior declaration, got %v", refusals)
+	}
+	if !strings.Contains(refusals[0].Reason, "lend-library") {
+		t.Errorf("the refusal must name the subject this ledger carries: %q", refusals[0].Reason)
+	}
+	// The remedy must not hand a reserved verb to the caller: only the
+	// accountable authority amends.
+	if strings.Contains(refusals[0].Remedy, "amend the") {
+		t.Errorf("the remedy tells the caller to amend: %q", refusals[0].Remedy)
+	}
+}
+
+// What passed the gates is what enters the ledger. The act reads the
+// proposal once and gates those bytes; gating a path and reading it
+// again would leave a window in which the file changes.
+func TestRecordedProposalIsExactlyWhatWasGated(t *testing.T) {
+	s := declareStore(t)
+	recs, refusals := Declare(s, fixtureZero, "harness:test")
+	if len(refusals) > 0 {
+		t.Fatal(refusals)
+	}
+	onDisk, err := os.ReadFile(fixtureZero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recs[0].Body != string(onDisk) {
+		t.Error("the recorded proposal is not byte-identical to the file that passed the gates")
+	}
+}
+
+// A declaration and an ordinary submitted claim are both claims. The
+// admission says which act produced it, so ratify can find declared sets
+// without inferring it from which checks ran.
+func TestAdmissionNamesTheActAndTheChecksThatRan(t *testing.T) {
+	s := declareStore(t)
+	recs, refusals := Declare(s, fixtureZero, "harness:test")
+	if len(refusals) > 0 {
+		t.Fatal(refusals)
+	}
+	var decl Declaration
+	if err := json.Unmarshal([]byte(recs[1].Body), &decl); err != nil {
+		t.Fatal(err)
+	}
+	if decl.Act != "declare" {
+		t.Errorf("the admission does not name the act: %q", decl.Act)
+	}
+	// Checks that did not run are not recorded as run.
+	for _, c := range decl.ChecksRun {
+		if c == "declare/subject-mismatch" && len(decl.ChecksRun) < 3 {
+			t.Error("a skipped check is recorded as run")
+		}
+	}
+	if len(decl.ChecksRun) == 0 {
+		t.Error("the admission records no checks at all")
+	}
+	// The trinity gates did the bulk of the work; an admission naming
+	// only the declare checks would understate what was verified.
+	trinity := 0
+	for _, c := range decl.ChecksRun {
+		if strings.HasPrefix(c, "trinity/") {
+			trinity++
+		}
+	}
+	if trinity == 0 {
+		t.Error("the admission names none of the gates that actually checked the set")
 	}
 }

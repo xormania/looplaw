@@ -166,10 +166,16 @@ func main() {
 		for _, r := range recs {
 			fmt.Printf("%s seq %d %s\n", r.Type, r.Seq, r.Hash)
 		}
-		law, _ := record.CurrentLaw(st)
-		if law == nil {
+		// Stated from a read, never from a discarded error: reporting
+		// "no law is ratified" because the ledger could not be read
+		// would be a claim about standing derived from a failure.
+		law, err := record.CurrentLaw(st)
+		switch {
+		case err != nil:
+			fmt.Fprintf(os.Stderr, "recorded; the law state could not be read back: %v\n", err)
+		case law == nil:
 			fmt.Println("no law is ratified for this project: recorded as a first declaration, binding nothing")
-		} else {
+		default:
 			fmt.Printf("declared against law %s; binds nothing until ratified\n", law.Hash[:12])
 		}
 		os.Exit(outcome.ExitOK)

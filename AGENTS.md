@@ -193,6 +193,16 @@ ledger, which is the thing this product exists to replace merging with.
 
 Working notes live in `proj/` (gitignored — scope, not secrecy).
 
+**Nothing tracked names a machine's filesystem.** A path into a home
+directory is unfollowable on every machine but the one it was written on,
+and pushing it publishes that machine's layout for good. This file once
+sent harnesses to a methods directory under a home directory. Tracked
+text points inside the repository or not at all; a fact that lives
+outside goes in `proj/`. When the question is what has already been
+decided, the answer is a command over tracked artifacts — `go run
+./dev/cmd/digest` — not a path into somebody's home. `dev/check` and CI
+refuse the leak.
+
 Clean up after yourself: scratch programs, probe tests, and worktrees
 you create for an investigation do not belong in the repository. Write
 them under a temp directory; `dev/check` refuses a tree with stray

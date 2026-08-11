@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Coverage, measured the way this repository means it.
+#
+# Exists because an auditor without it invents a method, and the obvious
+# method lies. `go test ./... -coverprofile` attributes coverage only to
+# the package under test, so a function exercised from another package's
+# tests reads as 0.0%. Measured that way, gate.ValidateDeclaration,
+# ValidateRatification, ValidateSubmission, gate.Law, store.ContentHash
+# and provenance.Compare all show 0.0%. Every one of them is at 100.0%.
+#
+# -coverpkg=./... attributes across packages and answers the question
+# actually being asked: is this code exercised.
+#
+#   dev/cover           per-package summary
+#   dev/cover -func     every function, ascending
+#   dev/cover -zero     only what nothing exercises
+#
+# This measures; it does not gate. A floor would be a rule with no defect
+# behind it, and the number below is not the thing that catches defects
+# here — proving reds, the attack corpus and adversarial review are.
+#
+# Two things coverage cannot see, so do not read them as gaps:
+#
+#   cmd/looplaw    tested by running the built binary, which no profile
+#                  observes. Its contract is exit codes and streams, and
+#                  those are asserted in cmd/looplaw/main_test.go.
+#   discarded errs `v, _ := ...` executes whether or not the error was
+#                  real, so 100% on such a line proves nothing about the
+#                  error case. Statement coverage is blind here; only a
+#                  test that constructs the bad input can speak.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+profile=$(mktemp)
+trap 'rm -f "$profile"' EXIT
+
+go test ./... -coverpkg=./... -coverprofile="$profile" >/dev/null
+
+case "${1:-}" in
+-func)
+	go tool cover -func="$profile" | sed 's|github.com/xormania/looplaw/||' |
+		sort -t$'\t' -k3 -n
+	;;
+-zero)
+	echo "exercised by nothing (cmd/looplaw is expected: binary-level tests)"
+	go tool cover -func="$profile" | awk '$NF=="0.0%"' |
+		sed 's|github.com/xormania/looplaw/||;s/^/  /'
+	;;
+*)
+	go tool cover -func="$profile" | sed 's|github.com/xormania/looplaw/||' |
+		awk -F: '{split($0,a,"\t"); n=split($1,p,"/"); pkg=""; for(i=1;i<n||i==1;i++) pkg=pkg (i>1?"/":"") p[i]; print pkg "\t" a[length(a)]}' |
+		awk -F'\t' '{sub(/%/,"",$2); s[$1]+=$2; c[$1]++} END {for (k in s) printf "  %-24s %5.1f%%\n", k, s[k]/c[k]}' |
+		sort
+	;;
+esac

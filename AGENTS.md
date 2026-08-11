@@ -66,6 +66,34 @@ second copy of it.
 lane. CI runs that lane and a race/differential lane in parallel;
 fuzzing runs nightly, not per push.
 
+## If you are auditing this repository
+
+Run its own commands. Every claim below is produced by one, and a method
+you invent instead may answer a different question than you asked:
+
+    dev/check       what CI's fast lane runs, in the same order
+    dev/lanes       the lane classification and the commit rule
+    dev/lock        the design basis seal
+    dev/cover       coverage, attributed across packages
+    dev/absorb-self this repository derived and absorbed through the act
+
+`dev/cover` exists because the obvious method lies. `go test ./...
+-coverprofile` attributes coverage only to the package under test, so a
+function exercised from another package's tests reads as 0.0% — which is
+what gate.ValidateDeclaration, gate.Law, store.ContentHash and
+provenance.Compare all report that way. Every one of them is at 100.0%
+under `-coverpkg=./...`.
+
+Two things no profile can see, so do not read them as gaps: `cmd/looplaw`
+is tested by running the built binary, and a discarded error (`v, _ :=
+...`) executes whether or not the error was real — 100% on such a line
+proves nothing about the error case.
+
+This section points at commands. It is not an argument that anything
+here is fine, and nothing in it should be used to wave a finding away: if
+a measurement keeps misleading, the answer is to fix the measurement, not
+to document around it.
+
 Before asking for a merge on anything that changes behavior, run an
 adversarial review — every blocking defect this repo has found came
 from one, not from its own tests. The protocol, and why each lens

@@ -35,6 +35,9 @@ go run cuelang.org/go/cmd/cue vet ./dev/
 step "test"
 go test ./...
 
+step "derive and absorb this repository"
+dev/absorb-self
+
 step "recorded outputs match what the code emits"
 # Compared against generated output, not against git: a change staged
 # for this commit is intended, not stale, and CI checks the committed

@@ -26,6 +26,11 @@ go list -f '{{.ImportPath}}|{{join .GoFiles ","}}|{{.Dir}}' ./... | while IFS='|
 	name=${pkg#"$module"/}
 	[ "$name" = "$module" ] && name="."
 	case "$name" in dev*|tools*) continue ;; esac
+	# A package with no shipping source is not a component: it would
+	# produce a contract no source addresses, and a statement nothing can
+	# falsify is not evidence. Test-only packages land here —
+	# internal/conformance ships no .go file of its own.
+	[ -z "$files" ] && continue
 	printf '\t"%s": {\n\t\tnote: ""\n\t\tsources: {\n' "$name"
 	IFS=',' read -ra list <<<"$files"
 	for f in "${list[@]}"; do

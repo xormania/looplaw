@@ -79,7 +79,16 @@ func LoadSet(setPath string) (cue.Value, []outcome.Refusal) {
 			Remedy:  "point the gate at a readable set file",
 		}}
 	}
-	return validateTrinityBytes(setPath, data)
+	return LoadSetBytes(setPath, data)
+}
+
+// LoadSetBytes runs the trinity gates over bytes already in hand. A
+// caller that will record what it submits gates these bytes and records
+// the same slice: gating a path and reading it again leaves a window in
+// which the file changes, so what passed the gates is not what enters
+// the ledger. The name is only for refusal subjects.
+func LoadSetBytes(name string, data []byte) (cue.Value, []outcome.Refusal) {
+	return validateTrinityBytes(name, data)
 }
 
 func validateTrinityBytes(subject string, data []byte) (cue.Value, []outcome.Refusal) {

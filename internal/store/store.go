@@ -35,6 +35,28 @@ const (
 	Evidence Kind = "evidence"
 )
 
+// RecordKinds are the record kinds the ratified lexicon names, and the
+// only types this ledger accepts. The list is closed on purpose: "for
+// other stored data write 'data (non-authoritative)' or the mechanism's
+// own noun". A new kind is a ratification, not a spelling choice, and
+// coining one in a Go string literal is how two unratified types
+// ("goal-proposal", "law-set") reached this store — past a conformance
+// suite that checks for banned words, workshop words and initialisms,
+// none of which a fresh coinage is.
+//
+// internal/conformance ties this list to the lexicon, so it cannot
+// drift into naming something the product has not reserved.
+var RecordKinds = []string{"claim", "receipt", "admission", "version"}
+
+func knownKind(t string) bool {
+	for _, k := range RecordKinds {
+		if k == t {
+			return true
+		}
+	}
+	return false
+}
+
 // Record is one appended fact. At is stamped by the store in UTC
 // RFC3339Nano. Prev is the predecessor's hash ("" for the first record).
 type Record struct {
@@ -219,6 +241,11 @@ func (s *Store) Append(kind Kind, rectype, subject, body, party string) (Record,
 func (s *Store) AppendAll(drafts []Draft) ([]Record, error) {
 	if len(drafts) == 0 {
 		return nil, fmt.Errorf("append: nothing to record")
+	}
+	for _, d := range drafts {
+		if !knownKind(d.Type) {
+			return nil, fmt.Errorf("append: %q is not a record kind; the ledger holds %v", d.Type, RecordKinds)
+		}
 	}
 	tx, err := s.db.Begin()
 	if err != nil {

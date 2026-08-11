@@ -1,10 +1,10 @@
 export const meta = {
   name: 'review',
   description: 'Adversarially review a batch: independent lenses find, independent skeptics try to refute',
-  whenToUse:
-    'Before asking for a merge on any batch that changes behavior. Pass args {target, focus, files?, lenses?}. ' +
-    'Every blocking defect this repo has found came from a review like this rather than from its own tests. ' +
-    'Match depth to risk: a tooling-only batch does not need three adversarial lenses.',
+  // Pure literal, no concatenation: meta is parsed statically, and a
+  // joined string is a BinaryExpression the loader refuses. That refusal
+  // made this workflow uninvokable until the first attempt to run it.
+  whenToUse: 'Before asking for a merge on any batch that changes behavior. Pass args {target, focus, files?, lenses?}. Every blocking defect this repo has found came from a review like this rather than from its own tests. Match depth to risk: a tooling-only batch does not need three adversarial lenses.',
   phases: [
     { title: 'Scope', detail: 'list the changed files so lenses read those, not the repository' },
     { title: 'Review', detail: 'independent lenses over the batch' },

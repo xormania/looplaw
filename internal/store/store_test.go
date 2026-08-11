@@ -193,3 +193,36 @@ func TestProjectScopingIsExplicit(t *testing.T) {
 		t.Errorf("ListProjects = %v", keys)
 	}
 }
+
+// Proving red: the ledger holds the four ratified record kinds and
+// nothing else. A coined type is refused at the only door in, before
+// anything is written — which is what "goal-proposal" and "law-set"
+// needed and did not have.
+func TestLedgerRefusesAnUnratifiedRecordKind(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	for _, coined := range []string{"goal-proposal", "law-set", "note", ""} {
+		if _, err := s.Append(Evidence, coined, "subject", "{}", "party"); err == nil {
+			t.Errorf("the ledger accepted %q, which is not a record kind", coined)
+		}
+	}
+	for _, kind := range RecordKinds {
+		if _, err := s.Append(Evidence, kind, "subject", "{}", "party"); err != nil {
+			t.Errorf("the ledger refused ratified kind %q: %v", kind, err)
+		}
+	}
+
+	// A refused type writes nothing: the check runs before the chain is
+	// read or extended, so a rejected batch cannot leave a partial act.
+	recs, err := s.Records()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(recs) != len(RecordKinds) {
+		t.Errorf("want only the ratified appends recorded, got %d records", len(recs))
+	}
+}

@@ -81,16 +81,71 @@ func TestAttackCorpusIsComplete(t *testing.T) {
 
 // Attacks must exercise the corpus broadly: an attack corpus that only
 // ever draws one or two checks is a corpus in name only.
+// lanes are the kinds of thing the gates check, each a way a set can be
+// wrong that the others cannot catch. An attack corpus is regression
+// memory, and memory of one lane says nothing about another.
+//
+// Named here rather than derived from the check ids: which lane a check
+// belongs to is a judgment about what it examines, and a prefix match
+// would put trinity/optional with trinity/load because both are one
+// word after the slash.
+var lanes = map[string]func(check string) bool{
+	// The set is not the shape the schema admits.
+	"shape": func(c string) bool {
+		return c == "trinity/shape" || c == "trinity/parse" || c == "trinity/vacuity" ||
+			c == "trinity/optional"
+	},
+	// The set is well-shaped and its parts do not agree: a party, an
+	// invariant, an act or a citation that resolves to nothing.
+	"relational": func(c string) bool {
+		return strings.HasSuffix(c, "-resolve") || strings.HasSuffix(c, "-coverage") ||
+			c == "trinity/act-closure" || c == "trinity/authority-free"
+	},
+	// The interior does not compose: wires, grounding, containment.
+	"decomposition": func(c string) bool { return strings.HasPrefix(c, "trinity/decomp-") },
+	// The view's claims about what it was derived from do not hold.
+	"provenance": func(c string) bool { return strings.HasPrefix(c, "trinity/provenance-") },
+	// The set, or a region of it, could not be read at all — a distinct
+	// kind of wrong from any disagreement within it, and the only lane
+	// whose outcome is a finding rather than a rejection.
+	"readability": func(c string) bool {
+		return c == "trinity/load" || c == "trinity/schema-load" || c == "trinity/region-unreadable"
+	},
+}
+
+// Every lane keeps at least one attack. The check this replaced counted
+// distinct check ids against a floor of eight, which is not what its name
+// says and not what the corpus is for: with thirteen ids present, eight
+// attack files could be deleted before it complained, and a whole lane
+// could go with them. Counting lanes makes the failure name the lane
+// that lost its memory.
 func TestAttackCorpusSpansTheLanes(t *testing.T) {
 	index := loadAttackIndex(t)
-	lanes := map[string]bool{}
-	for _, checks := range index {
+	covered := map[string]int{}
+	for file, checks := range index {
 		for _, c := range checks {
-			lanes[c] = true
+			for lane, inLane := range lanes {
+				if inLane(c) {
+					covered[lane]++
+				}
+			}
+			matched := false
+			for _, inLane := range lanes {
+				if inLane(c) {
+					matched = true
+				}
+			}
+			if !matched {
+				t.Errorf("%s draws %s, which belongs to no lane — place it, or the corpus has memory nothing accounts for",
+					file, c)
+			}
 		}
 	}
-	if len(lanes) < 8 {
-		t.Errorf("attacks draw only %d distinct checks; the corpus should span the lanes", len(lanes))
+	for lane := range lanes {
+		if covered[lane] == 0 {
+			t.Errorf("no attack draws a %s check; that lane has no regression memory, "+
+				"so a defect there can return with nothing to notice", lane)
+		}
 	}
 }
 

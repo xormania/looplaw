@@ -1,5 +1,7 @@
 package store
 
+import "time"
+
 // Ledger is the recording authority's storage, entire. It records facts
 // as acts, returns what it recorded, and can re-check its own integrity.
 //
@@ -72,6 +74,25 @@ type Catalog interface {
 	// not an address anything computes with.
 	Describe(root, project string) string
 }
+
+// Clock is where a ledger reads the time it stamps on an act.
+//
+// The store stamps time itself and the server's clock is authoritative —
+// that is doctrine and does not change here. What changes is that
+// *which* clock is explicit rather than compiled in. A clock is an
+// ownership boundary like storage or custody: it belongs to the
+// deployment, it is the one input no code controls, and leaving it
+// implicit makes every derived value untestable.
+//
+// The cost of leaving it implicit was concrete. Timestamps flow into the
+// chain hash, so every recorded output was nondeterministic, so every
+// golden masked "at", "hash" and "prev" — which meant no golden pinned
+// the chain at all. A change to the canonical form or the hash function
+// would have failed nothing. Masking a value to make a test pass hides
+// exactly the thing the test was for.
+//
+// A test sets this to a fixed instant and gets real hashes it can pin.
+var Clock func() time.Time = time.Now
 
 // DefaultCatalog is used when a caller does not choose. A variable
 // rather than a constant so a deployment — or a test — can substitute

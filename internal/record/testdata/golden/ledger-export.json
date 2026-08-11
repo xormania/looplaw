@@ -6,9 +6,9 @@
     "subject": "scope-x",
     "body": "{\"states\":\"a contract exists\"}",
     "party": "absorber:test",
-    "at": "<masked>",
-    "prev": "<masked>",
-    "hash": "<masked>"
+    "at": "2026-01-01T00:00:00Z",
+    "prev": "",
+    "hash": "1e5db30a16b57163b31b6ac274b7195a2b899a29f5295b459365cdea33272134"
   },
   {
     "seq": 2,
@@ -17,9 +17,9 @@
     "subject": "scope-x",
     "body": "{\"kind\":\"claim\",\"subject\":\"scope-x\",\"party\":\"absorber:test\",\"content_hash\":\"01c6b6f49781a2741351a4c6bb893fb0d83f017d1faf7e601c5976c3787fb45f\",\"checks_run\":[\"submit/kind\",\"submit/subject\",\"submit/party\",\"submit/content\",\"submit/receipt-shape\"]}",
     "party": "absorber:test",
-    "at": "<masked>",
-    "prev": "<masked>",
-    "hash": "<masked>"
+    "at": "2026-01-01T00:00:00Z",
+    "prev": "1e5db30a16b57163b31b6ac274b7195a2b899a29f5295b459365cdea33272134",
+    "hash": "b8cea7fe3830fce4b5e02d94890061866c6926129bca4746331cb691f0f145ae"
   },
   {
     "seq": 3,
@@ -28,9 +28,9 @@
     "subject": "C-LEND-1",
     "body": "{\"subject\":\"C-LEND-1\",\"verdict\":\"pass\",\"source\":\"ci\",\"hash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
     "party": "ci:test",
-    "at": "<masked>",
-    "prev": "<masked>",
-    "hash": "<masked>"
+    "at": "2026-01-01T00:00:00Z",
+    "prev": "b8cea7fe3830fce4b5e02d94890061866c6926129bca4746331cb691f0f145ae",
+    "hash": "3ec9aaeeb1ce2b7aebae774c05bcb77a9c4aadcceaff054c3c5426a45ddd4b0a"
   },
   {
     "seq": 4,
@@ -39,8 +39,8 @@
     "subject": "C-LEND-1",
     "body": "{\"kind\":\"receipt\",\"subject\":\"C-LEND-1\",\"party\":\"ci:test\",\"content_hash\":\"03e1819aca5e4da50639dfa7b3e6830d227db30f53bca537324904b86d0087e6\",\"checks_run\":[\"submit/kind\",\"submit/subject\",\"submit/party\",\"submit/content\",\"submit/receipt-shape\"]}",
     "party": "ci:test",
-    "at": "<masked>",
-    "prev": "<masked>",
-    "hash": "<masked>"
+    "at": "2026-01-01T00:00:00Z",
+    "prev": "3ec9aaeeb1ce2b7aebae774c05bcb77a9c4aadcceaff054c3c5426a45ddd4b0a",
+    "hash": "9e4a2b96ed723e25a09dd73aec0a689fae2285d10ff04f4427bafba691430a9e"
   }
 ]

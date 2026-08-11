@@ -120,6 +120,14 @@ driven by whatever automation a harness has.
   deliberately and say why in the message.
 - **Refusal order is part of the contract.** Walk maps through
   `sortedKeys`; a nondeterministic stream has bitten this repo twice.
+- **Nondeterminism is a parameter, never a mask.** A value a test cannot
+  predict is an input something outside the code owns, so it is exposed
+  as a seam and pinned by the test — the clock is `store.Clock`, set to a
+  fixed instant. Masking it in a golden hides the thing the golden was
+  for: timestamps flow into the chain hash, so every recorded output
+  masked `at`, `hash` and `prev`, and no golden pinned the chain at all.
+  A change to the canonical form or the hash function would have failed
+  nothing.
 
 ## The lanes
 

@@ -24,6 +24,14 @@ attacks: {
 	"dead-invariant.cue": {found_in:              "gate", must_draw: ["trinity/invariant-coverage"]}
 	"authority-free-supplier.cue": {found_in:     "gate", must_draw: ["trinity/authority-free"]}
 	"self-wire.cue": {found_in:                   "decomposition", must_draw: ["trinity/decomp-wire"]}
+	// One character defeated every check over the region it marked. An
+	// optional field states a constraint, not a value, so the field is
+	// absent and each walk over it examined nothing while the file still
+	// read as though it declared one. Found by adversarial review of the
+	// declare batch; the same edit neutered the whole decomposition lane
+	// and hid an absorbed view's provenance from the goal-law guard.
+	"optional-interior.cue": {found_in:   "decomposition", must_draw: ["trinity/optional"]}
+	"optional-provenance.cue": {found_in: "absorber", must_draw: ["trinity/optional"]}
 	"double-satisfier.cue": {found_in:            "decomposition", must_draw: ["trinity/decomp-satisfier"]}
 	"duplicate-child.cue": {found_in:             "decomposition", must_draw: ["trinity/decomp-resolve"]}
 	"containment-cycle.cue": {found_in:           "decomposition", must_draw: ["trinity/decomp-tree"]}

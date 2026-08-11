@@ -23,6 +23,7 @@ import (
 // for each (an undemonstrated gate is an unproven behavior); adding a check
 // here without a proving red fails the suite.
 var Checks = []string{
+	"trinity/optional",
 	"trinity/load",
 	"trinity/schema-load",
 	"trinity/parse",
@@ -107,6 +108,30 @@ func validateTrinityBytes(subject string, data []byte) (cue.Value, []outcome.Ref
 	}
 
 	var refusals []outcome.Refusal
+
+	// A submitted set states values, never constraints. An optional
+	// field declares nothing: "interior?: {...}" reads as an interior
+	// and is not one, so every check that walks concrete fields finds
+	// nothing to examine and reports the set clean. That is silence
+	// wearing the shape of a statement, and it defeated the whole
+	// decomposition lane by one character.
+	//
+	// Checked against the authored bytes rather than the unified value:
+	// the schema legitimately marks fields optional (trigger?,
+	// synchronization?, interior?), and unification would make an
+	// author's optional field indistinguishable from the schema's.
+	if optional := optionalFields(set); len(optional) > 0 {
+		for _, path := range optional {
+			refusals = append(refusals, outcome.Refusal{
+				Class:   outcome.Rejection,
+				Check:   "trinity/optional",
+				Subject: fmt.Sprintf("%s: %s", subject, path),
+				Reason:  "declared with '?:', which states a constraint rather than a value — the field is absent, and every check over it examines nothing",
+				Remedy:  "write the field as a value ('field: ...'); to say a region is genuinely absent, omit it and declare the absence where the schema asks for it",
+			})
+		}
+		return set, refusals
+	}
 
 	// Shape gate: unify the set with #TrinitySet and validate. CUE is the
 	// shape gate; a mismatch is a rejection naming the failing path.
@@ -898,4 +923,39 @@ func contains(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// optionalFields walks authored data for fields declared with "?:",
+// returning their paths in a stable order. A set is data: it states what
+// is, and a constraint smuggled in as data is a statement nothing can
+// check.
+func optionalFields(v cue.Value) []string {
+	var found []string
+	var walk func(cue.Value, string)
+	walk = func(node cue.Value, prefix string) {
+		iter, err := node.Fields(cue.Optional(true))
+		if err != nil {
+			return
+		}
+		for iter.Next() {
+			label := iter.Selector().String()
+			path := label
+			if prefix != "" {
+				path = prefix + "." + label
+			}
+			if iter.Selector().ConstraintType()&cue.OptionalConstraint != 0 {
+				found = append(found, path)
+				continue // its interior is already unreachable
+			}
+			walk(iter.Value(), path)
+		}
+		if list, err := node.List(); err == nil {
+			for i := 0; list.Next(); i++ {
+				walk(list.Value(), fmt.Sprintf("%s[%d]", prefix, i))
+			}
+		}
+	}
+	walk(v, "")
+	sort.Strings(found)
+	return found
 }

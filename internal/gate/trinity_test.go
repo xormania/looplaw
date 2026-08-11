@@ -572,6 +572,7 @@ func TestEveryGateHasAProvingRed(t *testing.T) {
 		"trinity/provenance-address":  true,
 		"trinity/provenance-source":   true,
 		"trinity/provenance-coverage": true,
+		"trinity/optional":            true, // TestOptionalFieldIsRefusedAtEveryDepth
 	}
 	for _, m := range mutations {
 		proven[m.wantCheck] = true
@@ -681,5 +682,73 @@ func TestAuthoredLawSkipsTheProvenanceLane(t *testing.T) {
 		if strings.HasPrefix(r.Check, "trinity/provenance") {
 			t.Errorf("provenance lane fired on authored law: %s", r.Error())
 		}
+	}
+}
+
+// Proving red: a set states values. A field declared "?:" states a
+// constraint instead, so the field is absent and every check over it
+// examines nothing while the file still reads as though it declared
+// one. One character turned the self-wire attack from three refusals
+// into "ok (authored set)", and hid an absorbed view's provenance from
+// the guard that keeps evidence from becoming goal-law.
+//
+// Depth matters: the walk has to reach nested fields, not only the top
+// level, or the bypass simply moves one level down.
+func TestOptionalFieldIsRefusedAtEveryDepth(t *testing.T) {
+	for _, tc := range []struct {
+		name, from, find, replace, wantPath string
+	}{
+		{
+			name: "top-level region", from: "../absorb/testdata/view.cue",
+			find: "\nprovenance:", replace: "\nprovenance?:", wantPath: "provenance?",
+		},
+		{
+			name: "contract region", from: "testdata/attacks/self-wire.cue",
+			find: "\n\t\tinterior:", replace: "\n\t\tinterior?:", wantPath: `contracts."C-LEND-1".interior?`,
+		},
+		{
+			name: "field nested two deep", from: "testdata/library/set.cue",
+			find: "\n\t\t\tsupplier:", replace: "\n\t\t\tsupplier?:", wantPath: `parties.supplier?`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			src, err := os.ReadFile(tc.from)
+			if err != nil {
+				t.Fatal(err)
+			}
+			mutated := strings.Replace(string(src), tc.find, tc.replace, 1)
+			if mutated == string(src) {
+				t.Fatalf("the mutation did not apply — fixture %s changed shape", tc.from)
+			}
+			path := filepath.Join(t.TempDir(), "set.cue")
+			if err := os.WriteFile(path, []byte(mutated), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			refusals := ValidateTrinity(path)
+			var got *outcome.Refusal
+			for i := range refusals {
+				if refusals[i].Check == "trinity/optional" {
+					got = &refusals[i]
+					break
+				}
+			}
+			if got == nil {
+				t.Fatalf("an optional field passed the gates: %v", refusals)
+			}
+			// A red for the wrong reason proves nothing: the refusal must
+			// name the field that was marked optional.
+			if !strings.Contains(got.Subject, tc.wantPath) {
+				t.Errorf("refusal names %q, want it to name %q", got.Subject, tc.wantPath)
+			}
+		})
+	}
+}
+
+// The unmutated fixture passes: the guard refuses authored constraints,
+// not the schema's own optional fields, which unification injects.
+func TestSchemaOptionalFieldsAreNotRefused(t *testing.T) {
+	if refusals := ValidateTrinity("testdata/library/set.cue"); len(refusals) > 0 {
+		t.Errorf("fixture zero refused: %v", refusals)
 	}
 }

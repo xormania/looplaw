@@ -41,18 +41,49 @@ type sqliteLedger struct{ db *sql.DB }
 // one database each.
 type sqliteCatalog struct{}
 
-func (sqliteCatalog) Describe(root, project string) string {
-	if project == "" {
-		return root
+// projectDir is the one place a project selector becomes a place, so it
+// is the one place the key grammar has to hold. Every escape this
+// catalog admitted came from a caller that resolved without asking:
+// Init checked the grammar and Open did not, and Open is what every verb
+// but init goes through.
+//
+// The grammar does the whole job — it admits no empty string, no dot or
+// dot-dot, no separator, no absolute path, and nothing filepath.Join
+// would normalise into a different place — so this states the rule once
+// rather than enumerating escapes, which is a list that is only ever as
+// complete as the last attack anyone thought of.
+func projectDir(root, project string) (string, error) {
+	if !projectKeyRE.MatchString(project) {
+		return "", fmt.Errorf("key %q does not match %s", project, projectKeyRE)
 	}
-	return filepath.Join(root, "projects", project)
+	return filepath.Join(root, "projects", project), nil
 }
 
-func (c sqliteCatalog) Init(root, project string) (Ledger, error) {
-	if !projectKeyRE.MatchString(project) {
-		return nil, fmt.Errorf("init project: key %q does not match %s", project, projectKeyRE)
+func (sqliteCatalog) Describe(root, project string) string {
+	dir, err := projectDir(root, project)
+	if err != nil {
+		// A reader is owed the reason, and nothing may join onto this.
+		return fmt.Sprintf("(no project: %v)", err)
 	}
-	dir := c.Describe(root, project)
+	return dir
+}
+
+// Deployment opens the ledger the deployment itself keeps — the
+// accountable-authority binding lives here, beside the projects rather
+// than inside one.
+//
+// It is a capability rather than a project key, because a key is a
+// string an untrusted caller supplies and this is not something they may
+// name. While the empty string selected it, a submit whose project
+// argument was empty recorded a party's claim into this ledger, and a
+// claim shaped like an authority binding was read back as one.
+func (sqliteCatalog) Deployment(root string) (Ledger, error) { return openSQLite(root) }
+
+func (c sqliteCatalog) Init(root, project string) (Ledger, error) {
+	dir, err := projectDir(root, project)
+	if err != nil {
+		return nil, fmt.Errorf("init project: %w", err)
+	}
 	if _, err := os.Stat(dir); err == nil {
 		return nil, fmt.Errorf("init project: %q already exists under %s", project, root)
 	}
@@ -60,12 +91,13 @@ func (c sqliteCatalog) Init(root, project string) (Ledger, error) {
 }
 
 func (c sqliteCatalog) Open(root, project string) (Ledger, error) {
-	dir := c.Describe(root, project)
-	if project != "" {
-		if _, err := os.Stat(dir); err != nil {
-			existing, _ := c.List(root)
-			return nil, fmt.Errorf("open project: no state for %q under %s (existing: %v) — projects are created only by the explicit init act", project, root, existing)
-		}
+	dir, err := projectDir(root, project)
+	if err != nil {
+		return nil, fmt.Errorf("open project: %w", err)
+	}
+	if _, err := os.Stat(dir); err != nil {
+		existing, _ := c.List(root)
+		return nil, fmt.Errorf("open project: no state for %q under %s (existing: %v) — projects are created only by the explicit init act", project, root, existing)
 	}
 	return openSQLite(dir)
 }

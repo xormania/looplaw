@@ -367,7 +367,7 @@ func openDeployment() *store.Store {
 			Reason: err.Error(), Remedy: "set LOOPLAW_ROOT to a writable location",
 		})
 	}
-	s, err := store.Open(root)
+	s, err := store.OpenDeployment(root)
 	if err != nil {
 		refuse(outcome.Refusal{
 			Class: outcome.Abort, Check: "deployment/open", Subject: root,
@@ -393,7 +393,10 @@ func refuse(rs ...outcome.Refusal) {
 
 // openProject opens an existing project's state. A name no init act has
 // made refuses and names what does exist, so a mistyped or renamed key
-// is loud rather than a fresh, empty fork.
+// is loud rather than a fresh, empty fork. A name that is not a project
+// key at all refuses in the same place: the argument is whatever the
+// caller typed, and the deployment's own ledger is not something it may
+// name.
 func openProject(name string) *store.Store {
 	root, err := store.DefaultRoot()
 	if err != nil {
@@ -407,7 +410,7 @@ func openProject(name string) *store.Store {
 		refuse(outcome.Refusal{
 			Class: outcome.Rejection, Check: "project/state", Subject: name,
 			Reason: err.Error(),
-			Remedy: "run looplaw init <project> first; state is never created implicitly",
+			Remedy: "name a project matching ^[a-z][a-z0-9-]*$ that looplaw init <project> has made; state is never created implicitly",
 		})
 	}
 	return s

@@ -81,7 +81,7 @@ func New(l Ledger) *Store { return &Store{l: l} }
 // Open opens (creating if needed) a ledger directly under root, using
 // the default backend.
 func Open(root string) (*Store, error) {
-	l, err := DefaultOpener(root, "")
+	l, err := DefaultCatalog.Open(root, "")
 	if err != nil {
 		return nil, err
 	}
@@ -108,39 +108,27 @@ func DefaultRoot() (string, error) {
 // by construction.
 var projectKeyRE = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 
-// ProjectPath is where a project's ledger lives under a state root.
-func ProjectPath(root, project string) string {
-	return filepath.Join(root, "projects", project)
-}
+// ProjectPath says where a project's state lives, for a reader. It is
+// not a filesystem path a caller should build on: a service-backed
+// deployment answers with something else entirely.
+func ProjectPath(root, project string) string { return DefaultCatalog.Describe(root, project) }
 
-// InitProject explicitly creates a project's state dir and ledger. State
-// is never created implicitly: submit/diff against a missing key refuse
-// rather than minting a fork (the app-shape ruling).
+// InitProject explicitly creates a project's state. State is never
+// created implicitly: an act against a missing key refuses rather than
+// minting a fork (the app-shape ruling).
 func InitProject(root, project string) (*Store, error) {
-	if !projectKeyRE.MatchString(project) {
-		return nil, fmt.Errorf("init project: key %q does not match %s", project, projectKeyRE)
-	}
-	dir := ProjectPath(root, project)
-	if _, err := os.Stat(dir); err == nil {
-		return nil, fmt.Errorf("init project: %q already exists under %s", project, root)
-	}
-	l, err := DefaultOpener(root, project)
+	l, err := DefaultCatalog.Init(root, project)
 	if err != nil {
 		return nil, err
 	}
 	return New(l), nil
 }
 
-// OpenProject opens an existing project's ledger and refuses a missing
+// OpenProject opens an existing project's state and refuses a missing
 // one, naming the keys that do exist so a renamed or mistyped key is
 // loud, never a silent fork.
 func OpenProject(root, project string) (*Store, error) {
-	dir := ProjectPath(root, project)
-	if _, err := os.Stat(dir); err != nil {
-		existing, _ := ListProjects(root)
-		return nil, fmt.Errorf("open project: no state for %q under %s (existing: %v) — projects are created only by the explicit init act", project, root, existing)
-	}
-	l, err := DefaultOpener(root, project)
+	l, err := DefaultCatalog.Open(root, project)
 	if err != nil {
 		return nil, err
 	}
@@ -148,19 +136,7 @@ func OpenProject(root, project string) (*Store, error) {
 }
 
 // ListProjects names the project keys a state root holds.
-func ListProjects(root string) ([]string, error) {
-	entries, err := os.ReadDir(filepath.Join(root, "projects"))
-	if err != nil {
-		return nil, nil
-	}
-	var keys []string
-	for _, e := range entries {
-		if e.IsDir() {
-			keys = append(keys, e.Name())
-		}
-	}
-	return keys, nil
-}
+func ListProjects(root string) ([]string, error) { return DefaultCatalog.List(root) }
 
 func (s *Store) Close() error { return s.l.Close() }
 

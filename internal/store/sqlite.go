@@ -37,11 +37,54 @@ CREATE TABLE IF NOT EXISTS records (
 
 type sqliteLedger struct{ db *sql.DB }
 
-func openSQLite(root, project string) (Ledger, error) {
-	dir := root
-	if project != "" {
-		dir = ProjectPath(root, project)
+// sqliteCatalog addresses projects as directories under a state root,
+// one database each.
+type sqliteCatalog struct{}
+
+func (sqliteCatalog) Describe(root, project string) string {
+	if project == "" {
+		return root
 	}
+	return filepath.Join(root, "projects", project)
+}
+
+func (c sqliteCatalog) Init(root, project string) (Ledger, error) {
+	if !projectKeyRE.MatchString(project) {
+		return nil, fmt.Errorf("init project: key %q does not match %s", project, projectKeyRE)
+	}
+	dir := c.Describe(root, project)
+	if _, err := os.Stat(dir); err == nil {
+		return nil, fmt.Errorf("init project: %q already exists under %s", project, root)
+	}
+	return openSQLite(dir)
+}
+
+func (c sqliteCatalog) Open(root, project string) (Ledger, error) {
+	dir := c.Describe(root, project)
+	if project != "" {
+		if _, err := os.Stat(dir); err != nil {
+			existing, _ := c.List(root)
+			return nil, fmt.Errorf("open project: no state for %q under %s (existing: %v) — projects are created only by the explicit init act", project, root, existing)
+		}
+	}
+	return openSQLite(dir)
+}
+
+func (sqliteCatalog) List(root string) ([]string, error) {
+	entries, err := os.ReadDir(filepath.Join(root, "projects"))
+	if err != nil {
+		return nil, nil
+	}
+	var keys []string
+	for _, e := range entries {
+		if e.IsDir() {
+			keys = append(keys, e.Name())
+		}
+	}
+	return keys, nil
+}
+
+func openSQLite(dir string) (Ledger, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("open store: %w", err)
 	}

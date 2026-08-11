@@ -47,14 +47,36 @@ type Ledger interface {
 	Close() error
 }
 
-// Opener supplies a ledger for a project under a state root. Swapping
-// storage means supplying a different one; no act changes.
-type Opener func(root, project string) (Ledger, error)
+// Catalog is how projects are addressed: created, opened, listed, and
+// described. It sits beside Ledger because addressing is as
+// storage-specific as recording — a directory of databases, a namespace
+// on a service, a set of streams — and a caller that assumed one shape
+// would have to be rewritten for the next.
+//
+// Nothing here promises a filesystem. "root" is an opaque locator, from
+// LOOPLAW_ROOT or a deployment default, and Describe returns text for a
+// reader rather than a path anything should join onto.
+type Catalog interface {
+	// Init creates a project's state, refusing one that already exists.
+	// State is never created implicitly: an act against a missing
+	// project refuses rather than minting a fork.
+	Init(root, project string) (Ledger, error)
 
-// DefaultOpener is used when a caller does not choose. A variable rather
-// than a constant so a deployment — or a test — can substitute storage
-// without touching any act.
-var DefaultOpener Opener = openSQLite
+	// Open opens existing state, refusing a project that has none.
+	Open(root, project string) (Ledger, error)
+
+	// List names the projects a root holds.
+	List(root string) ([]string, error)
+
+	// Describe says where a project's state lives, for a reader. It is
+	// not an address anything computes with.
+	Describe(root, project string) string
+}
+
+// DefaultCatalog is used when a caller does not choose. A variable
+// rather than a constant so a deployment — or a test — can substitute
+// storage without touching any act.
+var DefaultCatalog Catalog = sqliteCatalog{}
 
 // Latest is an optional capability. A ledger that can answer "the most
 // recent record of this kind and type" itself should, and a caller

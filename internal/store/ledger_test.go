@@ -167,3 +167,71 @@ func TestLatestOfAgreesAcrossLedgers(t *testing.T) {
 		})
 	}
 }
+
+// memCatalog addresses projects in a map. Together with memLedger it is
+// a complete storage substitution: two interfaces, two variables, and
+// nothing above them changes.
+type memCatalog struct{ projects map[string]*memLedger }
+
+func (c *memCatalog) Describe(root, project string) string {
+	return fmt.Sprintf("in memory (%s/%s)", root, project)
+}
+func (c *memCatalog) Init(root, project string) (Ledger, error) {
+	if _, ok := c.projects[project]; ok {
+		return nil, fmt.Errorf("init project: %q already exists", project)
+	}
+	l := &memLedger{}
+	c.projects[project] = l
+	return l, nil
+}
+func (c *memCatalog) Open(root, project string) (Ledger, error) {
+	l, ok := c.projects[project]
+	if !ok {
+		return nil, fmt.Errorf("open project: no state for %q", project)
+	}
+	return l, nil
+}
+func (c *memCatalog) List(root string) ([]string, error) {
+	var out []string
+	for k := range c.projects {
+		out = append(out, k)
+	}
+	return out, nil
+}
+
+// The whole storage layer substitutes at once. This is the property that
+// matters when the ledger is replaced: the swap is two implementations
+// and two assignments, and every act, gate and command is untouched.
+func TestStorageSubstitutesWholesale(t *testing.T) {
+	prevCat := DefaultCatalog
+	t.Cleanup(func() { DefaultCatalog = prevCat })
+	DefaultCatalog = &memCatalog{projects: map[string]*memLedger{}}
+
+	if _, err := InitProject("anywhere", "demo"); err != nil {
+		t.Fatalf("init over substituted storage: %v", err)
+	}
+	if _, err := InitProject("anywhere", "demo"); err == nil {
+		t.Error("init did not refuse an existing project")
+	}
+	if _, err := OpenProject("anywhere", "absent"); err == nil {
+		t.Error("open did not refuse a project with no state")
+	}
+
+	s, err := OpenProject("anywhere", "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if _, err := s.Append(Evidence, "claim", "s", "body", "p"); err != nil {
+		t.Fatalf("record act over substituted storage: %v", err)
+	}
+	if n, err := s.Verify(); err != nil || n != 1 {
+		t.Errorf("verify over substituted storage: %d %v", n, err)
+	}
+	if got, _ := ListProjects("anywhere"); len(got) != 1 || got[0] != "demo" {
+		t.Errorf("list over substituted storage: %v", got)
+	}
+	if ProjectPath("anywhere", "demo") == "" {
+		t.Error("Describe returned nothing for a reader")
+	}
+}

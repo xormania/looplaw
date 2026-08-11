@@ -208,6 +208,18 @@ func Declare(s *store.Store, path, party string) ([]store.Record, []outcome.Refu
 // lastDeclaredSubject is what this ledger has been about so far, read
 // from the most recent declaration. Empty when none has been made, which
 // is the first declaration and settles the subject.
+//
+// This scans rather than asking the ledger, and cannot do otherwise. The
+// Ledger contract promises that bodies come back unaltered — the ledger
+// stores them opaquely and never interprets one — so it cannot index on
+// body content, and this predicate is body content: an admission carries
+// the act that produced it inside its body. Record types would make it
+// answerable by metadata, but the ratified kinds are four and a fifth is
+// a ratification rather than a convenience.
+//
+// So the full scan is forced by the boundary, not left over from before
+// there was one. Anything that looks like this and is not body-predicated
+// should be asking Store.LatestOf instead.
 func lastDeclaredSubject(s *store.Store) (string, error) {
 	recs, err := s.Records()
 	if err != nil {

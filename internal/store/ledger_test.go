@@ -172,7 +172,10 @@ func TestLatestOfAgreesAcrossLedgers(t *testing.T) {
 // memCatalog addresses projects in a map. Together with memLedger it is
 // a complete storage substitution: two interfaces, two variables, and
 // nothing above them changes.
-type memCatalog struct{ projects map[string]*memLedger }
+type memCatalog struct {
+	projects   map[string]*memLedger
+	deployment *memLedger
+}
 
 func (c *memCatalog) Describe(root, project string) string {
 	return fmt.Sprintf("in memory (%s/%s)", root, project)
@@ -191,6 +194,16 @@ func (c *memCatalog) Open(root, project string) (Ledger, error) {
 		return nil, fmt.Errorf("open project: no state for %q", project)
 	}
 	return l, nil
+}
+
+// The deployment's own ledger is held apart from the projects map, which
+// is the substituted storage's version of the property the sqlite
+// catalog holds by directory: no project key reaches it.
+func (c *memCatalog) Deployment(root string) (Ledger, error) {
+	if c.deployment == nil {
+		c.deployment = &memLedger{}
+	}
+	return c.deployment, nil
 }
 func (c *memCatalog) List(root string) ([]string, error) {
 	var out []string
@@ -260,7 +273,7 @@ func TestFixedClockMakesTheChainReproducible(t *testing.T) {
 		Fixed(t, "2026-01-01T00:00:00Z")
 		s := New(&memLedger{})
 		t.Cleanup(func() { s.Close() })
-		sq, err := Open(t.TempDir())
+		sq, err := OpenDeployment(t.TempDir())
 		if err != nil {
 			t.Fatal(err)
 		}

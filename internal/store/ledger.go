@@ -64,8 +64,21 @@ type Catalog interface {
 	// project refuses rather than minting a fork.
 	Init(root, project string) (Ledger, error)
 
-	// Open opens existing state, refusing a project that has none.
+	// Open opens existing state, refusing a project that has none, and
+	// refusing any selector that is not a project key. Init and Open are
+	// the same boundary: a grammar checked at one of them is checked at
+	// neither, because every verb but init arrives through Open.
 	Open(root, project string) (Ledger, error)
+
+	// Deployment opens the ledger the deployment keeps for itself, which
+	// holds what is true of the deployment rather than of a project —
+	// today, which party holds the accountable authority.
+	//
+	// It is a method rather than a reserved project key because a key is
+	// untrusted input. While the deployment ledger answered to one, any
+	// caller who could name a project could name it, and a party's
+	// ordinary claim could land where the binding is read from.
+	Deployment(root string) (Ledger, error)
 
 	// List names the projects a root holds.
 	List(root string) ([]string, error)

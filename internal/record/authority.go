@@ -31,11 +31,30 @@ type AuthorityBinding struct {
 	Bound string `json:"bound"`
 }
 
+// AuthorityAdmission is the entry event for the binding act: it names
+// the act and cites the claim that carried it, by content hash.
+//
+// It is what tells a binding from a claim that looks like one. Submit is
+// a party's verb and binding is an act, but the binding was recorded as
+// a lone claim — so record type, subject and body were the whole of the
+// difference, and a submitter chooses all three. The gates refuse a
+// submitted admission (gate's submittable kinds are claim and receipt),
+// so no party can produce this pair.
+//
+// It carries no copy of the bound party. Two representations of one
+// field are two things that can disagree, and the claim is where the
+// binding is stated.
+type AuthorityAdmission struct {
+	Act         string `json:"act"`
+	Party       string `json:"party"`
+	ContentHash string `json:"content_hash"`
+}
+
 // BindAuthority records which party holds this deployment's accountable
 // authority. The store is the deployment's own ledger, not a project's:
 // the authority is one per deployment, so binding it per project would
 // let two projects disagree about who may make law.
-func BindAuthority(s *store.Store, party, bound string) (*store.Record, *outcome.Refusal) {
+func BindAuthority(s *store.Store, party, bound string) ([]store.Record, *outcome.Refusal) {
 	if strings.TrimSpace(party) == "" {
 		return nil, &outcome.Refusal{
 			Class: outcome.Rejection, Check: "authority/claimant", Subject: "party",
@@ -73,34 +92,82 @@ func BindAuthority(s *store.Store, party, bound string) (*store.Record, *outcome
 			Reason: err.Error(), Remedy: "this binary is broken; nothing was recorded",
 		}
 	}
-	rec, err := s.Append(store.Evidence, "claim", "accountable-authority", string(body), party)
+
+	// Content and its admission enter together, which the Ledger contract
+	// already requires of every entry and this act alone did not do. Here
+	// it is also what makes the act an act: the claim states the binding,
+	// the admission records that binding it happened, and only this path
+	// can write the second.
+	claim := store.Draft{
+		Kind: store.Evidence, Type: "claim", Subject: "accountable-authority",
+		Body: string(body), Party: party,
+	}
+	entry, err := json.Marshal(AuthorityAdmission{
+		Act: "bind-authority", Party: party, ContentHash: store.ContentHash(claim),
+	})
+	if err != nil {
+		return nil, &outcome.Refusal{
+			Class: outcome.Abort, Check: "authority/record", Subject: bound,
+			Reason: err.Error(), Remedy: "this binary is broken; nothing was recorded",
+		}
+	}
+
+	recs, err := s.AppendAll([]store.Draft{
+		claim,
+		{
+			Kind: store.Evidence, Type: "admission", Subject: "accountable-authority",
+			Body: string(entry), Party: party,
+		},
+	})
 	if err != nil {
 		return nil, &outcome.Refusal{
 			Class: outcome.Abort, Check: "authority/store", Subject: bound,
 			Reason: err.Error(), Remedy: "nothing was recorded; the ledger is unchanged",
 		}
 	}
-	return &rec, nil
+	return recs, nil
 }
 
 // CurrentAuthority is the party this deployment records as its
 // accountable authority, empty when none is bound.
 //
 // The first binding holds, so this reads forward rather than backward: a
-// later claim cannot displace an earlier one, and reading backward would
+// later act cannot displace an earlier one, and reading backward would
 // let it.
+//
+// It reads the admission, not the claim. A claim is what any party may
+// submit, so a lone claim carrying the right subject and body is a
+// submission that resembles an act — and reading it as one is how a
+// party bound the authority to itself. The admission names the content
+// that entered, so the claim is found by content hash rather than
+// assumed to be the record before: that assumption is true today and
+// false the moment two acts interleave.
 func CurrentAuthority(s *store.Store) (string, error) {
 	recs, err := s.Records()
 	if err != nil {
 		return "", err
 	}
 	for _, r := range recs {
-		if r.Type != "claim" || r.Subject != "accountable-authority" {
+		if r.Type != "admission" || r.Subject != "accountable-authority" {
 			continue
 		}
-		var b AuthorityBinding
-		if json.Unmarshal([]byte(r.Body), &b) == nil && b.Act == "bind-authority" {
-			return b.Bound, nil
+		var entry AuthorityAdmission
+		if json.Unmarshal([]byte(r.Body), &entry) != nil || entry.Act != "bind-authority" {
+			continue
+		}
+		for _, c := range recs {
+			if c.Type != "claim" {
+				continue
+			}
+			if store.ContentHash(store.Draft{
+				Kind: c.Kind, Type: c.Type, Subject: c.Subject, Body: c.Body, Party: c.Party,
+			}) != entry.ContentHash {
+				continue
+			}
+			var b AuthorityBinding
+			if json.Unmarshal([]byte(c.Body), &b) == nil && b.Act == "bind-authority" {
+				return b.Bound, nil
+			}
 		}
 	}
 	return "", nil

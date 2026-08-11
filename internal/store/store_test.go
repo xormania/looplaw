@@ -3,6 +3,8 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -19,7 +21,7 @@ func open(t *testing.T) *Store {
 // reach the storage the way something outside looplaw would.
 func openAt(t *testing.T, root string) (*Store, string) {
 	t.Helper()
-	s, err := Open(root)
+	s, err := OpenDeployment(root)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -217,12 +219,94 @@ func TestProjectScopingIsExplicit(t *testing.T) {
 	}
 }
 
+// Proving red: a project selector is untrusted input, and the catalog is
+// where it becomes a place. Init checked the key grammar; Open did not,
+// and Open is what every verb but init goes through. So "..", "" and
+// "demo/../.." each opened a ledger outside the project namespace — one
+// of them the deployment's own, where the accountable-authority binding
+// lives.
+//
+// The assertion is containment, not refusal alone: an escape leaves a
+// database behind, so this walks the directory the state root sits in
+// and fails on any looplaw.db outside root/projects/<key>. A refusal
+// that still created the file would pass a refusal-only test.
+func TestProjectSelectorAddressesNothingButAProject(t *testing.T) {
+	top := t.TempDir()
+	root := filepath.Join(top, "state")
+	if err := os.MkdirAll(filepath.Join(top, "sibling"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := InitProject(root, "demo")
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	s.Close()
+
+	// Empty is the deployment ledger's own selector, dot and dot-dot
+	// walk the namespace, the trailing forms differ from "demo" only by
+	// what filepath.Join normalises away, and the rest carry separators
+	// or a grammar the project key does not admit.
+	for _, key := range []string{
+		"", ".", "..", "../..", "demo/../..", "../sibling",
+		"a/b", "/etc", "Demo", "demo ", "demo/", "demo/.",
+	} {
+		if s, err := OpenProject(root, key); err == nil {
+			s.Close()
+			t.Errorf("OpenProject accepted %q", key)
+		}
+		if s, err := InitProject(root, key); err == nil {
+			s.Close()
+			t.Errorf("InitProject accepted %q", key)
+		}
+	}
+
+	namespace := filepath.Join(root, "projects", "demo")
+	err = filepath.WalkDir(top, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasPrefix(d.Name(), "looplaw.db") {
+			return err
+		}
+		if dir := filepath.Dir(path); dir != namespace {
+			t.Errorf("a ledger stands outside the project namespace: %s", path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Proving red: the deployment ledger is a capability, not a project key.
+// While the empty string selected it, an untrusted project argument
+// could name it, and a party's ordinary submission landed in the ledger
+// that records who holds the accountable authority.
+func TestDeploymentLedgerIsNotReachableAsAProject(t *testing.T) {
+	root := t.TempDir()
+
+	d, err := OpenDeployment(root)
+	if err != nil {
+		t.Fatalf("open deployment: %v", err)
+	}
+	if _, err := d.Append(Evidence, "claim", "accountable-authority", "{}", "xor"); err != nil {
+		t.Fatal(err)
+	}
+	d.Close()
+
+	if s, err := OpenProject(root, ""); err == nil {
+		s.Close()
+		t.Error("the deployment ledger is addressable as a project")
+	}
+	if keys, _ := ListProjects(root); len(keys) != 0 {
+		t.Errorf("the deployment ledger is listed as a project: %v", keys)
+	}
+}
+
 // Proving red: the ledger holds the four ratified record kinds and
 // nothing else. A coined type is refused at the only door in, before
 // anything is written — which is what "goal-proposal" and "law-set"
 // needed and did not have.
 func TestLedgerRefusesAnUnratifiedRecordKind(t *testing.T) {
-	s, err := Open(t.TempDir())
+	s, err := OpenDeployment(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}

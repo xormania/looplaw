@@ -23,7 +23,7 @@ func open(t *testing.T) *store.Store {
 func openAt(t *testing.T) (*store.Store, string) {
 	t.Helper()
 	dir := t.TempDir()
-	s, err := store.Open(dir)
+	s, err := store.OpenDeployment(dir)
 	if err != nil {
 		t.Fatal(err)
 	}

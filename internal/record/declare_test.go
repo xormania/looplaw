@@ -21,7 +21,7 @@ const (
 
 func declareStore(t *testing.T) *store.Store {
 	t.Helper()
-	s, err := store.Open(t.TempDir())
+	s, err := store.OpenDeployment(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}

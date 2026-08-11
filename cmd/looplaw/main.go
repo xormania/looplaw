@@ -215,15 +215,18 @@ func main() {
 		}
 		d := openDeployment()
 		defer d.Close()
-		rec, refusal := record.BindAuthority(d, party(), os.Args[2])
+		recs, refusal := record.BindAuthority(d, party(), os.Args[2])
 		if refusal != nil {
 			refuse(*refusal)
+		}
+		for _, r := range recs {
+			fmt.Printf("%s seq %d %s\n", r.Type, r.Seq, r.Hash)
 		}
 		// Recorded as claimed. Nothing can confer standing on this
 		// binding — the party whose act would confer it is the one being
 		// named — so what the ledger offers is that it cannot change
 		// quietly, not that it is true.
-		fmt.Printf("accountable authority recorded as %q (claimed, seq %d)\n", os.Args[2], rec.Seq)
+		fmt.Printf("accountable authority recorded as %q (claimed)\n", os.Args[2])
 		os.Exit(outcome.ExitOK)
 	case "ratify":
 		if len(os.Args) != 4 {
@@ -367,7 +370,7 @@ func openDeployment() *store.Store {
 			Reason: err.Error(), Remedy: "set LOOPLAW_ROOT to a writable location",
 		})
 	}
-	s, err := store.Open(root)
+	s, err := store.OpenDeployment(root)
 	if err != nil {
 		refuse(outcome.Refusal{
 			Class: outcome.Abort, Check: "deployment/open", Subject: root,
@@ -393,7 +396,10 @@ func refuse(rs ...outcome.Refusal) {
 
 // openProject opens an existing project's state. A name no init act has
 // made refuses and names what does exist, so a mistyped or renamed key
-// is loud rather than a fresh, empty fork.
+// is loud rather than a fresh, empty fork. A name that is not a project
+// key at all refuses in the same place: the argument is whatever the
+// caller typed, and the deployment's own ledger is not something it may
+// name.
 func openProject(name string) *store.Store {
 	root, err := store.DefaultRoot()
 	if err != nil {
@@ -407,7 +413,7 @@ func openProject(name string) *store.Store {
 		refuse(outcome.Refusal{
 			Class: outcome.Rejection, Check: "project/state", Subject: name,
 			Reason: err.Error(),
-			Remedy: "run looplaw init <project> first; state is never created implicitly",
+			Remedy: "name a project matching ^[a-z][a-z0-9-]*$ that looplaw init <project> has made; state is never created implicitly",
 		})
 	}
 	return s

@@ -6,6 +6,7 @@ package main
 // what a consumer scripts against is what is tested.
 
 import (
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -121,6 +122,65 @@ func TestRecordActBehavior(t *testing.T) {
 		t.Errorf("unattributed submit: exit=%d", exit)
 	} else if !strings.Contains(stderr, "submit/party") || strings.TrimSpace(stdout) != "" {
 		t.Errorf("refusal must name submit/party on stderr only: out=%q err=%q", stdout, stderr)
+	}
+}
+
+// Proving red: every store-backed verb takes a project argument, and
+// that argument is whatever the caller typed. Before the catalog checked
+// it, `submit .. …` recorded into the deployment ledger — where the
+// accountable-authority binding lives, and where an ordinary claim
+// shaped like one was read back as that binding — and `submit
+// demo/../.. …` wrote a database above the state root entirely.
+//
+// The refusal is only half the contract. The other half is that nothing
+// was created: an escape that refuses after opening the database has
+// still left the file, so this walks the directory holding the state
+// root and fails on any ledger outside root/projects/<key>.
+func TestProjectArgumentCannotEscapeTheStateRoot(t *testing.T) {
+	top := t.TempDir()
+	root := filepath.Join(top, "state")
+	if err := os.MkdirAll(filepath.Join(top, "sibling"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	env := []string{"LOOPLAW_ROOT=" + root, "LOOPLAW_PARTY=behavior:test"}
+
+	body := filepath.Join(t.TempDir(), "claim.json")
+	if err := os.WriteFile(body, []byte(`{"states":"a contract exists"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, stderr, exit := runEnv(t, env, "init", "demo"); exit != 0 {
+		t.Fatalf("init: exit=%d %s", exit, stderr)
+	}
+
+	for _, key := range []string{"", ".", "..", "../..", "demo/../..", "../sibling", "demo/"} {
+		for _, args := range [][]string{
+			{"submit", key, "claim", "s", body},
+			{"verify", key},
+			{"export", key},
+			{"init", key},
+		} {
+			_, stderr, exit := runEnv(t, env, args...)
+			if exit != 1 {
+				t.Errorf("%v with project %q: exit=%d, want 1", args[:1], key, exit)
+			}
+			if !strings.Contains(stderr, "project/state") && !strings.Contains(stderr, "init/project") {
+				t.Errorf("%v with project %q must refuse by check id: %s", args[:1], key, stderr)
+			}
+		}
+	}
+
+	namespace := filepath.Join(root, "projects", "demo")
+	err := filepath.WalkDir(top, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasPrefix(d.Name(), "looplaw.db") {
+			return err
+		}
+		if dir := filepath.Dir(path); dir != namespace {
+			t.Errorf("a ledger stands outside the project namespace: %s", path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

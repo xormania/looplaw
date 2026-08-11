@@ -78,10 +78,14 @@ type Store struct{ l Ledger }
 // default; every act above this line is unchanged by the choice.
 func New(l Ledger) *Store { return &Store{l: l} }
 
-// Open opens (creating if needed) a ledger directly under root, using
-// the default backend.
-func Open(root string) (*Store, error) {
-	l, err := DefaultCatalog.Open(root, "")
+// OpenDeployment opens (creating if needed) the ledger the deployment
+// keeps for itself, using the default backend. It is what records the
+// accountable-authority binding, which is one per deployment.
+//
+// Named as a capability, not reachable as a project key: see
+// Catalog.Deployment.
+func OpenDeployment(root string) (*Store, error) {
+	l, err := DefaultCatalog.Deployment(root)
 	if err != nil {
 		return nil, err
 	}

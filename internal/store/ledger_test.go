@@ -3,6 +3,7 @@ package store
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 // memLedger is a second implementation, and its only job is to prove the
@@ -233,5 +234,60 @@ func TestStorageSubstitutesWholesale(t *testing.T) {
 	}
 	if ProjectPath("anywhere", "demo") == "" {
 		t.Error("Describe returned nothing for a reader")
+	}
+}
+
+// Fixed pins the clock for the duration of a test and restores it. A
+// ledger stamps time, so nothing derived from a record — its hash, its
+// chain, any output carrying either — is reproducible while the clock is
+// the wall.
+func Fixed(t *testing.T, rfc3339 string) {
+	t.Helper()
+	at, err := time.Parse(time.RFC3339Nano, rfc3339)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prev := Clock
+	t.Cleanup(func() { Clock = prev })
+	Clock = func() time.Time { return at }
+}
+
+// With the clock fixed, the chain is reproducible: the same acts in the
+// same order produce the same hashes. That is what makes a recorded
+// output pinnable, and what masking a timestamp gives away.
+func TestFixedClockMakesTheChainReproducible(t *testing.T) {
+	run := func() []Record {
+		Fixed(t, "2026-01-01T00:00:00Z")
+		s := New(&memLedger{})
+		t.Cleanup(func() { s.Close() })
+		sq, err := Open(t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { sq.Close() })
+		if _, err := sq.Append(Evidence, "claim", "s", "body", "party"); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := sq.Append(Law, "version", "s", "law", "party"); err != nil {
+			t.Fatal(err)
+		}
+		recs, err := sq.Records()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return recs
+	}
+	a, b := run(), run()
+	if len(a) != 2 || len(b) != 2 {
+		t.Fatalf("want 2 records each, got %d and %d", len(a), len(b))
+	}
+	for i := range a {
+		if a[i].Hash != b[i].Hash || a[i].At != b[i].At {
+			t.Errorf("seq %d is not reproducible under a fixed clock:\n  %s %s\n  %s %s",
+				a[i].Seq, a[i].At, a[i].Hash[:12], b[i].At, b[i].Hash[:12])
+		}
+	}
+	if a[0].At != "2026-01-01T00:00:00Z" {
+		t.Errorf("the ledger did not read the fixed clock: %q", a[0].At)
 	}
 }

@@ -142,10 +142,20 @@ func TestEveryDiffCheckHasAProvingRed(t *testing.T) {
 	exempt := map[string]string{
 		"diff/self-check": "fires only when the differ's own output breaks ratified law — unreachable from any input fixture by construction; guarded by the schema unification running on every diff (TestDiffFindsTheDeltas exercises the green path through it)",
 	}
-	proven := map[string]bool{
-		"diff/side":             true, // TestInvalidSideRefusedAndNamed
-		"diff/subject-mismatch": true, // TestSubjectMismatchRefused
-		"diff/goal-provenance":  true, // TestAbsorbedViewRefusedAsGoalLaw
+	proven := map[string]bool{}
+	for _, red := range []struct {
+		check string
+		run   func(*testing.T)
+	}{
+		{"diff/side", TestInvalidSideRefusedAndNamed},
+		{"diff/subject-mismatch", TestSubjectMismatchRefused},
+		{"diff/goal-provenance", TestAbsorbedViewRefusedAsGoalLaw},
+	} {
+		if !t.Run("proving "+red.check, red.run) {
+			t.Errorf("the red for %s did not pass, so it proves nothing", red.check)
+			continue
+		}
+		proven[red.check] = true
 	}
 	for _, check := range Checks {
 		if proven[check] {

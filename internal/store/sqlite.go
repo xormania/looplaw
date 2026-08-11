@@ -139,7 +139,7 @@ func (b *sqliteLedger) Append(drafts []Draft) ([]Record, error) {
 
 	// One timestamp for the act: records committed together are stamped
 	// together, so the ledger shows one act rather than a race.
-	at := time.Now().UTC().Format(time.RFC3339Nano)
+	at := Clock().UTC().Format(time.RFC3339Nano)
 
 	out := make([]Record, 0, len(drafts))
 	for _, d := range drafts {

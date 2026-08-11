@@ -109,30 +109,36 @@ func TestRefusedSubmissionRecordsNothing(t *testing.T) {
 }
 
 // Every submission check has a proving red naming the offered thing.
+// submissionReds is the one table: the reds run from it, and the
+// demonstration-coverage test credits from it. A row deleted takes both
+// its red and its credit; a row that stops drawing its declared check
+// fails the red. Credit cannot outlive the thing that earns it.
+var submissionReds = []struct {
+	name      string
+	mutate    func(*gate.Submission)
+	wantCheck string
+}{
+	{"unknown-kind", func(s *gate.Submission) { s.Kind = "rumor" }, "submit/kind"},
+	{"system-produced-kind", func(s *gate.Submission) { s.Kind = "admission" }, "submit/kind"},
+	{"no-subject", func(s *gate.Submission) { s.Subject = "" }, "submit/subject"},
+	{"no-party", func(s *gate.Submission) { s.Party = "" }, "submit/party"},
+	{"no-content", func(s *gate.Submission) { s.Body = "   " }, "submit/content"},
+	{"receipt-unreadable", func(s *gate.Submission) {
+		*s = goodReceipt()
+		s.Body = "not json"
+	}, "submit/receipt-shape"},
+	{"receipt-incomplete", func(s *gate.Submission) {
+		*s = goodReceipt()
+		s.Body = `{"subject":"x"}`
+	}, "submit/receipt-shape"},
+	{"receipt-bad-digest", func(s *gate.Submission) {
+		*s = goodReceipt()
+		s.Body = `{"subject":"x","verdict":"pass","source":"ci","hash":"nope"}`
+	}, "submit/receipt-shape"},
+}
+
 func TestSubmissionChecksAreRedForTheirDeclaredReason(t *testing.T) {
-	cases := []struct {
-		name      string
-		mutate    func(*gate.Submission)
-		wantCheck string
-	}{
-		{"unknown-kind", func(s *gate.Submission) { s.Kind = "rumor" }, "submit/kind"},
-		{"system-produced-kind", func(s *gate.Submission) { s.Kind = "admission" }, "submit/kind"},
-		{"no-subject", func(s *gate.Submission) { s.Subject = "" }, "submit/subject"},
-		{"no-party", func(s *gate.Submission) { s.Party = "" }, "submit/party"},
-		{"no-content", func(s *gate.Submission) { s.Body = "   " }, "submit/content"},
-		{"receipt-unreadable", func(s *gate.Submission) {
-			*s = goodReceipt()
-			s.Body = "not json"
-		}, "submit/receipt-shape"},
-		{"receipt-incomplete", func(s *gate.Submission) {
-			*s = goodReceipt()
-			s.Body = `{"subject":"x"}`
-		}, "submit/receipt-shape"},
-		{"receipt-bad-digest", func(s *gate.Submission) {
-			*s = goodReceipt()
-			s.Body = `{"subject":"x","verdict":"pass","source":"ci","hash":"nope"}`
-		}, "submit/receipt-shape"},
-	}
+	cases := submissionReds
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -163,9 +169,19 @@ func TestSubmissionChecksAreRedForTheirDeclaredReason(t *testing.T) {
 }
 
 func TestEverySubmissionCheckHasAProvingRed(t *testing.T) {
+	// Two links, because either alone leaves a way for credit to outlive
+	// the thing that earns it. The runner is called here, so deleting it
+	// stops this compiling; the credit is derived from the table it
+	// walks, so deleting a row takes its red and its credit together.
+	// The list this replaced was a second copy of the check ids, and
+	// deleting the red test left it reporting five checks demonstrated
+	// with nothing demonstrating them.
+	if !t.Run("running the reds", TestSubmissionChecksAreRedForTheirDeclaredReason) {
+		t.Fatal("the submission reds did not pass, so they prove nothing")
+	}
 	proven := map[string]bool{}
-	for _, c := range []string{"submit/kind", "submit/subject", "submit/party", "submit/content", "submit/receipt-shape"} {
-		proven[c] = true // TestSubmissionChecksAreRedForTheirDeclaredReason
+	for _, c := range submissionReds {
+		proven[c.wantCheck] = true
 	}
 	for _, check := range gate.SubmissionChecks {
 		if !proven[check] {

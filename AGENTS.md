@@ -120,6 +120,14 @@ driven by whatever automation a harness has.
   deliberately and say why in the message.
 - **Refusal order is part of the contract.** Walk maps through
   `sortedKeys`; a nondeterministic stream has bitten this repo twice.
+- **Nondeterminism is a parameter, never a mask.** A value a test cannot
+  predict is an input something outside the code owns, so it is exposed
+  as a seam and pinned by the test — the clock is `store.Clock`, set to a
+  fixed instant. Masking it in a golden hides the thing the golden was
+  for: timestamps flow into the chain hash, so every recorded output
+  masked `at`, `hash` and `prev`, and no golden pinned the chain at all.
+  A change to the canonical form or the hash function would have failed
+  nothing.
 
 ## The lanes
 
@@ -192,6 +200,16 @@ merges. Merging ratifies nothing — ratification is a recorded act in the
 ledger, which is the thing this product exists to replace merging with.
 
 Working notes live in `proj/` (gitignored — scope, not secrecy).
+
+**Nothing tracked names a machine's filesystem.** A path into a home
+directory is unfollowable on every machine but the one it was written on,
+and pushing it publishes that machine's layout for good. This file once
+sent harnesses to a methods directory under a home directory. Tracked
+text points inside the repository or not at all; a fact that lives
+outside goes in `proj/`. When the question is what has already been
+decided, the answer is a command over tracked artifacts — `go run
+./dev/cmd/digest` — not a path into somebody's home. `dev/check` and CI
+refuse the leak.
 
 Clean up after yourself: scratch programs, probe tests, and worktrees
 you create for an investigation do not belong in the repository. Write

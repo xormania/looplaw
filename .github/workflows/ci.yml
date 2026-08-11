@@ -74,4 +74,14 @@ jobs:
         run: |
           go run cuelang.org/go/cmd/cue export internal/gate/testdata/library/set.cue -o /tmp/set.json
           go run cuelang.org/go/cmd/cue vet ./schema/ /tmp/set.json -d '#TrinitySet'
+      # The manifest a real deriver produces, checked against the ratified
+      # shape by the second producer — and then through the act itself, so
+      # the derive-absorb path is exercised on this repository rather than
+      # only on a fixture.
+      - name: derived manifest round-trips (this repository, absorbed)
+        run: |
+          dev/components > /tmp/components.cue
+          go run cuelang.org/go/cmd/cue export /tmp/components.cue -o /tmp/components.json
+          go run cuelang.org/go/cmd/cue vet ./schema/ /tmp/components.json -d '#ComponentManifest'
+          go run ./cmd/looplaw absorb /tmp/components.cue > /tmp/view.cue
 

@@ -1,7 +1,9 @@
 package store
 
 import (
+	"database/sql"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -9,12 +11,37 @@ import (
 
 func open(t *testing.T) *Store {
 	t.Helper()
-	s, err := Open(t.TempDir())
+	s, _ := openAt(t, t.TempDir())
+	return s
+}
+
+// openAt returns the store and the root it lives under, so a test can
+// reach the storage the way something outside looplaw would.
+func openAt(t *testing.T, root string) (*Store, string) {
+	t.Helper()
+	s, err := Open(root)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
 	t.Cleanup(func() { s.Close() })
-	return s
+	return s, root
+}
+
+// tamper edits the ledger out of band, which is what an attacker with
+// access to the state root actually does. Reaching through the product's
+// own type would test a hole looplaw does not have — the store exposes
+// no way to alter a record, and adding one for a test would put it in
+// the product.
+func tamper(t *testing.T, root, statement string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", filepath.Join(root, "looplaw.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(statement); err != nil {
+		t.Fatalf("tamper: %v", err)
+	}
 }
 
 func TestAppendChainsAndVerifies(t *testing.T) {
@@ -53,7 +80,7 @@ func TestAppendChainsAndVerifies(t *testing.T) {
 }
 
 func TestTamperIsDetected(t *testing.T) {
-	s := open(t)
+	s, root := openAt(t, t.TempDir())
 	if _, err := s.Append(Law, "admission", "a", "body-a", "t"); err != nil {
 		t.Fatal(err)
 	}
@@ -61,9 +88,7 @@ func TestTamperIsDetected(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := s.db.Exec("UPDATE records SET body = 'forged' WHERE seq = 1"); err != nil {
-		t.Fatalf("tamper: %v", err)
-	}
+	tamper(t, root, "UPDATE records SET body = 'forged' WHERE seq = 1")
 	if _, err := s.Verify(); err == nil {
 		t.Fatal("verify accepted a tampered record")
 	} else if !strings.Contains(err.Error(), "seq 1") {
@@ -72,15 +97,13 @@ func TestTamperIsDetected(t *testing.T) {
 }
 
 func TestDeletionBreaksChain(t *testing.T) {
-	s := open(t)
+	s, root := openAt(t, t.TempDir())
 	for _, subj := range []string{"a", "b", "c"} {
 		if _, err := s.Append(Evidence, "claim", subj, "x", "t"); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := s.db.Exec("DELETE FROM records WHERE seq = 2"); err != nil {
-		t.Fatal(err)
-	}
+	tamper(t, root, "DELETE FROM records WHERE seq = 2")
 	if _, err := s.Verify(); err == nil {
 		t.Fatal("verify accepted a ledger with a deleted record")
 	}

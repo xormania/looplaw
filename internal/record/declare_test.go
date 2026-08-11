@@ -3,6 +3,7 @@ package record
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -321,5 +322,58 @@ func TestAdmissionNamesTheActAndTheChecksThatRan(t *testing.T) {
 	}
 	if trinity == 0 {
 		t.Error("the admission names none of the gates that actually checked the set")
+	}
+}
+
+// foreignLedger is storage looplaw did not write: no chain, no hashes of
+// its own devising, no file. If an act reaches past the Ledger interface
+// for anything — a table, a chain, a path — it fails here rather than on
+// the day the storage is swapped.
+type foreignLedger struct{ recs []store.Record }
+
+func (f *foreignLedger) Append(drafts []store.Draft) ([]store.Record, error) {
+	var staged []store.Record
+	for i, d := range drafts {
+		seq := int64(len(f.recs) + i + 1)
+		staged = append(staged, store.Record{
+			Seq: seq, Kind: d.Kind, Type: d.Type, Subject: d.Subject,
+			Body: d.Body, Party: d.Party, At: "2026-01-01T00:00:00Z",
+			Hash: fmt.Sprintf("foreign:%d", seq),
+		})
+	}
+	f.recs = append(f.recs, staged...)
+	return staged, nil
+}
+func (f *foreignLedger) Records() ([]store.Record, error) { return f.recs, nil }
+func (f *foreignLedger) Verify() (int, error)             { return len(f.recs), nil }
+func (f *foreignLedger) Close() error                     { return nil }
+
+// The record acts are storage-independent. This is the property the
+// Ledger interface exists to hold, so it is asserted rather than assumed.
+func TestActsRunOverForeignStorage(t *testing.T) {
+	s := store.New(&foreignLedger{})
+	defer s.Close()
+
+	recs, refusals := Declare(s, fixtureZero, "harness:test")
+	if len(refusals) > 0 {
+		t.Fatalf("declare over foreign storage: %v", refusals)
+	}
+	if len(recs) != 2 || recs[0].Type != "claim" || recs[1].Type != "admission" {
+		t.Fatalf("want a claim and its admission, got %+v", recs)
+	}
+
+	// The gates still hold: an absorbed view is refused whatever holds
+	// the ledger.
+	if _, refusals := Declare(s, absorbedView, "harness:test"); len(refusals) != 1 ||
+		refusals[0].Check != "declare/provenance" {
+		t.Errorf("the provenance gate changed with the storage: %v", refusals)
+	}
+
+	// And the subject check, which reads recorded state back.
+	if law, err := CurrentLaw(s); err != nil || law != nil {
+		t.Errorf("nothing ratified, so no law: %v %v", law, err)
+	}
+	if _, err := Export(s); err != nil {
+		t.Errorf("export over foreign storage: %v", err)
 	}
 }

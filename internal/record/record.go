@@ -236,16 +236,7 @@ func lastDeclaredSubject(s *store.Store) (string, error) {
 // the most recent, because the chain is append-only: order in the ledger
 // is the order acts happened.
 func CurrentLaw(s *store.Store) (*store.Record, error) {
-	recs, err := s.Records()
-	if err != nil {
-		return nil, err
-	}
-	for i := len(recs) - 1; i >= 0; i-- {
-		if recs[i].Kind == store.Law && recs[i].Type == "version" {
-			return &recs[i], nil
-		}
-	}
-	return nil, nil
+	return s.LatestOf(store.Law, "version")
 }
 
 // Verify re-checks the whole ledger: every hash recomputed, every link

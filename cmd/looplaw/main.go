@@ -14,6 +14,7 @@ import (
 	"github.com/xormania/looplaw/internal/absorb"
 	"github.com/xormania/looplaw/internal/diff"
 	"github.com/xormania/looplaw/internal/gate"
+	"github.com/xormania/looplaw/internal/outbound"
 	"github.com/xormania/looplaw/internal/outcome"
 	"github.com/xormania/looplaw/internal/provenance"
 	"github.com/xormania/looplaw/internal/record"
@@ -203,6 +204,14 @@ func main() {
 		if refusal != nil {
 			refuse(*refusal)
 		}
+		// Held content leaves through one gate, so the place a custody
+		// system attaches is a variable rather than a search.
+		out, refusal = outbound.Release(outbound.Request{
+			Party: party(), Purpose: "export", Subject: os.Args[2], Content: out,
+		})
+		if refusal != nil {
+			refuse(*refusal)
+		}
 		fmt.Print(out)
 		os.Exit(outcome.ExitOK)
 	case "init":
@@ -258,7 +267,15 @@ func main() {
 		if gaps == nil {
 			out = []byte("[]")
 		}
-		fmt.Println(string(out))
+		// The gap feed carries detail derived from goal law, so it leaves
+		// through the same gate as anything else held here.
+		feed, refusal := outbound.Release(outbound.Request{
+			Party: party(), Purpose: "diff", Subject: os.Args[2], Content: string(out),
+		})
+		if refusal != nil {
+			refuse(*refusal)
+		}
+		fmt.Println(feed)
 		os.Exit(outcome.ExitOK)
 	default:
 		fmt.Fprintf(os.Stderr, "looplaw: unknown command %q\n", os.Args[1])

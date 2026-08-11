@@ -15,14 +15,12 @@ package store
 
 import (
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -71,10 +69,23 @@ type Record struct {
 	Hash    string `json:"hash"`
 }
 
-// Store is an open ledger. Not safe to share a single *Store across
-// processes; SQLite serializes at the file level.
-type Store struct {
-	db *sql.DB
+// Store is looplaw's law about records, over whatever Ledger holds
+// them. It keeps only what is its own — which record kinds exist — and
+// delegates the act itself.
+type Store struct{ l Ledger }
+
+// New wraps a ledger. Use it to record on storage other than the
+// default; every act above this line is unchanged by the choice.
+func New(l Ledger) *Store { return &Store{l: l} }
+
+// Open opens (creating if needed) a ledger directly under root, using
+// the default backend.
+func Open(root string) (*Store, error) {
+	l, err := DefaultCatalog.Open(root, "")
+	if err != nil {
+		return nil, err
+	}
+	return New(l), nil
 }
 
 // DefaultRoot resolves the state root: $LOOPLAW_ROOT, else
@@ -97,97 +108,37 @@ func DefaultRoot() (string, error) {
 // by construction.
 var projectKeyRE = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 
-// ProjectPath is where a project's ledger lives under a state root.
-func ProjectPath(root, project string) string {
-	return filepath.Join(root, "projects", project)
-}
+// ProjectPath says where a project's state lives, for a reader. It is
+// not a filesystem path a caller should build on: a service-backed
+// deployment answers with something else entirely.
+func ProjectPath(root, project string) string { return DefaultCatalog.Describe(root, project) }
 
-// InitProject explicitly creates a project's state dir and ledger. State
-// is never created implicitly: submit/diff against a missing key refuse
-// rather than minting a fork (the app-shape ruling).
+// InitProject explicitly creates a project's state. State is never
+// created implicitly: an act against a missing key refuses rather than
+// minting a fork (the app-shape ruling).
 func InitProject(root, project string) (*Store, error) {
-	if !projectKeyRE.MatchString(project) {
-		return nil, fmt.Errorf("init project: key %q does not match %s", project, projectKeyRE)
+	l, err := DefaultCatalog.Init(root, project)
+	if err != nil {
+		return nil, err
 	}
-	dir := ProjectPath(root, project)
-	if _, err := os.Stat(dir); err == nil {
-		return nil, fmt.Errorf("init project: %q already exists under %s", project, root)
-	}
-	return Open(dir)
+	return New(l), nil
 }
 
-// OpenProject opens an existing project's ledger and refuses a missing
+// OpenProject opens an existing project's state and refuses a missing
 // one, naming the keys that do exist so a renamed or mistyped key is
 // loud, never a silent fork.
 func OpenProject(root, project string) (*Store, error) {
-	dir := ProjectPath(root, project)
-	if _, err := os.Stat(dir); err != nil {
-		existing, _ := ListProjects(root)
-		return nil, fmt.Errorf("open project: no state for %q under %s (existing: %v) — projects are created only by the explicit init act", project, root, existing)
+	l, err := DefaultCatalog.Open(root, project)
+	if err != nil {
+		return nil, err
 	}
-	return Open(dir)
+	return New(l), nil
 }
 
 // ListProjects names the project keys a state root holds.
-func ListProjects(root string) ([]string, error) {
-	entries, err := os.ReadDir(filepath.Join(root, "projects"))
-	if err != nil {
-		return nil, nil
-	}
-	var keys []string
-	for _, e := range entries {
-		if e.IsDir() {
-			keys = append(keys, e.Name())
-		}
-	}
-	return keys, nil
-}
+func ListProjects(root string) ([]string, error) { return DefaultCatalog.List(root) }
 
-const schema = `
-CREATE TABLE IF NOT EXISTS records (
-	seq     INTEGER PRIMARY KEY AUTOINCREMENT,
-	kind    TEXT NOT NULL CHECK (kind IN ('law', 'evidence')),
-	rectype TEXT NOT NULL,
-	subject TEXT NOT NULL,
-	body    TEXT NOT NULL,
-	party   TEXT NOT NULL,
-	at      TEXT NOT NULL,
-	prev    TEXT NOT NULL,
-	hash    TEXT NOT NULL UNIQUE
-);`
-
-// Open opens (creating if needed) the ledger under root.
-func Open(root string) (*Store, error) {
-	if err := os.MkdirAll(root, 0o755); err != nil {
-		return nil, fmt.Errorf("open store: %w", err)
-	}
-	db, err := sql.Open("sqlite", filepath.Join(root, "looplaw.db"))
-	if err != nil {
-		return nil, fmt.Errorf("open store: %w", err)
-	}
-	// One connection: every transaction serializes at the Go level, so
-	// concurrent recorders queue rather than fork the chain or trip
-	// SQLITE_BUSY. The busy timeout covers cross-process contention on
-	// the same file.
-	db.SetMaxOpenConns(1)
-	for _, pragma := range []string{
-		"PRAGMA journal_mode = WAL;",
-		"PRAGMA foreign_keys = ON;",
-		"PRAGMA busy_timeout = 5000;",
-	} {
-		if _, err := db.Exec(pragma); err != nil {
-			db.Close()
-			return nil, fmt.Errorf("open store: %s: %w", pragma, err)
-		}
-	}
-	if _, err := db.Exec(schema); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("open store: migrate: %w", err)
-	}
-	return &Store{db: db}, nil
-}
-
-func (s *Store) Close() error { return s.db.Close() }
+func (s *Store) Close() error { return s.l.Close() }
 
 // canonical is the hashed wire form: length-delimited fields in fixed
 // order, so no field boundary is ambiguous and no serialization library
@@ -198,11 +149,6 @@ func canonical(kind Kind, rectype, subject, body, party, at, prev string) string
 		fmt.Fprintf(&out, "%d:%s|", len(f), f)
 	}
 	return out.String()
-}
-
-func hashOf(kind Kind, rectype, subject, body, party, at, prev string) string {
-	sum := sha256.Sum256([]byte(canonical(kind, rectype, subject, body, party, at, prev)))
-	return hex.EncodeToString(sum[:])
 }
 
 // Draft is a fact awaiting the record act: what a submitter offers,
@@ -223,21 +169,13 @@ func ContentHash(d Draft) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// Append records one fact, chained to the current tail.
-func (s *Store) Append(kind Kind, rectype, subject, body, party string) (Record, error) {
-	recs, err := s.AppendAll([]Draft{{Kind: kind, Type: rectype, Subject: subject, Body: body, Party: party}})
-	if err != nil {
-		return Record{}, err
-	}
-	return recs[0], nil
-}
-
-// AppendAll records several facts as one act: every record lands or
-// none does. A claim whose admission failed to land would be a record
-// with no entry provenance — a silent transition of exactly the kind
-// T0-6 forbids — so the pair commits together. The read of the chain
-// tail and the inserts share one transaction on the store's single
-// connection, so concurrent recorders serialize instead of forking.
+// AppendAll records several facts as one act.
+//
+// The only thing checked here is looplaw's own law: a record kind the
+// lexicon does not name is refused before the ledger sees it. Sealing —
+// ordering, linking, timestamping, hashing — belongs to the ledger,
+// which is why a store that performs those itself can be substituted
+// without touching an act.
 func (s *Store) AppendAll(drafts []Draft) ([]Record, error) {
 	if len(drafts) == 0 {
 		return nil, fmt.Errorf("append: nothing to record")
@@ -247,93 +185,22 @@ func (s *Store) AppendAll(drafts []Draft) ([]Record, error) {
 			return nil, fmt.Errorf("append: %q is not a record kind; the ledger holds %v", d.Type, RecordKinds)
 		}
 	}
-	tx, err := s.db.Begin()
-	if err != nil {
-		return nil, fmt.Errorf("append: %w", err)
-	}
-	defer tx.Rollback()
-
-	var prev string
-	err = tx.QueryRow("SELECT hash FROM records ORDER BY seq DESC LIMIT 1").Scan(&prev)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, fmt.Errorf("append: read tail: %w", err)
-	}
-
-	// One timestamp for the act: records committed together are stamped
-	// together, so the ledger shows one act rather than a race.
-	at := time.Now().UTC().Format(time.RFC3339Nano)
-
-	out := make([]Record, 0, len(drafts))
-	for _, d := range drafts {
-		rec := Record{
-			Kind:    d.Kind,
-			Type:    d.Type,
-			Subject: d.Subject,
-			Body:    d.Body,
-			Party:   d.Party,
-			At:      at,
-			Prev:    prev,
-		}
-		rec.Hash = hashOf(rec.Kind, rec.Type, rec.Subject, rec.Body, rec.Party, rec.At, rec.Prev)
-
-		res, err := tx.Exec(
-			"INSERT INTO records (kind, rectype, subject, body, party, at, prev, hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-			string(rec.Kind), rec.Type, rec.Subject, rec.Body, rec.Party, rec.At, rec.Prev, rec.Hash,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("append: %w", err)
-		}
-		if rec.Seq, err = res.LastInsertId(); err != nil {
-			return nil, fmt.Errorf("append: %w", err)
-		}
-		prev = rec.Hash
-		out = append(out, rec)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("append: %w", err)
-	}
-	return out, nil
+	return s.l.Append(drafts)
 }
 
 // Records returns the full ledger in sequence order.
-func (s *Store) Records() ([]Record, error) {
-	rows, err := s.db.Query("SELECT seq, kind, rectype, subject, body, party, at, prev, hash FROM records ORDER BY seq")
+func (s *Store) Records() ([]Record, error) { return s.l.Records() }
+
+// Append records one fact, chained to the current tail.
+func (s *Store) Append(kind Kind, rectype, subject, body, party string) (Record, error) {
+	recs, err := s.AppendAll([]Draft{{Kind: kind, Type: rectype, Subject: subject, Body: body, Party: party}})
 	if err != nil {
-		return nil, fmt.Errorf("records: %w", err)
+		return Record{}, err
 	}
-	defer rows.Close()
-	var out []Record
-	for rows.Next() {
-		var r Record
-		var kind string
-		if err := rows.Scan(&r.Seq, &kind, &r.Type, &r.Subject, &r.Body, &r.Party, &r.At, &r.Prev, &r.Hash); err != nil {
-			return nil, fmt.Errorf("records: %w", err)
-		}
-		r.Kind = Kind(kind)
-		out = append(out, r)
-	}
-	return out, rows.Err()
+	return recs[0], nil
 }
 
-// Verify recomputes every hash and link. It returns the number of records
-// verified; an error names the first break. Verification here means one
-// thing only: the record being read is the record that was written.
-func (s *Store) Verify() (int, error) {
-	recs, err := s.Records()
-	if err != nil {
-		return 0, err
-	}
-	prev := ""
-	for _, r := range recs {
-		if r.Prev != prev {
-			return 0, fmt.Errorf("verify: seq %d: chain break: prev %q, want %q", r.Seq, r.Prev, prev)
-		}
-		want := hashOf(r.Kind, r.Type, r.Subject, r.Body, r.Party, r.At, r.Prev)
-		if r.Hash != want {
-			return 0, fmt.Errorf("verify: seq %d: content does not re-hash to what was recorded", r.Seq)
-		}
-		prev = r.Hash
-	}
-	return len(recs), nil
-}
+// Verify re-checks that what is read is what was written. How that is
+// established — a hash chain, a signature, a remote attestation — is the
+// ledger's business; a break is reported, never repaired.
+func (s *Store) Verify() (int, error) { return s.l.Verify() }

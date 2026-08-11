@@ -88,6 +88,29 @@ fi
 # Overridable so the report itself can be exercised: with no cross-lane
 # commit on the current branch there is nothing for it to print, and a
 # reporter that has never been seen to print is not known to work.
+# What is about to be committed, checked before it is. The commit rule
+# below reads history, so it can only report a crossing after the crossing
+# exists — and then the fix is a rewrite rather than a different `git add`.
+# Three cross-lane commits were made and split again for exactly that
+# reason, each time by a check that ran a moment too late.
+staged=$(git diff --cached --name-only)
+if [ -n "$staged" ]; then
+	sd=$(echo "$staged" | grep -cE "$DEV_PATHS" || true)
+	sp=$(echo "$staged" | grep -cE "$PROD_PATHS" || true)
+	if [ "$sd" -gt 0 ] && [ "$sp" -gt 0 ] && ! echo "$staged" | grep -q '^dev/LOCKED$'; then
+		echo "what is staged crosses both lanes:" >&2
+		echo "$staged" | grep -E "$DEV_PATHS" | sed 's/^/  dev-lane   /' >&2
+		echo "$staged" | grep -E "$PROD_PATHS" | sed 's/^/  prod-lane  /' >&2
+		cat >&2 <<-'EOF'
+
+			  Stage one lane's worth and commit it, then the other. The exception
+			  is a vocabulary correction, where a term and its uses in product
+			  text must move together — and that case re-seals dev/LOCKED.
+		EOF
+		fail=1
+	fi
+fi
+
 base=$(git merge-base HEAD "${LOOPLAW_LANES_BASE:-origin/master}" 2>/dev/null || echo "")
 if [ -n "$base" ]; then
 	bad="" allowed=""

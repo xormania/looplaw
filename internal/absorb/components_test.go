@@ -161,6 +161,19 @@ func TestSkeletonStatesOnlyWhatWasDerived(t *testing.T) {
 	m, _ := LoadComponents(manifest(t, goodManifest))
 	out := ComponentSkeleton(m)
 
+	// authority_free is deliberately absent: whether a component holds
+	// an authority is a design statement no deriver can make, and the
+	// shape gate should refuse until an author states it.
+	// Checked as a field rather than by substring: the comment that
+	// leaves it to the author contains the same words, and an assertion
+	// that cannot tell them apart proves nothing.
+	if strings.Contains(out, ", authority_free:") {
+		t.Error("the skeleton settles authority_free, which nothing derived")
+	}
+	if !strings.Contains(out, "// authority_free: true|false") {
+		t.Error("the skeleton does not leave authority_free for the author")
+	}
+
 	for _, derived := range []string{
 		`"cmd-tool": {name: "cmd/tool"`,                            // the component, registered
 		`parties: {client: "cmd-tool", supplier: "internal-core"}`, // the edge, as a contract
@@ -185,6 +198,49 @@ func TestSkeletonStatesOnlyWhatWasDerived(t *testing.T) {
 	}
 }
 
+// Proving red: a component derived from nothing produces a contract no
+// source addresses, and a statement no source can falsify is not
+// evidence.
+func TestComponentWithNoSourcesIsRefused(t *testing.T) {
+	body := strings.Replace(goodManifest,
+		`sources: {"internal/core/core.go": "2222222222222222222222222222222222222222222222222222222222222222"}`,
+		`sources: {}`, 1)
+	_, refusals := LoadComponents(manifest(t, body))
+	if len(refusals) != 1 || refusals[0].Check != "components/sourceless" {
+		t.Fatalf("want components/sourceless, got %v", refusals)
+	}
+	if refusals[0].Subject != "internal/core" {
+		t.Errorf("the refusal must name the component: %q", refusals[0].Subject)
+	}
+}
+
+// Proving red: ids are folded from names, and two names can fold to one.
+// A party or contract sharing an id names neither of the things it came
+// from, and the view would carry one where the manifest stated two.
+func TestFoldedIdCollisionIsRefused(t *testing.T) {
+	t.Run("two components, one party id", func(t *testing.T) {
+		body := strings.Replace(goodManifest, `"internal/core": {`, `"internal-core": {`, 1)
+		body = strings.Replace(body, `"internal/core/core.go"`, `"internal-core/core.go"`, 1)
+		body = strings.Replace(body, `"cmd/tool": ["internal/core"]`, `"cmd/tool": ["internal-core"]`, 1)
+		body = strings.Replace(body, `"cmd/tool": {`, `"internal/core": {`, 1)
+		body = strings.Replace(body, `"cmd/tool/main.go"`, `"internal/core/main.go"`, 1)
+		body = strings.Replace(body, `"cmd/tool": ["internal-core"]`, `"internal/core": ["internal-core"]`, 1)
+		_, refusals := LoadComponents(manifest(t, body))
+		var got string
+		for _, r := range refusals {
+			if r.Check == "components/id-collision" {
+				got = r.Reason
+			}
+		}
+		if got == "" {
+			t.Fatalf("two names folding to one party id passed: %v", refusals)
+		}
+		if !strings.Contains(got, "internal/core") || !strings.Contains(got, "internal-core") {
+			t.Errorf("the refusal must name both components: %q", got)
+		}
+	})
+}
+
 // Every check loading a manifest can emit has a proving red.
 func TestEveryComponentCheckHasAProvingRed(t *testing.T) {
 	exempt := map[string]string{
@@ -197,6 +253,8 @@ func TestEveryComponentCheckHasAProvingRed(t *testing.T) {
 		"components/shape":           true, // TestManifestOffTheRatifiedShapeIsRefused
 		"components/unlisted":        true, // TestEdgeToAnUnlistedComponentIsRefused
 		"components/source-conflict": true, // TestConflictingDigestsForOneSourceAreRefused
+		"components/sourceless":      true, // TestComponentWithNoSourcesIsRefused
+		"components/id-collision":    true, // TestFoldedIdCollisionIsRefused
 	}
 	for _, check := range ComponentChecks {
 		if proven[check] {

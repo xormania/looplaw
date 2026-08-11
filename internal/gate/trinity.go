@@ -178,11 +178,6 @@ func Law(ctx *cue.Context) (cue.Value, error) {
 // embeddedLaw builds the complete ratified law package the binary
 // carries, loaded as one CUE instance so cross-file references resolve
 // exactly as they do on disk.
-// EmbeddedSchema builds the schema this binary carries. Exported so
-// nothing else reimplements it: a second loader with the same contract
-// would be one component written twice, and the two would drift.
-func EmbeddedSchema(ctx *cue.Context) (cue.Value, error) { return embeddedLaw(ctx) }
-
 func embeddedLaw(ctx *cue.Context) (cue.Value, error) {
 	overlay := map[string]load.Source{}
 	entries, err := schema.Files.ReadDir(".")

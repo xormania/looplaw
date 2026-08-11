@@ -70,7 +70,7 @@ func ValidateRatification(r Ratification) []outcome.Refusal {
 	// proposes, and a proposal is recorded as a claim — which is what
 	// declaring already does.
 	if r.Party != r.Authority {
-		refuse(outcome.Denial, "ratify/authority", r.Party,
+		refuse(outcome.Rejection, "ratify/authority", r.Party,
 			fmt.Sprintf("%q is not this deployment's accountable authority", r.Party),
 			"submit the draft as a declaration and leave it for the accountable authority; ratification is not delegable, and a party cannot confer standing on its own work")
 		return refusals
@@ -85,7 +85,7 @@ func ValidateRatification(r Ratification) []outcome.Refusal {
 	if r.HasStanding {
 		refuse(outcome.Rejection, "ratify/standing", r.Subject,
 			"law for this subject already holds standing, and ratification is a draft's first standing",
-			"amend the ratified law instead; a successor version arises only by the amend act, and the predecessor is archived rather than replaced in place")
+			"amend the ratified law instead; a successor version arises only by the amend act, and the predecessor is archived rather than replaced in place — this binary does not perform amend yet, so flag it to the accountable authority and leave the ratified law alone")
 	}
 
 	return refusals

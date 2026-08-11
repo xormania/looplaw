@@ -469,7 +469,7 @@ commands:
                        planning feed, printed as JSON — a diff that
                        finds gaps is a successful run, exit 0
 
-The rest of the kernel surface (ratify, serve) arrives as it is
+The rest of the kernel surface (serve) arrives as it is
 designed; see proj/looplaw-spec.md §10.
 `)
 }

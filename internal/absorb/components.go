@@ -24,6 +24,8 @@ var ComponentChecks = []string{
 	"components/decode",
 	"components/source-conflict",
 	"components/unlisted",
+	"components/sourceless",
+	"components/id-collision",
 }
 
 // ComponentManifest is what a client derived about a system's shape:
@@ -114,7 +116,7 @@ func LoadComponents(path string) (ComponentManifest, []outcome.Refusal) {
 	}
 
 	ctx := cuecontext.New()
-	sch, err := gate.EmbeddedSchema(ctx)
+	sch, err := gate.Law(ctx)
 	if err != nil {
 		return ComponentManifest{}, []outcome.Refusal{{
 			Class: outcome.Abort, Check: "components/schema-load", Subject: "schema (embedded)",
@@ -170,6 +172,54 @@ func LoadComponents(path string) (ComponentManifest, []outcome.Refusal) {
 				continue
 			}
 			digests[path], owners[path] = h, name
+		}
+	}
+
+	// A component derived from nothing produces a contract addressed by
+	// no source. Provenance is what makes a statement falsifiable — an
+	// unsourced one cannot go stale, so nothing could ever contradict it.
+	for _, name := range m.Names() {
+		if len(m.Components[name].Sources) == 0 {
+			refusals = append(refusals, outcome.Refusal{
+				Class: outcome.Rejection, Check: "components/sourceless", Subject: name,
+				Reason: "the component names no source it was derived from",
+				Remedy: "name the sources with their digests, or leave the component out; a statement no source can falsify is not evidence",
+			})
+		}
+	}
+
+	// Ids are folded from names, and two names can fold to one id. A
+	// party or contract sharing an id names neither of the things it came
+	// from, and the view would carry one where the manifest stated two.
+	byParty := map[string]string{}
+	for _, name := range m.Names() {
+		id := partyID(name)
+		if prior, seen := byParty[id]; seen {
+			refusals = append(refusals, outcome.Refusal{
+				Class: outcome.Rejection, Check: "components/id-collision", Subject: id,
+				Reason: fmt.Sprintf("%q and %q both become party %q", prior, name, id),
+				Remedy: "name the components so their ids differ; one id for two components names neither",
+			})
+			continue
+		}
+		byParty[id] = name
+	}
+	byContract := map[string]string{}
+	for _, from := range m.Names() {
+		deps := append([]string(nil), m.Depends[from]...)
+		sort.Strings(deps)
+		for _, to := range deps {
+			id := contractID(from, to)
+			edge := from + " -> " + to
+			if prior, seen := byContract[id]; seen {
+				refusals = append(refusals, outcome.Refusal{
+					Class: outcome.Rejection, Check: "components/id-collision", Subject: id,
+					Reason: fmt.Sprintf("the dependencies %q and %q both become contract %q", prior, edge, id),
+					Remedy: "name the components so their ids differ; one contract for two dependencies governs neither",
+				})
+				continue
+			}
+			byContract[id] = edge
 		}
 	}
 
@@ -272,7 +322,13 @@ registry: {
 `, q(m.Subject))
 
 	for _, name := range m.Names() {
-		fmt.Fprintf(&b, "\t%s: {name: %s, note: %s, authority_free: false}\n",
+		// authority_free is deliberately absent, not defaulted. Whether a
+		// component holds an authority is a design statement no deriver
+		// can make, and asserting either value would settle by tooling
+		// what the shape gate should be refusing until an author states
+		// it. Left off, every party draws trinity/shape — a worklist
+		// entry, which is what the header promises.
+		fmt.Fprintf(&b, "\t%s: {name: %s, note: %s}  // authority_free: true|false\n",
 			q(partyID(name)), q(name), q(m.Components[name].Note))
 	}
 	b.WriteString("}\n\ninvariants: {}\nlexicon: {}\n\ncontracts: {\n")

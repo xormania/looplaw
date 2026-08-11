@@ -59,6 +59,22 @@ func Ratify(deployment, project *store.Store, subject, party string) ([]store.Re
 		return nil, abort("ratify/read", err.Error())
 	}
 
+	// Known limit, stated rather than hidden: the standing check reads
+	// before the append, so two ratifications racing on one subject can
+	// both find no law and both record one. The ledger serializes
+	// appends, which is not the same as making this pair atomic.
+	//
+	// Not fixed here because the fix chooses amend's shape. A uniqueness
+	// constraint on (law, version, subject) would close it and forbid the
+	// successor versions amend exists to create; a conditional append —
+	// commit only if the tail is unchanged — closes it without foreclosing
+	// anything, and belongs in the Ledger contract where every backend
+	// must promise it. That is a decision for the amend batch, not a
+	// workaround here.
+	//
+	// What narrows it meanwhile: ratification is the accountable
+	// authority's act, one party per deployment, so the race requires
+	// that party racing itself.
 	if refusals := gate.ValidateRatification(gate.Ratification{
 		Party:       party,
 		Authority:   authority,

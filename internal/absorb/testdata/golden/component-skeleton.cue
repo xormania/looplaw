@@ -22,8 +22,8 @@ subject:        "demo"
 schema_version: "0"
 
 registry: {
-	"cmd-tool": {name: "cmd/tool", note: "the command", authority_free: false}
-	"internal-core": {name: "internal/core", note: "", authority_free: false}
+	"cmd-tool": {name: "cmd/tool", note: "the command"}  // authority_free: true|false
+	"internal-core": {name: "internal/core", note: ""}  // authority_free: true|false
 }
 
 invariants: {}

@@ -34,6 +34,13 @@ jobs:
         run: dev/lock
       - name: lanes
         run: dev/lanes
+      # A path into a home directory is unfollowable on every machine but
+      # the one it was written on, and permanent once pushed. The
+      # bracketed letters keep this file from matching its own pattern.
+      - name: no machine paths in tracked files
+        run: |
+          leaked=$(git grep -nI -E '(/[h]ome/|/[U]sers/|/[r]oot/|~/[p]rojects/)' || true)
+          test -z "$leaked" || { echo "$leaked"; echo 'tracked text names a machine filesystem'; exit 1; }
       # The derive-absorb path on this repository, not a fixture. In the
       # fast lane because dev/check mirrors that lane, and a check nothing
       # local runs is a check that fails first in CI.
@@ -75,6 +82,13 @@ jobs:
           cd "$tmp"
           go build -buildvcs=false -o ./looplaw-check ./cmd/looplaw
           ./looplaw-check validate internal/gate/testdata/library/set.cue
+      # In the slow lane because it fetches the vulnerability database,
+      # and the fast lane exists to fail in seconds. It asks the question
+      # gofmt and vet cannot: is a known defect reachable from here. The
+      # one it was added for was reachable on provenance.Compare, the
+      # path that reads submitted manifests.
+      - name: known defects reachable from this code
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
       - name: fixture differential (second producer, same data)
         run: |
           go run cuelang.org/go/cmd/cue export internal/gate/testdata/library/set.cue -o /tmp/set.json

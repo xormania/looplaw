@@ -15,6 +15,31 @@ dev/lock
 step "lanes"
 dev/lanes
 
+step "no machine paths in tracked files"
+# A tracked file is read on machines that are not this one, where a path
+# into somebody's home directory is unfollowable — and it publishes the
+# layout of the machine it was written on, permanently, because history
+# keeps it. AGENTS.md once sent every harness to a methods directory
+# under a home directory: true on one machine, false everywhere else.
+#
+# Reads both lanes, because the leak lands in either — a brief, a schema
+# doc, a refusal string. The hazard that keeps the vocabulary checks with
+# the product (a check filtering on paths skips the file a product edit
+# just changed) does not apply to one that greps every tracked file.
+#
+# The bracketed letters keep this file and the workflow from matching
+# their own pattern, so nothing is excluded and the check covers itself.
+# Machine-neutral locations stay: ~/.local/state/looplaw and
+# $XDG_STATE_HOME name a convention rather than a machine.
+leaked=$(git grep -nI -E '(/[h]ome/|/[U]sers/|/[r]oot/|~/[p]rojects/)' || true)
+if [ -n "$leaked" ]; then
+	echo "$leaked"
+	echo
+	echo "tracked text names a machine's filesystem — point inside the repository,"
+	echo "or put the fact in proj/, which is gitignored"
+	exit 1
+fi
+
 step "format"
 if [ -n "$(gofmt -l .)" ]; then
 	gofmt -l .

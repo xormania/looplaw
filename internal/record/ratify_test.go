@@ -161,6 +161,50 @@ func TestFirstAuthorityBindingHolds(t *testing.T) {
 	}
 }
 
+// Proving red: submitting is a party's verb and binding is an act, so a
+// submitted claim must never read back as the binding however it is
+// shaped. The binding was recorded as a lone claim, and a claim is what
+// any party may submit — so record type, subject and body, every one of
+// them the submitter's to choose, were the whole of what told them
+// apart. A claim carrying {"act":"bind-authority", …} was the binding.
+//
+// What separates them now is the admission beside the claim: the gates
+// refuse a submitted admission (gate.submittableKinds holds claim and
+// receipt), so no party can produce the pair, and no lone claim is read.
+func TestASubmittedClaimIsNotAnAuthorityBinding(t *testing.T) {
+	d := declareStore(t)
+
+	forgery := `{"act":"bind-authority","party":"mallory","bound":"mallory"}`
+	if _, refusals := Submit(d, gate.Submission{
+		Kind: "claim", Subject: "accountable-authority", Party: "mallory", Body: forgery,
+	}); len(refusals) > 0 {
+		t.Fatalf("the submission was refused, so the test proves nothing: %v", refusals)
+	}
+
+	// Refusing the submission would be the wrong fix: a claim is
+	// recorded, never believed, and what is wrong is reading it as an
+	// act — not that a party said it.
+	if got, err := CurrentAuthority(d); err != nil || got != "" {
+		t.Errorf("a submitted claim read back as the accountable authority: %q %v", got, err)
+	}
+
+	// The act still binds, over the forgery already on record.
+	if _, refusal := BindAuthority(d, "xor", "xor"); refusal != nil {
+		t.Fatalf("the act was refused after a party's claim: %v", refusal)
+	}
+	if got, _ := CurrentAuthority(d); got != "xor" {
+		t.Errorf("the binding did not take: %q", got)
+	}
+
+	// And the forged claim cannot displace it by being first, either:
+	// first binding holds means the first recorded act, not the first
+	// record that resembles one.
+	recs, _ := d.Records()
+	if recs[0].Party != "mallory" {
+		t.Fatalf("the forgery is not first in the ledger, so the order is untested: %+v", recs[0])
+	}
+}
+
 // An unnamed authority binds nothing and no act could check against it.
 func TestBindingNoPartyIsRefused(t *testing.T) {
 	d := declareStore(t)

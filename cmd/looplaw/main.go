@@ -215,15 +215,18 @@ func main() {
 		}
 		d := openDeployment()
 		defer d.Close()
-		rec, refusal := record.BindAuthority(d, party(), os.Args[2])
+		recs, refusal := record.BindAuthority(d, party(), os.Args[2])
 		if refusal != nil {
 			refuse(*refusal)
+		}
+		for _, r := range recs {
+			fmt.Printf("%s seq %d %s\n", r.Type, r.Seq, r.Hash)
 		}
 		// Recorded as claimed. Nothing can confer standing on this
 		// binding — the party whose act would confer it is the one being
 		// named — so what the ledger offers is that it cannot change
 		// quietly, not that it is true.
-		fmt.Printf("accountable authority recorded as %q (claimed, seq %d)\n", os.Args[2], rec.Seq)
+		fmt.Printf("accountable authority recorded as %q (claimed)\n", os.Args[2])
 		os.Exit(outcome.ExitOK)
 	case "ratify":
 		if len(os.Args) != 4 {

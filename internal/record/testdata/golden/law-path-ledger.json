@@ -10,6 +10,17 @@
     "at": "2026-01-01T00:00:00Z",
     "prev": "",
     "hash": "5e2ef092dd3b82ae2210b9ff69598b352215486ee9736289067f443f7c54f847"
+  },
+  {
+    "seq": 2,
+    "kind": "evidence",
+    "type": "admission",
+    "subject": "accountable-authority",
+    "body": "{\"act\":\"bind-authority\",\"party\":\"xor\",\"content_hash\":\"f0aafbbfda5fe66b40206050315511476e5e2ce7ba64389b5b738923aaa16bfd\"}",
+    "party": "xor",
+    "at": "2026-01-01T00:00:00Z",
+    "prev": "5e2ef092dd3b82ae2210b9ff69598b352215486ee9736289067f443f7c54f847",
+    "hash": "f3f93a4d52ae2587ff64f231ddbcd4c8590a36361cafd6fe2970fecfc4f42ef3"
   }
 ]
 == project ==

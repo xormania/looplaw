@@ -58,8 +58,29 @@ func main() {
 		}
 		os.Exit(exit)
 	case "absorb":
+		// Two inputs, one act. A scope is walked and needs a subject
+		// named for it; a component manifest states its own subject, so
+		// it needs no second argument — the arity says which was meant,
+		// and neither mistake is silent: a directory read as a manifest
+		// and a file walked as a scope both refuse loudly.
+		// A directory here is the scope form with its subject forgotten,
+		// not a manifest: reading it would abort on "is a directory"
+		// where the caller needs to be told what they left out.
+		if len(os.Args) == 3 && os.Args[2] != "" && !isDir(os.Args[2]) {
+			m, refusals := absorb.LoadComponents(os.Args[2])
+			if len(refusals) > 0 {
+				refuse(refusals...)
+			}
+			// The skeleton states what a tool established and leaves the
+			// statement regions empty: authoring them is inference, and
+			// it belongs to the caller driving this tool, never to the
+			// binary. The gates' refusals over it are the worklist.
+			fmt.Print(absorb.ComponentSkeleton(m))
+			os.Exit(outcome.ExitOK)
+		}
 		if len(os.Args) != 4 || os.Args[3] == "" {
 			fmt.Fprintln(os.Stderr, "usage: looplaw absorb <scope-dir> <subject>")
+			fmt.Fprintln(os.Stderr, "       looplaw absorb <components.cue>")
 			os.Exit(outcome.ExitUsage)
 		}
 		m, err := absorb.ScanScope(os.Args[2], os.Args[3])
@@ -319,6 +340,14 @@ func main() {
 	}
 }
 
+// isDir reports whether a path is a directory, treating an unreadable
+// path as not one: the act that follows will report why it could not be
+// read, which is a better message than this could give.
+func isDir(path string) bool {
+	fi, err := os.Stat(path)
+	return err == nil && fi.IsDir()
+}
+
 // openDeployment opens the ledger at the state root itself. The
 // accountable authority is one per deployment, so its binding lives
 // beside the projects rather than inside one: bound per project, two
@@ -408,6 +437,12 @@ commands:
   absorb <scope> <subj> scan a scope and print a draft view skeleton
                        with machine-computed provenance; the statement
                        regions are left for authoring (that is inference)
+  absorb <components.cue>
+                       the same act over a submitted component manifest:
+                       components become parties, each dependency becomes
+                       a contract, and provenance cites the sources the
+                       client hashed. Deriving the manifest is
+                       language-specific and belongs to the caller
   init <project>       create a project's state; state is never created
                        implicitly, so every later verb refuses a name
                        this act has not made

@@ -136,8 +136,15 @@ func main() {
 		rep := provenance.Compare(prov, m)
 		out, err := json.MarshalIndent(rep, "", "  ")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(outcome.ExitAbort)
+			// Through refuse, like every other failure: a bare error on
+			// stderr carries no check, class, subject or remedy, so a
+			// caller parsing the refusal stream gets a line that does not
+			// conform to the grammar the rest of them keep.
+			refuse(outcome.Refusal{
+				Class: outcome.Abort, Check: "status/output",
+				Subject: "staleness report", Reason: err.Error(),
+				Remedy: "this binary is broken — do not consume its output",
+			})
 		}
 		// Staleness is evidence, never a verdict: a stale view is owed a
 		// re-derivation, which is the client's work — so a stale report

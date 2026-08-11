@@ -3,6 +3,7 @@
   "scope_submitted": "scope",
   "scope_mismatch": false,
   "stale": true,
+  "baseline_unreadable": false,
   "changed": [
     "lending.go"
   ],

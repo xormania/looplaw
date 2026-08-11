@@ -38,15 +38,20 @@ func (m Manifest) Paths() []string {
 // not a judgment on it — a stale view is not wrong, it is owed a
 // re-derivation, which only a client can perform.
 type Report struct {
-	ScopeRecorded  string      `json:"scope_recorded"`
-	ScopeSubmitted string      `json:"scope_submitted"`
-	ScopeMismatch  bool        `json:"scope_mismatch"`
-	Stale          bool        `json:"stale"`
-	Changed        []string    `json:"changed"` // baselined, hash differs
-	Missing        []string    `json:"missing"` // baselined, absent now
-	Added          []string    `json:"added"`   // submitted, never baselined
-	Affected       []Affected  `json:"affected"`
-	Counts         ReportCount `json:"counts"`
+	ScopeRecorded  string `json:"scope_recorded"`
+	ScopeSubmitted string `json:"scope_submitted"`
+	ScopeMismatch  bool   `json:"scope_mismatch"`
+	Stale          bool   `json:"stale"`
+	// BaselineUnreadable is true when the recorded provenance carries no
+	// readable sources. Distinct from "no sources recorded": one is a
+	// baseline of nothing, the other is a baseline that could not be
+	// read, and only the first supports a verdict.
+	BaselineUnreadable bool        `json:"baseline_unreadable"`
+	Changed            []string    `json:"changed"` // baselined, hash differs
+	Missing            []string    `json:"missing"` // baselined, absent now
+	Added              []string    `json:"added"`   // submitted, never baselined
+	Affected           []Affected  `json:"affected"`
+	Counts             ReportCount `json:"counts"`
 }
 
 type Affected struct {
@@ -71,10 +76,35 @@ func Compare(prov cue.Value, m Manifest) Report {
 		ScopeMismatch: recordedScope != m.Scope,
 	}
 
+	// A baseline that cannot be read is not an empty baseline. Skipping
+	// silently left every submitted source classified "Added", and added
+	// alone is not stale — so provenance nobody could read reported
+	// "stale": false, which is a verdict drawn from a failure. The gates
+	// refuse such a set today, which makes this latent rather than live;
+	// a check that is correct only because something upstream is doing
+	// its job is one refactor from being wrong.
 	baseline := map[string]string{}
-	if iter, err := prov.LookupPath(cue.ParsePath("sources")).Fields(); err == nil {
+	sources := prov.LookupPath(cue.ParsePath("sources"))
+	iter, err := sources.Fields()
+	switch {
+	// Absent is not empty, and Fields() cannot tell them apart: on a
+	// region that is not there it returns an empty iterator and no
+	// error, which reads as a baseline of nothing. The schema requires
+	// the region, so its absence means the provenance could not be read
+	// rather than that nothing was recorded.
+	case !sources.Exists(), err != nil:
+		rep.BaselineUnreadable = true
+	default:
 		for iter.Next() {
-			h, _ := iter.Value().String()
+			h, herr := iter.Value().String()
+			if herr != nil {
+				// A digest that is not a string cannot be compared
+				// against one. Recording it as "" would make every
+				// current file look changed, which is a different wrong
+				// answer, so the baseline is declared unreadable instead.
+				rep.BaselineUnreadable = true
+				continue
+			}
 			baseline[iter.Selector().Unquoted()] = h
 		}
 	}
@@ -126,6 +156,10 @@ func Compare(prov cue.Value, m Manifest) Report {
 	// client makes. Moved baselined sources do — what the view was
 	// derived from is no longer what it was. A scope mismatch is stale
 	// on its face: nothing recorded describes what was submitted.
-	rep.Stale = len(rep.Changed) > 0 || len(rep.Missing) > 0 || rep.ScopeMismatch
+	// An unreadable baseline is stale by construction. Nothing here can
+	// show the view current, and "not stale" is the one answer a caller
+	// acts on by doing nothing — so the failure must not render as the
+	// reassuring outcome.
+	rep.Stale = len(rep.Changed) > 0 || len(rep.Missing) > 0 || rep.ScopeMismatch || rep.BaselineUnreadable
 	return rep
 }

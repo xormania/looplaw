@@ -180,6 +180,41 @@ func main() {
 			fmt.Printf("declared against law %s; binds nothing until ratified\n", law.Hash[:12])
 		}
 		os.Exit(outcome.ExitOK)
+	case "authority":
+		if len(os.Args) != 3 {
+			fmt.Fprintln(os.Stderr, "usage: looplaw authority <party>")
+			os.Exit(outcome.ExitUsage)
+		}
+		d := openDeployment()
+		defer d.Close()
+		rec, refusal := record.BindAuthority(d, party(), os.Args[2])
+		if refusal != nil {
+			refuse(*refusal)
+		}
+		// Recorded as claimed. Nothing can confer standing on this
+		// binding — the party whose act would confer it is the one being
+		// named — so what the ledger offers is that it cannot change
+		// quietly, not that it is true.
+		fmt.Printf("accountable authority recorded as %q (claimed, seq %d)\n", os.Args[2], rec.Seq)
+		os.Exit(outcome.ExitOK)
+	case "ratify":
+		if len(os.Args) != 4 {
+			fmt.Fprintln(os.Stderr, "usage: looplaw ratify <project> <subject>")
+			os.Exit(outcome.ExitUsage)
+		}
+		d := openDeployment()
+		defer d.Close()
+		p := openProject(os.Args[2])
+		defer p.Close()
+		recs, refusals := record.Ratify(d, p, os.Args[3], party())
+		if len(refusals) > 0 {
+			refuse(refusals...)
+		}
+		for _, r := range recs {
+			fmt.Printf("%s seq %d %s\n", r.Type, r.Seq, r.Hash)
+		}
+		fmt.Printf("%s is law from this act onward; it cures nothing before it\n", os.Args[3])
+		os.Exit(outcome.ExitOK)
 	case "verify":
 		if len(os.Args) != 3 {
 			fmt.Fprintln(os.Stderr, "usage: looplaw verify <project>")
@@ -284,6 +319,28 @@ func main() {
 	}
 }
 
+// openDeployment opens the ledger at the state root itself. The
+// accountable authority is one per deployment, so its binding lives
+// beside the projects rather than inside one: bound per project, two
+// projects could disagree about who may make law.
+func openDeployment() *store.Store {
+	root, err := store.DefaultRoot()
+	if err != nil {
+		refuse(outcome.Refusal{
+			Class: outcome.Abort, Check: "deployment/root", Subject: "state root",
+			Reason: err.Error(), Remedy: "set LOOPLAW_ROOT to a writable location",
+		})
+	}
+	s, err := store.Open(root)
+	if err != nil {
+		refuse(outcome.Refusal{
+			Class: outcome.Abort, Check: "deployment/open", Subject: root,
+			Reason: err.Error(), Remedy: "the deployment ledger could not be opened",
+		})
+	}
+	return s
+}
+
 // refuse prints refusals to stderr and exits with the gravest class's
 // code: refusals are protocol, so the stream and the code are what a
 // caller branches on.
@@ -362,6 +419,12 @@ commands:
                        record a proposed goal set as a claim; the gates
                        check it and their refusals are the worklist. A
                        declaration binds nothing until it is ratified
+  authority <party>    record which party holds this deployment's
+                       accountable authority; recorded as claimed, and
+                       the first binding holds
+  ratify <project> <subject>
+                       the accountable authority's act: a declared draft
+                       becomes law, from the act onward
   verify <project>     recompute every hash and link in the ledger
   export <project>     print the ledger as recorded
   status <view> <scope> report which sources moved under an absorbed

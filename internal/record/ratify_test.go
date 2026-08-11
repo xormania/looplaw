@@ -184,13 +184,26 @@ func TestBindingNoPartyIsRefused(t *testing.T) {
 	}
 }
 
+// The credit is the red itself, not a note about one: each entry holds
+// the function that proves its check, so this runs the red rather than
+// trusting a comment. Delete the red and this stops compiling.
 // Every check the ratification gates can emit has a proving red.
 func TestEveryRatificationGateHasAProvingRed(t *testing.T) {
-	proven := map[string]bool{
-		"ratify/unbound":   true, // TestRatifyingWithNoAuthorityBoundIsRefused
-		"ratify/authority": true, // TestOnlyTheAccountableAuthorityRatifies
-		"ratify/target":    true, // TestRatifyingWithNoDeclarationIsRefused
-		"ratify/standing":  true, // TestRatifyingWhatAlreadyHoldsStandingIsRefused
+	proven := map[string]bool{}
+	for _, red := range []struct {
+		check string
+		run   func(*testing.T)
+	}{
+		{"ratify/unbound", TestRatifyingWithNoAuthorityBoundIsRefused},
+		{"ratify/authority", TestOnlyTheAccountableAuthorityRatifies},
+		{"ratify/target", TestRatifyingWithNoDeclarationIsRefused},
+		{"ratify/standing", TestRatifyingWhatAlreadyHoldsStandingIsRefused},
+	} {
+		if !t.Run("proving "+red.check, red.run) {
+			t.Errorf("the red for %s did not pass, so it proves nothing", red.check)
+			continue
+		}
+		proven[red.check] = true
 	}
 	for _, check := range gate.RatificationChecks {
 		if !proven[check] {

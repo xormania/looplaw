@@ -241,20 +241,38 @@ func TestFoldedIdCollisionIsRefused(t *testing.T) {
 	})
 }
 
-// Every check loading a manifest can emit has a proving red.
+// Every check loading a manifest can emit has a proving red — and the
+// credit is the red itself, not a note about one.
+//
+// Each entry names the check and holds the function that proves it, so
+// the meta-test runs the red rather than trusting a comment. Delete the
+// red and this stops compiling; leave it and stop asserting its check
+// and the red itself fails. The map this replaced would have gone on
+// passing with the test gone, which is what an audit demonstrated by
+// deleting one.
 func TestEveryComponentCheckHasAProvingRed(t *testing.T) {
 	exempt := map[string]string{
 		"components/schema-load": "internal integrity abort: fires only if the schema embedded in the binary is broken — unreachable from any manifest by construction",
 		"components/decode":      "internal integrity abort: fires only if a value that passed the ratified shape cannot decode into its Go mirror",
 	}
-	proven := map[string]bool{
-		"components/load":            true, // TestUnreadableManifestAborts
-		"components/parse":           true, // TestMalformedManifestIsRefused
-		"components/shape":           true, // TestManifestOffTheRatifiedShapeIsRefused
-		"components/unlisted":        true, // TestEdgeToAnUnlistedComponentIsRefused
-		"components/source-conflict": true, // TestConflictingDigestsForOneSourceAreRefused
-		"components/sourceless":      true, // TestComponentWithNoSourcesIsRefused
-		"components/id-collision":    true, // TestFoldedIdCollisionIsRefused
+	proven := map[string]bool{}
+	for _, red := range []struct {
+		check string
+		run   func(*testing.T)
+	}{
+		{"components/load", TestUnreadableManifestAborts},
+		{"components/parse", TestMalformedManifestIsRefused},
+		{"components/shape", TestManifestOffTheRatifiedShapeIsRefused},
+		{"components/unlisted", TestEdgeToAnUnlistedComponentIsRefused},
+		{"components/source-conflict", TestConflictingDigestsForOneSourceAreRefused},
+		{"components/sourceless", TestComponentWithNoSourcesIsRefused},
+		{"components/id-collision", TestFoldedIdCollisionIsRefused},
+	} {
+		if !t.Run("proving "+red.check, red.run) {
+			t.Errorf("the red for %s did not pass, so it proves nothing", red.check)
+			continue
+		}
+		proven[red.check] = true
 	}
 	for _, check := range ComponentChecks {
 		if proven[check] {

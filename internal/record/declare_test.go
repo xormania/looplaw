@@ -195,13 +195,26 @@ func TestCurrentLawIsTheMostRecentRatifiedSet(t *testing.T) {
 	}
 }
 
+// The credit is the red itself, not a note about one: each entry holds
+// the function that proves its check, so this runs the red rather than
+// trusting a comment. Delete the red and this stops compiling.
 // Every check the declaration gates can emit has a proving red. A check
 // added to DeclarationChecks without one fails here.
 func TestEveryDeclarationGateHasAProvingRed(t *testing.T) {
-	proven := map[string]bool{
-		"declare/provenance":       true, // TestDeclaringAnAbsorbedViewIsRefused
-		"declare/party":            true, // TestDeclarationWithoutAPartyIsRefused
-		"declare/subject-mismatch": true, // TestDeclarationAgainstDifferentSubjectIsRefused
+	proven := map[string]bool{}
+	for _, red := range []struct {
+		check string
+		run   func(*testing.T)
+	}{
+		{"declare/provenance", TestDeclaringAnAbsorbedViewIsRefused},
+		{"declare/party", TestDeclarationWithoutAPartyIsRefused},
+		{"declare/subject-mismatch", TestDeclarationAgainstDifferentSubjectIsRefused},
+	} {
+		if !t.Run("proving "+red.check, red.run) {
+			t.Errorf("the red for %s did not pass, so it proves nothing", red.check)
+			continue
+		}
+		proven[red.check] = true
 	}
 	for _, check := range gate.DeclarationChecks {
 		if !proven[check] {

@@ -563,16 +563,30 @@ func TestEveryGateHasAProvingRed(t *testing.T) {
 		"trinity/schema-load": "internal integrity abort: fires only if the law embedded in the binary is itself broken — unreachable from any set fixture by construction; guarded instead by the build (embed of vetted law) and CI's cue vet producer",
 	}
 
-	proven := map[string]bool{
-		"trinity/load":              true, // TestUnreadablePathAborts
-		"trinity/vacuity":           true, // TestVacuousSetRefused
-		"trinity/region-unreadable": true, // TestUnreadableRegionIsFinding
-		"trinity/decomp-grounded":   true, // TestUngroundedInteriorRefused
-		// TestProvenanceRedsAreRedForTheirDeclaredReason
-		"trinity/provenance-address":  true,
-		"trinity/provenance-source":   true,
-		"trinity/provenance-coverage": true,
-		"trinity/optional":            true, // TestOptionalFieldIsRefusedAtEveryDepth
+	// The mutation table below is honest by construction: it is walked to
+	// run the reds and walked again to credit them. These eight are not
+	// mutations, so their credit names the function that proves them and
+	// runs it — deleting one stops this compiling, where the comment it
+	// replaced would have left the check reported as demonstrated.
+	proven := map[string]bool{}
+	for _, red := range []struct {
+		check string
+		run   func(*testing.T)
+	}{
+		{"trinity/load", TestUnreadablePathAborts},
+		{"trinity/vacuity", TestVacuousSetRefused},
+		{"trinity/region-unreadable", TestUnreadableRegionIsFinding},
+		{"trinity/decomp-grounded", TestUngroundedInteriorRefused},
+		{"trinity/provenance-address", TestProvenanceRedsAreRedForTheirDeclaredReason},
+		{"trinity/provenance-source", TestProvenanceRedsAreRedForTheirDeclaredReason},
+		{"trinity/provenance-coverage", TestProvenanceRedsAreRedForTheirDeclaredReason},
+		{"trinity/optional", TestOptionalFieldIsRefusedAtEveryDepth},
+	} {
+		if !t.Run("proving "+red.check, red.run) {
+			t.Errorf("the red for %s did not pass, so it proves nothing", red.check)
+			continue
+		}
+		proven[red.check] = true
 	}
 	for _, m := range mutations {
 		proven[m.wantCheck] = true

@@ -76,6 +76,7 @@ you invent instead may answer a different question than you asked:
     dev/lock        the design basis seal
     dev/cover       coverage, attributed across packages
     dev/absorb-self this repository derived and absorbed through the act
+    go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 `dev/cover` exists because the obvious method lies. `go test ./...
 -coverprofile` attributes coverage only to the package under test, so a

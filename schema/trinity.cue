@@ -7,6 +7,20 @@ package schema
 #Status: "proposed" | "ratified" | "corrected" | "withdrawn"
 #Tier:   "CANON" | "REVIEW" | "QUALIFY" | "BANNED"
 
+// Text a set states: at least one character that is not whitespace.
+//
+// A meaning-bearing field left empty asserts nothing while reading as a
+// statement — a guarantee that records "", a contract named "", a blame
+// clause whose evidence is "" all passed the gates and became law that
+// cannot carry the semantics its own fields promise. Trimmed rather than
+// merely non-empty, because "  " states as little as "".
+//
+// Not applied to every string in the schema. Where a register may
+// genuinely have nothing to say — a term with no known collision, a
+// party with no note — requiring text buys filler, which is worse than
+// an empty field and harder to read past.
+#Text: string & =~"[^[:space:]]"
+
 // Reference grammars: party and act ids share one grammar; every
 // reference field carries it, so an empty or malformed reference is
 // refused by shape, and the relational checks only ever adjudicate
@@ -19,7 +33,7 @@ package schema
 #TermEntry: {
 	term:       string
 	tier:       #Tier
-	definition: string
+	definition: #Text
 	authority:  #PartyRef | "none" // a party id in the set's registry, or "none"
 	related: [...string]
 	aliases: [...string]
@@ -30,7 +44,7 @@ package schema
 	violation: string
 	rewrite:   string
 	status:    #Status
-	trigger?:  string
+	trigger?:  #Text
 }
 
 // A party: an architectural component of the target system. Deliberately
@@ -38,7 +52,7 @@ package schema
 // certifies, not an omission.
 #Party: {
 	id:             #PartyRef
-	name:           string
+	name:           #Text
 	note:           string
 	authority_free: bool
 }
@@ -46,8 +60,8 @@ package schema
 // A global invariant of the target system (its own tier, cited by id).
 #SetInvariant: {
 	id:        string & =~"^L-[0-9]+$" // disjoint from clause-id grammars by prefix
-	text:      string
-	rationale: string
+	text:      #Text
+	rationale: #Text
 }
 
 // An act-bearing contract between two parties. Every reserved act of the
@@ -55,7 +69,7 @@ package schema
 // enforced by the gates, not expressible here).
 #Contract: {
 	id:   string & =~"^C-[A-Z0-9-]+$"
-	name: string
+	name: #Text
 	parties: {
 		client:   #PartyRef // party id: owes the preconditions
 		supplier: #PartyRef // party id: owes the guarantees
@@ -63,21 +77,21 @@ package schema
 	acts: [...#ActRef] // reserved operations this contract holds; >= 1
 	// Client obligations: each verifiable from the submission and
 	// recorded state — never from good faith or live component internals.
-	preconditions: [ID=string & =~"^P-[0-9]+$"]: {text: string}
+	preconditions: [ID=string & =~"^P-[0-9]+$"]: {text: #Text}
 	// Supplier postconditions: what becomes true, and what is recorded —
 	// every state transition a guarantee produces is recorded (no silent
 	// transitions).
-	guarantees: [ID=string & =~"^G-[0-9]+$"]: {text: string, records: string}
+	guarantees: [ID=string & =~"^G-[0-9]+$"]: {text: #Text, records: #Text}
 	// Genuinely local invariants only; the set's globals are cited by id
 	// in `cites`, never restated.
-	invariants_local: [ID=string & =~"^LI-[0-9]+$"]: {text: string}
+	invariants_local: [ID=string & =~"^LI-[0-9]+$"]: {text: #Text}
 	cites: [...string] // #SetInvariant ids this contract binds under
-	synchronization?: string // only where atomicity/ordering is doctrine
+	synchronization?: #Text // only where atomicity/ordering is doctrine
 	// Which party is at fault for which violation class, adjudicated
 	// from which recorded evidence — never from live component state.
-	blame: [...{violation_class: string, at_fault: #PartyRef, evidence: string}]
+	blame: [...{violation_class: #Text, at_fault: #PartyRef, evidence: #Text}]
 	status:   #Status
-	trigger?: string
+	trigger?: #Text
 	// The contract's decomposition, when its interior is designed.
 	interior?: #Interior
 }
@@ -150,7 +164,7 @@ package schema
 // never binding, never a contract clause in disguise.
 #ExperienceEntry: {
 	id:       string & =~"^X-[0-9]+$"
-	judgment: string
+	judgment: #Text
 	// At least one cite: judgment attaches to law, it never floats.
 	cites: [string, ...string] // contract or invariant ids
 	advisory: true

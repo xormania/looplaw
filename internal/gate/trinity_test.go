@@ -583,6 +583,7 @@ func TestEveryGateHasAProvingRed(t *testing.T) {
 		{"trinity/provenance-coverage", TestProvenanceRedsAreRedForTheirDeclaredReason},
 		{"trinity/optional", TestOptionalFieldIsRefusedAtEveryDepth},
 		{"trinity/open-value", TestOpenValuesAreRefusedAsAuthoredLaw},
+		{"trinity/absence-declared", TestAbsenceDeclarationMustAgreeWithTheRegister},
 	} {
 		if !t.Run("proving "+red.check, red.run) {
 			t.Errorf("the red for %s did not pass, so it proves nothing", red.check)
@@ -953,5 +954,169 @@ func TestReportedChecksAreOnesThatCouldRun(t *testing.T) {
 		if reported[c] {
 			t.Errorf("%s cannot run over bytes and is reported as run", c)
 		}
+	}
+}
+
+// Proving red: a meaning-bearing field left empty asserts nothing while
+// reading as a statement. A guarantee that records "" states an
+// obligation with no recorded result; a blame clause whose evidence is
+// "" names a fault adjudicated from nothing; a contract named "" is the
+// region blame and verification are adjudicated from, unnamed. All of
+// them passed the gates and would have become law.
+//
+// Whitespace counts as empty: "  " states as little as "".
+func TestAStatedFieldMustStateSomething(t *testing.T) {
+	for _, tc := range []struct{ name, old, new, wantPath string }{
+		{"contract name", `name: "the lending contract"`, `name: ""`, "name"},
+		{"precondition text", `"P-1": {text: "A live loan names this borrower and this book, verifiable from the loan records."}`,
+			`"P-1": {text: ""}`, "P-1"},
+		{"guarantee text", `"G-1": {text: "The loan is retired and the retirement is recorded; the book is lendable again.", records: "the return record"}`,
+			`"G-1": {text: "   ", records: "the return record"}`, "G-1"},
+		{"what a guarantee records", `"G-1": {text: "The loan is retired and the retirement is recorded; the book is lendable again.", records: "the return record"}`,
+			`"G-1": {text: "The loan is retired.", records: ""}`, "G-1"},
+		{"the violation blame names", `{violation_class: "late return", at_fault: "borrower"`, `{violation_class: "", at_fault: "borrower"`, "blame"},
+		{"the evidence blame adjudicates from", `evidence: "the loan record's due date against the return record's date"`,
+			`evidence: ""`, "blame"},
+		{"an invariant's text", `text:      "Every loan is recorded; no book leaves the building on an unrecorded loan."`, `text:      ""`, "L-1"},
+		{"a judgment", `judgment: "December renewals are adjudicated leniently: exam season produces late requests in good faith; advise renewal over fault-finding."`, `judgment: ""`, "X-1"},
+		{"a party's name", `name:           "the borrower"`, `name:           ""`, "borrower"},
+		{"a term's definition", `definition: "The recorded standing created by the librarian's lend act: one book, one borrower, one due date. Only the lend act creates a loan; return retires it."`,
+			`definition: ""`, "loan"},
+		// Optional fields too: absence is how a set says there is none,
+		// so a stated one that says nothing is the same defect.
+		{"a stated trigger", "\t\tstatus: \"ratified\"\n\t\tinterior:", "\t\tstatus: \"ratified\"\n\t\ttrigger: \"\"\n\t\tinterior:", "trigger"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			base, err := os.ReadFile(fixture)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(base), tc.old) {
+				t.Fatalf("mutation target drifted from the fixture: %q", tc.old)
+			}
+			path := filepath.Join(t.TempDir(), "set.cue")
+			if err := os.WriteFile(path, []byte(strings.Replace(string(base), tc.old, tc.new, 1)), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			refusals := ValidateTrinity(path)
+			var got *outcome.Refusal
+			for i := range refusals {
+				if refusals[i].Check == "trinity/shape" {
+					got = &refusals[i]
+					break
+				}
+			}
+			if got == nil {
+				t.Fatalf("a field that states nothing passed as law: %v", refusals)
+			}
+			// A red for the wrong reason proves nothing: the refusal
+			// must name where the empty field stands.
+			if !strings.Contains(got.Reason, tc.wantPath) {
+				t.Errorf("refusal does not name %q: %s", tc.wantPath, got.Reason)
+			}
+		})
+	}
+}
+
+// The registers a set may genuinely have nothing to say in stay open.
+// Requiring text there buys filler, which is worse than an empty field
+// and harder to read past — recorded here so the next reader does not
+// re-derive it and tighten them.
+func TestRegistersThatMayBeEmptyStayGreen(t *testing.T) {
+	base, err := os.ReadFile(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ name, old, new string }{
+		{"a party with no note", `note:           "deliberately authority-free: proposes, requests, returns — holds nothing"`, `note:           ""`},
+		{"a term with no known collision", `collision:  "The finance prior: a loan as money owed at interest; here nothing accrues and the standing is possession, not debt."`, `collision:  ""`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if !strings.Contains(string(base), tc.old) {
+				t.Fatalf("target drifted from the fixture: %q", tc.old)
+			}
+			path := filepath.Join(t.TempDir(), "set.cue")
+			if err := os.WriteFile(path, []byte(strings.Replace(string(base), tc.old, tc.new, 1)), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			for _, r := range ValidateTrinity(path) {
+				t.Errorf("a register that may be empty was refused: %s", r.Error())
+			}
+		})
+	}
+}
+
+// Proving red: the judgment register declares its own absence, because
+// silence is not a declaration. Nothing related the declaration to the
+// register, so a set could hold judgments and declare there are none —
+// and the reverse, declaring judgments it does not hold.
+//
+// It is the one contradiction the shape gate cannot state: both fields
+// are separately well-formed, and only reading them together shows the
+// set disagreeing with itself.
+func TestAbsenceDeclarationMustAgreeWithTheRegister(t *testing.T) {
+	for _, tc := range []struct{ name, old, new, wantIn string }{
+		{"declared absent while holding one", "experience_declared_absent: false", "experience_declared_absent: true", "1 judgment"},
+		{"a second judgment is no contradiction",
+			"experience: {\n\t\"X-1\": {", "experience: {\n\t\"X-0\": {\n\t\tjudgment: \"a second judgment\"\n\t\tcites: [\"L-1\"]\n\t\tadvisory: true\n\t}\n\t\"X-1\": {", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			base, err := os.ReadFile(fixture)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(base), tc.old) {
+				t.Fatalf("mutation target drifted from the fixture: %q", tc.old)
+			}
+			path := filepath.Join(t.TempDir(), "set.cue")
+			if err := os.WriteFile(path, []byte(strings.Replace(string(base), tc.old, tc.new, 1)), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			refusals := ValidateTrinity(path)
+			if tc.wantIn == "" {
+				// The second case is a control: adding a judgment to a
+				// set that already declares it holds them is no
+				// contradiction, and must stay green.
+				for _, r := range refusals {
+					if r.Check == "trinity/absence-declared" {
+						t.Errorf("a set agreeing with itself was refused: %s", r.Error())
+					}
+				}
+				return
+			}
+			var got *outcome.Refusal
+			for i := range refusals {
+				if refusals[i].Check == "trinity/absence-declared" {
+					got = &refusals[i]
+					break
+				}
+			}
+			if got == nil {
+				t.Fatalf("a set contradicting itself passed as law: %v", refusals)
+			}
+			if !strings.Contains(got.Reason, tc.wantIn) {
+				t.Errorf("the refusal must name what the register holds: %q", got.Reason)
+			}
+			if got.Class != outcome.Rejection {
+				t.Errorf("class = %s, want rejection", got.Class)
+			}
+		})
+	}
+
+	// And the honest declaration of an empty register stays green: a set
+	// with no judgments that says so is the case the field exists for.
+	base, _ := os.ReadFile(fixture)
+	start := strings.Index(string(base), "experience: {")
+	end := strings.Index(string(base), "experience_declared_absent:")
+	emptied := string(base)[:start] + "experience: {}\n" + string(base)[end:]
+	emptied = strings.Replace(emptied, "experience_declared_absent: false", "experience_declared_absent: true", 1)
+	path := filepath.Join(t.TempDir(), "set.cue")
+	if err := os.WriteFile(path, []byte(emptied), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range ValidateTrinity(path) {
+		t.Errorf("an empty register declared absent was refused: %s", r.Error())
 	}
 }

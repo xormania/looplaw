@@ -74,7 +74,14 @@ var submittableKinds = map[string]bool{"claim": true, "receipt": true}
 // ValidateSubmission verifies the preconditions of the record act. It
 // judges nothing about the content: whether a claim is true is not a
 // question the gates ask, and recording settles only that it was said.
-func ValidateSubmission(sub Submission) []outcome.Refusal {
+//
+// The returned check list names the checks that actually ran, not the
+// gate's full set. submit/receipt-shape runs only for a receipt, so an
+// admission written from SubmissionChecks claimed a check that never
+// touched the claim it recorded — evidence of an examination that did
+// not happen, which is what an admission is least able to afford.
+func ValidateSubmission(sub Submission) ([]string, []outcome.Refusal) {
+	var ran []string
 	var refusals []outcome.Refusal
 	refuse := func(check, subject, reason, remedy string) {
 		refusals = append(refusals, outcome.Refusal{
@@ -83,6 +90,7 @@ func ValidateSubmission(sub Submission) []outcome.Refusal {
 		})
 	}
 
+	ran = append(ran, "submit/kind")
 	if !submittableKinds[sub.Kind] {
 		var kinds []string
 		for k := range submittableKinds {
@@ -96,20 +104,24 @@ func ValidateSubmission(sub Submission) []outcome.Refusal {
 			"submit a claim (what you state) or a receipt (evidence of something that happened elsewhere)")
 	}
 
+	ran = append(ran, "submit/subject")
 	if !nameRE.MatchString(sub.Subject) {
 		refuse("submit/subject", "subject", "a submission names no subject",
 			"name what the submission is about; a record about nothing can never be found or falsified")
 	}
+	ran = append(ran, "submit/party")
 	if !nameRE.MatchString(sub.Party) {
 		refuse("submit/party", "party", "a submission names no submitting party",
 			"name the submitting party; recording settles that a party said a thing, which is unstatable without the party")
 	}
+	ran = append(ran, "submit/content")
 	if strings.TrimSpace(sub.Body) == "" {
 		refuse("submit/content", "body", "a submission carries nothing",
 			"state what is claimed, or what the receipt evidences")
 	}
 
 	if sub.Kind == "receipt" {
+		ran = append(ran, "submit/receipt-shape")
 		var r Receipt
 		switch err := json.Unmarshal([]byte(sub.Body), &r); {
 		case err != nil:
@@ -127,5 +139,5 @@ func ValidateSubmission(sub Submission) []outcome.Refusal {
 		}
 	}
 
-	return refusals
+	return ran, refusals
 }

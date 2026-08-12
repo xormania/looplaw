@@ -64,6 +64,18 @@ func ScanScope(root, scopeName string) (Manifest, error) {
 		return Manifest{}, fmt.Errorf("scan scope: no scope name supplied; the caller names the scope, the client never derives it from a path")
 	}
 
+	// Every file is opened through a root confined to the scope, so what
+	// is hashed is reached from inside it. The walk classifies one inode
+	// and the open resolves the same pathname again, so an entry
+	// replaced between those two steps was classified as a regular file
+	// and opened as whatever it had become — done with a symlink, that
+	// hashed /etc/passwd into a manifest naming the scope.
+	scope, err := os.OpenRoot(root)
+	if err != nil {
+		return Manifest{}, fmt.Errorf("scan scope: %w", err)
+	}
+	defer scope.Close()
+
 	m := Manifest{Scope: scopeName, Sources: map[string]string{}}
 	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -89,26 +101,88 @@ func ScanScope(root, scopeName string) (Manifest, error) {
 		if !utf8.ValidString(slash) {
 			return fmt.Errorf("path is not valid UTF-8 and cannot be baselined without collision risk: %q", slash)
 		}
-		f, err := os.Open(path)
+		digest, err := hashEntry(scope, rel)
 		if err != nil {
 			return err
 		}
-		h := sha256.New()
-		// Streamed, not read whole: a large file in a scope must draw a
-		// refusal with a remedy, never a runtime fatal no caller can
-		// catch.
-		if _, err := io.Copy(h, f); err != nil {
-			f.Close()
-			return err
-		}
-		f.Close()
-		m.Sources[slash] = hex.EncodeToString(h.Sum(nil))
+		m.Sources[slash] = digest
 		return nil
 	})
 	if err != nil {
 		return Manifest{}, fmt.Errorf("scan scope: %w", err)
 	}
 	return m, nil
+}
+
+// hashEntry opens one entry through the scope's root and hashes what it
+// opened.
+//
+// Two guards, both about the gap between classifying an entry and
+// reading it. The root refuses a path that leaves the scope, so an entry
+// replaced by a symlink out of it is refused rather than followed —
+// provenance naming a scope while attesting to bytes outside it was the
+// defect. The mode is then read from the descriptor about to be hashed
+// rather than from the walk's earlier look at the name, because a device
+// or a pipe swapped in behind a regular file reads forever and no size
+// bound helps.
+//
+// What this does not promise: an entry whose content changes while the
+// scan runs is hashed as it was read. That is a tree changing under the
+// caller who named it, and a baseline records what the absorption read,
+// which is the honest answer for it.
+func hashEntry(scope *os.Root, rel string) (string, error) {
+	// The kind is checked without following the name and before opening
+	// it. Opening a pipe blocks until a writer appears, so a check that
+	// runs after the open never runs at all — the scan simply stops,
+	// which no size or count bound reaches.
+	if fi, err := scope.Lstat(rel); err != nil {
+		return "", err
+	} else if !fi.Mode().IsRegular() {
+		return "", fmt.Errorf("%s is a %s where the walk found a regular file, so it changed between being classified and being read", rel, kindOf(fi.Mode()))
+	}
+
+	f, err := scope.Open(rel)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	// Again from the descriptor about to be read, because the name was
+	// resolved a third time to open it.
+	fi, err := f.Stat()
+	if err != nil {
+		return "", err
+	}
+	if !fi.Mode().IsRegular() {
+		return "", fmt.Errorf("%s changed kind between being classified and being read, so it is not scope content", rel)
+	}
+
+	h := sha256.New()
+	// Streamed, not read whole: a large file in a scope must draw a
+	// refusal with a remedy, never a runtime fatal no caller can catch.
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// kindOf names what an entry is, in words: a refusal is read by whoever
+// has to act on it, and Go's mode string ("L---------") tells them
+// nothing they can use.
+func kindOf(m os.FileMode) string {
+	switch {
+	case m&os.ModeSymlink != 0:
+		return "symbolic link"
+	case m&os.ModeNamedPipe != 0:
+		return "named pipe"
+	case m&os.ModeSocket != 0:
+		return "socket"
+	case m&os.ModeDevice != 0:
+		return "device"
+	case m.IsDir():
+		return "directory"
+	}
+	return "not a regular file"
 }
 
 // Skeleton renders a draft view: the provenance block filled from the

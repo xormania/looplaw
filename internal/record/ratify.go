@@ -46,6 +46,15 @@ func Ratify(deployment, project *store.Store, subject, party string) ([]store.Re
 		}}
 	}
 
+	// What this act reads to decide: the binding, on the deployment's
+	// ledger, and the declared draft and current law on the project's.
+	// Both, because either one rewritten makes law nobody declared.
+	for _, s := range []*store.Store{deployment, project} {
+		if refusal := decidesFrom(s, "ratify/ledger"); refusal != nil {
+			return nil, []outcome.Refusal{*refusal}
+		}
+	}
+
 	authority, err := CurrentAuthority(deployment)
 	if err != nil {
 		return nil, abort("ratify/read", err.Error())

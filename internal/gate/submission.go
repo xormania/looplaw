@@ -48,7 +48,20 @@ type Receipt struct {
 func IsName(s string) bool { return nameRE.MatchString(s) }
 
 var (
-	nameRE = regexp.MustCompile(`^[^\s][^\n]*$`)
+	// A name is one line of printable text: it must not begin with
+	// whitespace, and must hold no control character anywhere.
+	//
+	// The second half was `[^\n]*`, which constrained the newline alone —
+	// and `[^\s]` constrains only the first character, so a carriage
+	// return, a tab or a terminal escape passed anywhere after it. A name
+	// is recorded and the ledger is append-only, so what got in outlived
+	// the run: a carriage return returns a terminal's cursor to column
+	// zero, and a reader met the forgery raw every time afterwards.
+	//
+	// Internal spaces stay legal, and so does anything outside ASCII: a
+	// name is read by people, and refusing what it can legitimately hold
+	// would be a different defect.
+	nameRE = regexp.MustCompile(`^[^\s\p{Cc}][^\p{Cc}]*$`)
 	hashRE = regexp.MustCompile(`^[0-9a-f]{64}$`)
 )
 

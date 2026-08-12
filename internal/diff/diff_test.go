@@ -488,3 +488,54 @@ func sortedFieldNames[V any](m map[string]V) []string {
 	sort.Strings(out)
 	return out
 }
+
+// Proving red: a side that could not be read is an abort — nothing is
+// wrong with the input, the input was not there. Wrapping it as a
+// rejection tells a caller their law was refused by policy, and hands
+// automation the wrong branch: a rejection is repaired by editing the
+// set, an abort by retrying once the infrastructure is back.
+func TestSideRefusalKeepsItsClass(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "absent.cue")
+	for _, tc := range []struct{ name, goal, view string }{
+		{"goal side unreadable", missing, view},
+		{"view side unreadable", goal, missing},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			gaps, refusals := Diff(tc.goal, tc.view)
+			if len(refusals) == 0 {
+				t.Fatal("an unreadable side diffed")
+			}
+			if gaps != nil {
+				t.Error("a refused diff produced gaps")
+			}
+			for _, r := range refusals {
+				if r.Class != outcome.Abort {
+					t.Errorf("class = %s, want abort: %s", r.Class, r.Error())
+				}
+				if r.Class.ExitCode() != outcome.ExitAbort {
+					t.Errorf("exit = %d, want %d", r.Class.ExitCode(), outcome.ExitAbort)
+				}
+			}
+		})
+	}
+
+	// A side that is readable and refused stays a rejection: the class
+	// is carried, not replaced with a different constant.
+	red := filepath.Join(t.TempDir(), "red.cue")
+	base, err := os.ReadFile(goal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(red, []byte(strings.Replace(string(base), `client:   "borrower"`, `client:   "ghost"`, 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, refusals := Diff(goal, red)
+	if len(refusals) == 0 {
+		t.Fatal("a set the gates refuse diffed")
+	}
+	for _, r := range refusals {
+		if r.Class != outcome.Rejection {
+			t.Errorf("class = %s, want rejection: %s", r.Class, r.Error())
+		}
+	}
+}

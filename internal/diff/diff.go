@@ -67,12 +67,19 @@ func Diff(goalPath, viewPath string) ([]Gap, []outcome.Refusal) {
 		rs   []outcome.Refusal
 	}{{"goal", goalRefusals}, {"view", viewRefusals}} {
 		for _, r := range side.rs {
+			// The class travels. Which side failed is what this adds;
+			// what kind of failure it was is the gate's to say, and
+			// replacing it with a constant told a caller a readable set
+			// had been refused by policy when the file was not there —
+			// a rejection is repaired by editing the set, an abort by
+			// retrying once the infrastructure is back, and the exit
+			// code a caller branches on follows the class.
 			refusals = append(refusals, outcome.Refusal{
-				Class:   outcome.Rejection,
+				Class:   r.Class,
 				Check:   "diff/side",
 				Subject: fmt.Sprintf("%s side (%s)", side.name, r.Subject),
 				Reason:  r.Error(),
-				Remedy:  "both sides must pass the trinity gates before a diff means anything",
+				Remedy:  "both sides must be readable and pass the trinity gates before a diff means anything",
 			})
 		}
 	}

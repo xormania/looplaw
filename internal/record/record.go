@@ -41,7 +41,8 @@ type Admission struct {
 // refused submission leaves no trace, which is why the gates are
 // mechanism: they originate nothing.
 func Submit(s *store.Store, sub gate.Submission) ([]store.Record, []outcome.Refusal) {
-	if refusals := gate.ValidateSubmission(sub); len(refusals) > 0 {
+	ran, refusals := gate.ValidateSubmission(sub)
+	if len(refusals) > 0 {
 		return nil, refusals
 	}
 
@@ -54,10 +55,14 @@ func Submit(s *store.Store, sub gate.Submission) ([]store.Record, []outcome.Refu
 	}
 
 	adm := Admission{
-		Kind:      sub.Kind,
-		Subject:   sub.Subject,
-		Party:     sub.Party,
-		ChecksRun: gate.SubmissionChecks,
+		Kind:    sub.Kind,
+		Subject: sub.Subject,
+		Party:   sub.Party,
+		// What ran, reported by the gate that ran it: the receipt shape
+		// is examined only for a receipt, and an admission is the
+		// evidence of an entry, so a check named there that never
+		// touched the content is the one lie it cannot afford.
+		ChecksRun: ran,
 	}
 	adm.ContentHash = store.ContentHash(content)
 	body, err := json.Marshal(adm)

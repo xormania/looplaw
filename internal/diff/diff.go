@@ -18,6 +18,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sort"
+	"strings"
 
 	"cuelang.org/go/cue"
 
@@ -139,7 +140,7 @@ func Diff(goalPath, viewPath string) ([]Gap, []outcome.Refusal) {
 		diffClauses(add, id, gc, vc)
 		if gc.fieldsHash != vc.fieldsHash {
 			add(id, "", "changed", "fill",
-				"contract-grain fields differ (parties, acts, cites, or interior)",
+				"contract-grain fields differ: "+strings.Join(differingFields(gc.fields, vc.fields), ", "),
 				gc.fieldsHash, vc.fieldsHash)
 		}
 	}
@@ -184,7 +185,87 @@ type contractInfo struct {
 	hash        string
 	fieldsHash  string
 	hasInterior bool
-	clauses     map[string]clauseInfo // raw clause ids; disjoint across regions by the shape gate's P-/G-/LI- grammar closure
+	// Every contract-grain field, by name, so a gap can say which ones
+	// differ rather than listing the fields the differ happens to know.
+	fields  map[string]string
+	clauses map[string]clauseInfo // raw clause ids; disjoint across regions by the shape gate's P-/G-/LI- grammar closure
+}
+
+// clauseRegions are diffed at clause grain, so they are not part of the
+// contract-grain digest: a changed precondition is a gap addressed to
+// that precondition, not to the contract.
+var clauseRegions = map[string]bool{
+	"preconditions": true, "guarantees": true, "invariants_local": true,
+}
+
+// fieldDigest determines a value: length-delimited so no boundary is
+// ambiguous, and struct fields in sorted order so a map's iteration
+// order cannot change the digest while its content is the same.
+//
+// Written over any value rather than field by field, because field by
+// field is how four of them went missing. #Contract states name, blame,
+// status and trigger, and the digest covered none of them — so a
+// contract could move from ratified to withdrawn, or reassign fault
+// between two registered parties, and the gap feed answered [].
+func fieldDigest(v cue.Value) string {
+	switch v.Kind() {
+	case cue.StructKind:
+		iter, err := v.Fields()
+		if err != nil {
+			return hashDelim("unreadable:" + err.Error())
+		}
+		digests := map[string]string{}
+		var keys []string
+		for iter.Next() {
+			k := iter.Selector().Unquoted()
+			digests[k] = fieldDigest(iter.Value())
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		out := hashDelim("{")
+		for _, k := range keys {
+			out += hashDelim(k) + digests[k]
+		}
+		return out + hashDelim("}")
+	case cue.ListKind:
+		list, err := v.List()
+		if err != nil {
+			return hashDelim("unreadable:" + err.Error())
+		}
+		out := hashDelim("[")
+		for list.Next() {
+			out += fieldDigest(list.Value())
+		}
+		return out + hashDelim("]")
+	default:
+		// Scalars through CUE's own encoding, so a string, a number and
+		// a bool that spell the same are still different values.
+		b, err := v.MarshalJSON()
+		if err != nil {
+			return hashDelim("unreadable:" + err.Error())
+		}
+		return hashDelim(string(b))
+	}
+}
+
+// differingFields names the contract-grain fields the two sides do not
+// agree on, including one present on a single side.
+func differingFields(a, b map[string]string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for name, digest := range a {
+		seen[name] = true
+		if b[name] != digest {
+			out = append(out, name)
+		}
+	}
+	for name := range b {
+		if !seen[name] {
+			out = append(out, name)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 func contractsOf(set cue.Value) map[string]contractInfo {
@@ -211,57 +292,26 @@ func contractsOf(set cue.Value) map[string]contractInfo {
 			}
 		}
 
-		interior := c.LookupPath(cue.ParsePath("interior"))
-		info.hasInterior = interior.Exists()
-		var interiorFields string
-		if info.hasInterior {
-			for _, ch := range listStrings(interior, "children") {
-				interiorFields += hashDelim(ch)
-			}
-			interiorFields += "|wires|"
-			if liter, err := interior.LookupPath(cue.ParsePath("wires")).List(); err == nil {
-				for liter.Next() {
-					w := liter.Value()
-					for _, p := range []string{"from.child", "from.guarantee", "to.child", "to.precondition"} {
-						v, _ := w.LookupPath(cue.ParsePath(p)).String()
-						interiorFields += hashDelim(v)
-					}
-				}
-			}
-			interiorFields += "|presents|"
-			presents := map[string]string{}
-			var pkeys []string
-			if piter, err := interior.LookupPath(cue.ParsePath("presents")).Fields(); err == nil {
-				for piter.Next() {
-					child, _ := piter.Value().LookupPath(cue.ParsePath("child")).String()
-					g, _ := piter.Value().LookupPath(cue.ParsePath("guarantee")).String()
-					k := piter.Selector().Unquoted()
-					presents[k] = hashDelim(child) + hashDelim(g)
-					pkeys = append(pkeys, k)
-				}
-			}
-			sort.Strings(pkeys)
-			for _, k := range pkeys {
-				interiorFields += hashDelim(k) + presents[k]
-			}
-		}
+		info.hasInterior = c.LookupPath(cue.ParsePath("interior")).Exists()
 
-		var fields string
-		for _, p := range []string{"parties.client", "parties.supplier", "synchronization"} {
-			v, _ := c.LookupPath(cue.ParsePath(p)).String()
-			fields += hashDelim(v)
-		}
-		for _, list := range []string{"acts", "cites"} {
-			liter, err := c.LookupPath(cue.ParsePath(list)).List()
-			if err == nil {
-				for liter.Next() {
-					s, _ := liter.Value().String()
-					fields += hashDelim(s)
+		// Every field the contract states, less the clause regions that
+		// are diffed at clause grain. Read from the contract rather than
+		// from a list beside it, so a field the schema gains is in the
+		// digest the day it is authored.
+		info.fields = map[string]string{}
+		if fiter, err := c.Fields(); err == nil {
+			for fiter.Next() {
+				name := fiter.Selector().Unquoted()
+				if clauseRegions[name] {
+					continue
 				}
+				info.fields[name] = fieldDigest(fiter.Value())
 			}
-			fields += "|"
 		}
-		fields += fmt.Sprintf("interior:%v|", info.hasInterior) + interiorFields
+		var fields string
+		for _, name := range sortedFields(info.fields) {
+			fields += hashDelim(name) + info.fields[name]
+		}
 		info.fieldsHash = hashOf(fields)
 
 		var whole string
@@ -308,23 +358,18 @@ func diffClauses(add func(contract, clause, kind, work, detail, gh, vh string), 
 	}
 }
 
+func sortedFields(m map[string]string) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
 func hashOf(s string) string {
 	sum := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(sum[:])
-}
-
-func listStrings(v cue.Value, path string) []string {
-	var out []string
-	liter, err := v.LookupPath(cue.ParsePath(path)).List()
-	if err != nil {
-		return nil
-	}
-	for liter.Next() {
-		if s, err := liter.Value().String(); err == nil {
-			out = append(out, s)
-		}
-	}
-	return out
 }
 
 func hashDelim(s string) string {

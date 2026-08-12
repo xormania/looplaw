@@ -333,3 +333,56 @@ func TestLedgerRefusesAnUnratifiedRecordKind(t *testing.T) {
 		t.Errorf("want only the ratified appends recorded, got %d records", len(recs))
 	}
 }
+
+// Proving red: the ledger holds submitted bodies, party names, the
+// authority binding and the whole law and evidence history. It was
+// created at whatever the umask allowed — 0755 directories and a 0644
+// database under the common 022 — so on a host where the parents are
+// traversable, every other local account could read it.
+//
+// A deployment that means to share a ledger says so by configuring it,
+// which is a different thing from inheriting it from a umask nobody
+// chose for this.
+func TestStateIsCreatedPrivate(t *testing.T) {
+	root := t.TempDir()
+	s, err := InitProject(root, "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Append(Evidence, "claim", "s", "b", "p"); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+
+	dir := filepath.Join(root, "projects", "demo")
+	assertMode(t, dir, 0o700)
+	assertMode(t, filepath.Join(dir, "looplaw.db"), 0o600)
+
+	// State an older binary left wide is narrowed when it is opened: a
+	// fix that only covers what it creates leaves every ledger already
+	// on disk exactly as exposed as it was.
+	if err := os.Chmod(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(filepath.Join(dir, "looplaw.db"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s2, err := OpenProject(root, "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s2.Close()
+	assertMode(t, dir, 0o700)
+	assertMode(t, filepath.Join(dir, "looplaw.db"), 0o600)
+}
+
+func assertMode(t *testing.T, path string, want os.FileMode) {
+	t.Helper()
+	fi, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := fi.Mode().Perm(); got != want {
+		t.Errorf("%s is %04o, want %04o", filepath.Base(path), got, want)
+	}
+}

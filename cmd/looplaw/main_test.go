@@ -310,3 +310,55 @@ func TestRefusalWireGrammar(t *testing.T) {
 		}
 	}
 }
+
+// Proving red: every command arm called os.Exit, which Go documents as
+// not running deferred functions, so every "defer s.Close()" in main.go
+// was decoration. SQLite checkpoints its write-ahead log and removes the
+// sidecars on a clean close; without one, a state directory kept a -wal
+// and a -shm beside the database after every command that touched it,
+// holding recorded content in files nothing was closing.
+//
+// Asserted on the directory rather than on the code, because what a
+// caller can observe is the directory.
+func TestCommandsCloseTheLedgerTheyOpened(t *testing.T) {
+	root := t.TempDir()
+	env := []string{"LOOPLAW_ROOT=" + root, "LOOPLAW_PARTY=behavior:test"}
+	body := filepath.Join(t.TempDir(), "claim.json")
+	if err := os.WriteFile(body, []byte(`{"states":"a contract exists"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, stderr, exit := runEnv(t, env, "init", "demo"); exit != 0 {
+		t.Fatalf("init: %d %s", exit, stderr)
+	}
+
+	left := func(after string) {
+		t.Helper()
+		entries, err := os.ReadDir(filepath.Join(root, "projects", "demo"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range entries {
+			if e.Name() != "looplaw.db" {
+				t.Errorf("after %s the ledger was left open: %s", after, e.Name())
+			}
+		}
+	}
+
+	for _, args := range [][]string{
+		{"submit", "demo", "claim", "scope-x", body},
+		{"verify", "demo"},
+		{"export", "demo"},
+	} {
+		if _, stderr, exit := runEnv(t, env, args...); exit != 0 {
+			t.Fatalf("%v: %d %s", args, exit, stderr)
+		}
+		left(args[0])
+	}
+
+	// And on the way out of a refusal, which is the path that had no
+	// close at all to skip.
+	if _, _, exit := runEnv(t, env, "submit", "demo", "claim", "", body); exit != outcome.ExitRejection {
+		t.Errorf("a refused submit: exit=%d", exit)
+	}
+	left("a refused submit")
+}

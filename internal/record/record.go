@@ -12,7 +12,6 @@ package record
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 
@@ -156,7 +155,7 @@ func Declare(s *store.Store, path, party string) ([]store.Record, []outcome.Refu
 	// Read once, gate the bytes, record the same bytes. Gating a path and
 	// reading it again leaves a window in which the file changes, so what
 	// passed the gates would not be what enters the ledger.
-	body, err := os.ReadFile(path)
+	body, err := gate.ReadSetFile(path)
 	if err != nil {
 		return nil, []outcome.Refusal{{
 			Class: outcome.Abort, Check: "declare/read",

@@ -30,6 +30,23 @@ type Submission struct {
 	Body    string
 }
 
+// MaxBytes bounds what a caller may hand the gates in one piece: a
+// submitted body, or a set file.
+//
+// Every read was unbounded, so a 16 MiB claim streamed through stdin was
+// allocated, hashed and stored, growing the ledger by the same amount,
+// and repetition scaled it linearly. Any wrapper putting these commands
+// in front of an untrusted submitter could spend a deployment's memory
+// and disk at the submitter's choosing.
+//
+// One megabyte, against the largest artifacts anyone writes here: the
+// biggest CUE in this repository is its own design basis at 71 KB, and a
+// law fixture is 7.6 KB. Fourteen times the largest real thing is a
+// bound that refuses an attack without ever meeting honest work — which
+// is the only kind of limit worth setting from here, since what a
+// deployment considers a large claim is not this binary's to know.
+const MaxBytes = 1 << 20
+
 // Receipt is the ratified receipt shape: evidence of something that
 // happened elsewhere.
 type Receipt struct {
@@ -115,9 +132,16 @@ func ValidateSubmission(sub Submission) ([]string, []outcome.Refusal) {
 			"name the submitting party; recording settles that a party said a thing, which is unstatable without the party")
 	}
 	ran = append(ran, "submit/content")
-	if strings.TrimSpace(sub.Body) == "" {
+	switch {
+	case strings.TrimSpace(sub.Body) == "":
 		refuse("submit/content", "body", "a submission carries nothing",
 			"state what is claimed, or what the receipt evidences")
+	case len(sub.Body) > MaxBytes:
+		// Checked here as well as where the bytes are read, so a caller
+		// that is not the command line meets the same bound.
+		refuse("submit/content", "body",
+			fmt.Sprintf("a submission carries %d bytes, and the gates take at most %d", len(sub.Body), MaxBytes),
+			"submit what is claimed; a body larger than this is a file to record the digest of, not a claim to read")
 	}
 
 	if sub.Kind == "receipt" {

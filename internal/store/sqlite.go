@@ -117,10 +117,36 @@ func (sqliteCatalog) List(root string) ([]string, error) {
 }
 
 func openSQLite(dir string) (Ledger, error) {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("open store: %w", err)
 	}
-	db, err := sql.Open("sqlite", filepath.Join(dir, "looplaw.db"))
+	// The ledger holds submitted bodies, party names, the authority
+	// binding and the whole law and evidence history. It was created at
+	// whatever the umask allowed — 0755 and 0644 under the common 022 —
+	// so on a host whose parents are traversable, every other local
+	// account could read it. A deployment that means to share one says
+	// so by configuring it, which is a different thing from inheriting
+	// it from a umask nobody chose for this.
+	//
+	// Narrowed on open, not only on create: MkdirAll leaves an existing
+	// directory alone, and a fix covering only new state leaves every
+	// ledger already on disk exactly as exposed as it was.
+	if err := os.Chmod(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("open store: %w", err)
+	}
+	path := filepath.Join(dir, "looplaw.db")
+	// Created here rather than by the driver, so the mode is this
+	// deployment's and not the umask's. The sidecars SQLite writes
+	// beside it are covered by the directory.
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("open store: %w", err)
+	}
+	f.Close()
+	if err := os.Chmod(path, 0o600); err != nil {
+		return nil, fmt.Errorf("open store: %w", err)
+	}
+	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, fmt.Errorf("open store: %w", err)
 	}

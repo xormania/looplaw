@@ -247,17 +247,26 @@ func main() {
 		fmt.Printf("%s is law from this act onward; it cures nothing before it\n", os.Args[3])
 		os.Exit(outcome.ExitOK)
 	case "verify":
-		if len(os.Args) != 3 {
-			fmt.Fprintln(os.Stderr, "usage: looplaw verify <project>")
+		if len(os.Args) != 3 && len(os.Args) != 4 {
+			fmt.Fprintln(os.Stderr, "usage: looplaw verify <project> [<count>:<hash>]")
 			os.Exit(outcome.ExitUsage)
+		}
+		expected := ""
+		if len(os.Args) == 4 {
+			expected = os.Args[3]
 		}
 		s := openProject(os.Args[2])
 		defer s.Close()
-		n, refusal := record.Verify(s)
+		n, current, refusal := record.Verify(s, expected)
 		if refusal != nil {
 			refuse(*refusal)
 		}
-		fmt.Printf("%s: %d records, chain verified\n", os.Args[2], n)
+		// The state printed is the argument that checks it next time, so
+		// a caller keeps this line rather than assembling one. Kept where
+		// the writer of this state root cannot reach it, it is what
+		// catches a ledger rewritten whole; kept beside it, it proves
+		// nothing.
+		fmt.Printf("%s: %d records, chain verified — recorded state %s\n", os.Args[2], n, current)
 		os.Exit(outcome.ExitOK)
 	case "export":
 		if len(os.Args) != 3 {
@@ -473,7 +482,13 @@ commands:
   ratify <project> <subject>
                        the accountable authority's act: a declared draft
                        becomes law, from the act onward
-  verify <project>     recompute every hash and link in the ledger
+  verify <project> [<count>:<hash>]
+                       recompute every hash and link in the ledger, and
+                       print the state to compare against next time. Given
+                       one, check the ledger against it: the chain is
+                       checked against itself, so only a value kept where
+                       this state root's writer cannot reach it catches a
+                       ledger rewritten whole
   export <project>     print the ledger as recorded
   status <view> <scope> report which sources moved under an absorbed
                        view and which statements they were derived from

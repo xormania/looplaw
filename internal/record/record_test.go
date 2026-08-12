@@ -1,8 +1,11 @@
 package record
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -85,7 +88,7 @@ func TestSubmitRecordsContentWithItsAdmission(t *testing.T) {
 		t.Errorf("admission states neither what entered nor which checks passed: %+v", adm)
 	}
 
-	if n, refusal := Verify(s); refusal != nil || n != 2 {
+	if n, _, refusal := Verify(s, ""); refusal != nil || n != 2 {
 		t.Fatalf("chain after submit: n=%d refusal=%v", n, refusal)
 	}
 }
@@ -199,7 +202,7 @@ func TestTamperedLedgerIsAFinding(t *testing.T) {
 		t.Fatalf("refused: %+v", refusals)
 	}
 	tamper(t, dir, 1, "forged")
-	n, refusal := Verify(s)
+	n, _, refusal := Verify(s, "")
 	if refusal == nil {
 		t.Fatal("a tampered ledger verified clean")
 	}
@@ -219,5 +222,173 @@ func TestExportEmptyLedgerIsAnEmptyList(t *testing.T) {
 	}
 	if strings.TrimSpace(out) != "[]" {
 		t.Errorf("empty ledger exported as %q", out)
+	}
+}
+
+// rewrite rebuilds the ledger as a fresh, self-consistent chain holding
+// only the records it is given back — what a writer with the state file
+// does, rather than what any looplaw path can do.
+func rewrite(t *testing.T, dir string, keep func(store.Record) bool) {
+	t.Helper()
+	db, err := sql.Open("sqlite", filepath.Join(dir, "looplaw.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	rows, err := db.Query("SELECT kind, rectype, subject, body, party, at FROM records ORDER BY seq")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var kept []store.Record
+	for rows.Next() {
+		var r store.Record
+		var kind string
+		if err := rows.Scan(&kind, &r.Type, &r.Subject, &r.Body, &r.Party, &r.At); err != nil {
+			t.Fatal(err)
+		}
+		r.Kind = store.Kind(kind)
+		if keep(r) {
+			kept = append(kept, r)
+		}
+	}
+	rows.Close()
+	if _, err := db.Exec("DELETE FROM records"); err != nil {
+		t.Fatal(err)
+	}
+	prev := ""
+	for i, r := range kept {
+		h := chainHash(r, prev)
+		if _, err := db.Exec(
+			"INSERT INTO records (seq, kind, rectype, subject, body, party, at, prev, hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			int64(i+1), string(r.Kind), r.Type, r.Subject, r.Body, r.Party, r.At, prev, h); err != nil {
+			t.Fatal(err)
+		}
+		prev = h
+	}
+}
+
+// chainHash re-derives the ledger's record identity here rather than
+// calling the store's, so this test is a second implementation of the
+// canonical form: a producer that verifies itself proves nothing.
+func chainHash(r store.Record, prev string) string {
+	var b strings.Builder
+	for _, f := range []string{string(r.Kind), r.Type, r.Subject, r.Body, r.Party, r.At, prev} {
+		fmt.Fprintf(&b, "%d:%s|", len(f), f)
+	}
+	sum := sha256.Sum256([]byte(b.String()))
+	return hex.EncodeToString(sum[:])
+}
+
+// Proving red: the chain is checked against itself, so a writer who
+// controls the state file can erase an act and rebuild what remains as a
+// fresh chain that verifies. Every local invariant survives the rewrite
+// — the sequence is contiguous from 1, and each act's records are still
+// paired — because they are computed from the same rewritten rows.
+//
+// Detecting it needs a value the rewriter could not reach, which the
+// ledger cannot hold and looplaw cannot fetch (T0-3, T0-4). So the
+// caller keeps it and submits it, the way a client submits a provenance
+// manifest for the kernel to compare.
+func TestVerifyAgainstAnExpectationTheLedgerCannotSupply(t *testing.T) {
+	s, dir := openAt(t)
+	if _, refusals := Submit(s, goodClaim()); len(refusals) != 0 {
+		t.Fatal(refusals)
+	}
+	if _, refusals := Submit(s, goodReceipt()); len(refusals) != 0 {
+		t.Fatal(refusals)
+	}
+	n, expected, refusal := Verify(s, "")
+	if refusal != nil {
+		t.Fatal(refusal)
+	}
+	if n != 4 {
+		t.Fatalf("verified %d records, want 4", n)
+	}
+
+	// What the caller writes down, somewhere the state root's writer
+	// cannot reach.
+	rewrite(t, dir, func(r store.Record) bool { return r.Subject != "C-LEND-1" })
+
+	// Unchecked, the rewrite is invisible: this is the limit being
+	// closed, and stating it is half the point.
+	if n, _, refusal := Verify(s, ""); refusal != nil || n != 2 {
+		t.Fatalf("a rewritten ledger must still verify against itself: n=%d %v", n, refusal)
+	}
+
+	n, _, refusal = Verify(s, expected)
+	if refusal == nil {
+		t.Fatal("the rewrite passed a verification that was given what the ledger should hold")
+	}
+	if refusal.Check != "verify/expected" {
+		t.Errorf("want verify/expected, got %s", refusal.Check)
+	}
+	// A verification path commits nothing, so this is a finding.
+	if refusal.Class != outcome.Finding {
+		t.Errorf("class = %s, want finding", refusal.Class)
+	}
+	if !strings.Contains(refusal.Reason, "2") || !strings.Contains(refusal.Reason, "4") {
+		t.Errorf("the reason must name both counts: %q", refusal.Reason)
+	}
+	if n != 0 {
+		t.Errorf("a refused verification reported %d records as verified", n)
+	}
+}
+
+// The expectation is a claim about the ledger, so a malformed one is
+// refused as a malformed submission rather than read as a mismatch: a
+// caller who mistypes it must not be told their ledger was rewritten.
+func TestMalformedExpectationIsNotAMismatch(t *testing.T) {
+	s, _ := openAt(t)
+	if _, refusals := Submit(s, goodClaim()); len(refusals) != 0 {
+		t.Fatal(refusals)
+	}
+	for _, bad := range []string{"2", "2:", ":abc", "two:" + strings.Repeat("a", 64), "2:zzz", "-1:" + strings.Repeat("a", 64)} {
+		_, _, refusal := Verify(s, bad)
+		if refusal == nil {
+			t.Errorf("%q was read as an expectation", bad)
+			continue
+		}
+		if refusal.Check != "verify/expected-form" {
+			t.Errorf("%q: want verify/expected-form, got %s", bad, refusal.Check)
+		}
+		if refusal.Class != outcome.Rejection {
+			t.Errorf("%q: class = %s, want rejection", bad, refusal.Class)
+		}
+	}
+}
+
+// unreadableLedger verifies but cannot be read back. Storage that
+// answers one and not the other is not hypothetical — a remote ledger
+// can hold a checkpoint it can compare while the read path is down.
+type unreadableLedger struct{ n int }
+
+func (u *unreadableLedger) Append([]store.Draft) ([]store.Record, error) {
+	return nil, fmt.Errorf("append: unavailable")
+}
+func (u *unreadableLedger) Records() ([]store.Record, error) {
+	return nil, fmt.Errorf("read ledger: storage unavailable")
+}
+func (u *unreadableLedger) Verify() (int, error) { return u.n, nil }
+func (u *unreadableLedger) Close() error         { return nil }
+
+// A ledger that cannot be read reports an abort, not a mismatch: an
+// unreadable ledger is an infrastructure failure, and reporting it as a
+// finding would tell a caller their records had been rewritten.
+func TestUnreadableLedgerAbortsRatherThanReportingAMismatch(t *testing.T) {
+	s := store.New(&unreadableLedger{n: 2})
+	defer s.Close()
+
+	n, current, refusal := Verify(s, "2:"+strings.Repeat("a", 64))
+	if refusal == nil {
+		t.Fatal("an unreadable ledger verified")
+	}
+	if refusal.Check != "verify/read" {
+		t.Errorf("want verify/read, got %s", refusal.Check)
+	}
+	if refusal.Class != outcome.Abort {
+		t.Errorf("class = %s, want abort — nothing was checked", refusal.Class)
+	}
+	if n != 0 || current != "" {
+		t.Errorf("a failed read reported state: n=%d current=%q", n, current)
 	}
 }

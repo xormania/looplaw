@@ -190,22 +190,27 @@ func validateTrinityBytes(subject string, data []byte) (cue.Value, []string, []o
 
 	// The same rule as the optional check, for the other syntaxes that
 	// leave a value open. A submitted set states values, and a value is
-	// open when unifying these bytes with something else changes what
-	// they say without conflicting: a defaulted disjunction takes the
-	// other arm, an open list gains elements, an open struct gains
-	// fields. Ratification copies the declared bytes into a law version,
-	// so an open value is ratified law that reads differently in someone
-	// else's context — the invariant this gate already claimed and did
-	// not hold.
+	// open when the bytes do not state which value holds: a defaulted
+	// disjunction does not say which arm, an open list does not say
+	// which elements, an open struct does not say which fields.
+	// Ratification copies the declared bytes into a law version, so an
+	// open value is law that cannot be read from its own record.
 	//
-	// Only these three, and the line is drawn by what unification can do
-	// rather than by how the syntax looks. A reference, an interpolation
-	// or a unification with a type computes one value from the same
-	// file, and an overlay that disagrees conflicts rather than winning,
-	// so ordinary DRY authoring stays green. The forms that state no
-	// value at all — a bare disjunction, a bound, a type — are refused
-	// by the shape gate as incomplete, and refusing them twice would say
-	// the same thing in two voices.
+	// Determinacy on the record's face, and deliberately not "what a
+	// later unification could do to it". That test was tried and does
+	// not separate these forms from what a set legitimately writes:
+	// every struct literal in a CUE file grows under unification, {}
+	// exactly as {...} does, so a consequence the two share cannot be
+	// the reason for refusing one of them. What separates them is what
+	// the bytes say — {} states that there are no fields, {...} states
+	// nothing about what there is.
+	//
+	// A reference, an interpolation or a unification with a type states
+	// one value computed from this same file, so ordinary DRY authoring
+	// stays green. The forms that state no value at all — a bare
+	// disjunction, a bound, a type — are refused by the shape gate as
+	// incomplete, and refusing them twice would say the same thing in
+	// two voices.
 	//
 	// Read from the authored bytes for the reason the optional check is:
 	// the schema states these forms legitimately, and after unification
@@ -221,7 +226,7 @@ func validateTrinityBytes(subject string, data []byte) (cue.Value, []string, []o
 			Check:   "trinity/open-value",
 			Subject: where,
 			Reason:  open.reason,
-			Remedy:  "state the value that holds; law a later unification can change is not the law that was ratified",
+			Remedy:  "state the value that holds; law that cannot be read from the record it is written in is not law a party can act on",
 		})
 	}
 
@@ -1060,9 +1065,9 @@ func optionalFields(v cue.Value) []string {
 type openValue struct{ path, reason string }
 
 const (
-	defaultReason    = "a default takes this arm only until something else names another: unified with a set naming a different arm, these same bytes read as that arm, so what is ratified here is a choice rather than a value"
-	openListReason   = "an open list says more elements would be admissible rather than which elements there are: unified with a longer list, these same bytes gain the additions, so ratified law grows without an act"
-	openStructReason = "an open struct says more fields would be admissible rather than which fields there are: unified with a set carrying more, these same bytes gain them, so ratified law grows without an act"
+	defaultReason    = "a default does not state which arm holds: these bytes read as this one only until something else names another, so what is ratified is a choice rather than a value"
+	openListReason   = "an open list does not state which elements there are, only that more would be admissible — so the law on record does not say what it lists"
+	openStructReason = "an open struct does not state which fields there are, only that more would be admissible: an empty struct states that there are none, and this states nothing about what there is"
 )
 
 // openValues walks the authored syntax and reports every open value.

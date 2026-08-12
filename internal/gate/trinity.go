@@ -21,41 +21,69 @@ import (
 	"github.com/xormania/looplaw/schema"
 )
 
+// The trinity gates, by the phase that runs them. A caller recording
+// what it examined records the phases that executed, so the two lists
+// cannot drift: Checks is built from these rather than kept beside them,
+// which is the arrangement a hand-written second list did not have — the
+// ratify admission claimed trinity/load had run over bytes, and only
+// LoadSet can run it.
+var (
+	// loadChecks belong to the path that reads a file. The bytes path
+	// never runs them, because it is handed the bytes.
+	loadChecks = []string{"trinity/load"}
+	// bytesChecks run over bytes already in hand, in this order.
+	schemaChecks    = []string{"trinity/schema-load"}
+	parseChecks     = []string{"trinity/parse"}
+	optionalChecks  = []string{"trinity/optional"}
+	openValueChecks = []string{"trinity/open-value"}
+	shapeChecks     = []string{"trinity/shape"}
+	// relationalChecksIDs are what the relational lane can emit; it runs
+	// as one phase, over whatever regions the set states.
+	relationalChecksIDs = []string{
+		"trinity/vacuity",
+		"trinity/region-unreadable",
+		"trinity/act-closure",
+		"trinity/party-resolve",
+		"trinity/party-coverage",
+		"trinity/cite-resolve",
+		"trinity/invariant-coverage",
+		"trinity/blame-resolve",
+		"trinity/authority-free",
+		"trinity/related-resolve",
+		"trinity/authority-resolve",
+		"trinity/experience-cite-resolve",
+		"trinity/decomp-resolve",
+		"trinity/decomp-tree",
+		"trinity/decomp-presents",
+		"trinity/decomp-wire",
+		"trinity/decomp-dangling",
+		"trinity/decomp-cites",
+		"trinity/decomp-refinement",
+		"trinity/decomp-satisfier",
+		"trinity/decomp-grounded",
+		"trinity/provenance-address",
+		"trinity/provenance-source",
+		"trinity/provenance-coverage",
+	}
+)
+
 // Checks enumerates every check id the trinity gates can emit — the
 // gates' action space, enumerable by design. The test suite proves a red
 // for each (an undemonstrated gate is an unproven behavior); adding a check
 // here without a proving red fails the suite.
-var Checks = []string{
-	"trinity/optional",
-	"trinity/open-value",
-	"trinity/load",
-	"trinity/schema-load",
-	"trinity/parse",
-	"trinity/shape",
-	"trinity/vacuity",
-	"trinity/region-unreadable",
-	"trinity/act-closure",
-	"trinity/party-resolve",
-	"trinity/party-coverage",
-	"trinity/cite-resolve",
-	"trinity/invariant-coverage",
-	"trinity/blame-resolve",
-	"trinity/authority-free",
-	"trinity/related-resolve",
-	"trinity/authority-resolve",
-	"trinity/experience-cite-resolve",
-	"trinity/decomp-resolve",
-	"trinity/decomp-tree",
-	"trinity/decomp-presents",
-	"trinity/decomp-wire",
-	"trinity/decomp-dangling",
-	"trinity/decomp-cites",
-	"trinity/decomp-refinement",
-	"trinity/decomp-satisfier",
-	"trinity/decomp-grounded",
-	"trinity/provenance-address",
-	"trinity/provenance-source",
-	"trinity/provenance-coverage",
+//
+// This is what the gates CAN emit. What a given run DID examine is the
+// list validateTrinityBytes returns, and a record of the second must
+// never be written from the first.
+var Checks = concat(loadChecks, schemaChecks, parseChecks, optionalChecks,
+	openValueChecks, shapeChecks, relationalChecksIDs)
+
+func concat(lists ...[]string) []string {
+	var out []string
+	for _, l := range lists {
+		out = append(out, l...)
+	}
+	return out
 }
 
 // ValidateTrinity runs the trinity gates over one target set file:
@@ -83,7 +111,8 @@ func LoadSet(setPath string) (cue.Value, []outcome.Refusal) {
 			Remedy:  "point the gate at a readable set file",
 		}}
 	}
-	return LoadSetBytes(setPath, data)
+	set, _, refusals := LoadSetBytes(setPath, data)
+	return set, refusals
 }
 
 // LoadSetBytes runs the trinity gates over bytes already in hand. A
@@ -91,16 +120,27 @@ func LoadSet(setPath string) (cue.Value, []outcome.Refusal) {
 // the same slice: gating a path and reading it again leaves a window in
 // which the file changes, so what passed the gates is not what enters
 // the ledger. The name is only for refusal subjects.
-func LoadSetBytes(name string, data []byte) (cue.Value, []outcome.Refusal) {
+// It also returns the checks this run examined, in the order it ran
+// them. A caller that records an act writes that list, never Checks:
+// Checks is what the gates can emit, and an entry recording a check as
+// run when it was skipped — or when the path cannot run it at all — is
+// evidence of an examination that did not happen.
+func LoadSetBytes(name string, data []byte) (cue.Value, []string, []outcome.Refusal) {
 	return validateTrinityBytes(name, data)
 }
 
-func validateTrinityBytes(subject string, data []byte) (cue.Value, []outcome.Refusal) {
+func validateTrinityBytes(subject string, data []byte) (cue.Value, []string, []outcome.Refusal) {
 	ctx := cuecontext.New()
 
+	// What this run examined, appended as each phase executes, so the
+	// list is true by construction rather than by an argument about
+	// which paths reach the end.
+	var ran []string
+
+	ran = append(ran, schemaChecks...)
 	schema, err := embeddedLaw(ctx)
 	if err != nil {
-		return cue.Value{}, []outcome.Refusal{{
+		return cue.Value{}, ran, []outcome.Refusal{{
 			Class:   outcome.Abort,
 			Check:   "trinity/schema-load",
 			Subject: "law (embedded)",
@@ -109,9 +149,10 @@ func validateTrinityBytes(subject string, data []byte) (cue.Value, []outcome.Ref
 		}}
 	}
 
+	ran = append(ran, parseChecks...)
 	set := ctx.CompileBytes(data, cue.Filename(subject))
 	if set.Err() != nil {
-		return cue.Value{}, []outcome.Refusal{{
+		return cue.Value{}, ran, []outcome.Refusal{{
 			Class:   outcome.Rejection,
 			Check:   "trinity/parse",
 			Subject: subject,
@@ -133,6 +174,7 @@ func validateTrinityBytes(subject string, data []byte) (cue.Value, []outcome.Ref
 	// the schema legitimately marks fields optional (trigger?,
 	// synchronization?, interior?), and unification would make an
 	// author's optional field indistinguishable from the schema's.
+	ran = append(ran, optionalChecks...)
 	if optional := optionalFields(set); len(optional) > 0 {
 		for _, path := range optional {
 			refusals = append(refusals, outcome.Refusal{
@@ -143,7 +185,7 @@ func validateTrinityBytes(subject string, data []byte) (cue.Value, []outcome.Ref
 				Remedy:  "write the field as a value ('field: ...'); to say a region is genuinely absent, omit it and declare the absence where the schema asks for it",
 			})
 		}
-		return set, refusals
+		return set, ran, refusals
 	}
 
 	// The same rule as the optional check, for the other syntaxes that
@@ -168,6 +210,7 @@ func validateTrinityBytes(subject string, data []byte) (cue.Value, []outcome.Ref
 	// Read from the authored bytes for the reason the optional check is:
 	// the schema states these forms legitimately, and after unification
 	// an author's would be indistinguishable from the schema's.
+	ran = append(ran, openValueChecks...)
 	for _, open := range openValues(subject, data) {
 		where := subject
 		if open.path != "" {
@@ -184,6 +227,7 @@ func validateTrinityBytes(subject string, data []byte) (cue.Value, []outcome.Ref
 
 	// Shape gate: unify the set with #TrinitySet and validate. CUE is the
 	// shape gate; a mismatch is a rejection naming the failing path.
+	ran = append(ran, shapeChecks...)
 	def := schema.LookupPath(cue.ParsePath("#TrinitySet"))
 	unified := def.Unify(set)
 
@@ -204,8 +248,9 @@ func validateTrinityBytes(subject string, data []byte) (cue.Value, []outcome.Ref
 		relational = set
 	}
 
+	ran = append(ran, relationalChecksIDs...)
 	refusals = append(refusals, relationalChecks(subject, relational)...)
-	return relational, refusals
+	return relational, ran, refusals
 }
 
 // Law exposes the embedded ratified law package to read paths (the
@@ -1040,8 +1085,8 @@ func openValues(name string, data []byte) []openValue {
 	var found []openValue
 	note := func(path, reason string) { found = append(found, openValue{path, reason}) }
 
-	sweep := func(path string, e ast.Expr) {
-		ast.Walk(e, func(n ast.Node) bool {
+	sweep := func(path string, n ast.Node) {
+		ast.Walk(n, func(n ast.Node) bool {
 			switch v := n.(type) {
 			case *ast.UnaryExpr:
 				if v.Op == token.MUL {
@@ -1102,6 +1147,23 @@ func openValues(name string, data []byte) []openValue {
 				note(path, openStructReason)
 			case *ast.Ellipsis:
 				note(path, openStructReason)
+			case *ast.EmbedDecl:
+				// An embedding contributes its fields to this struct,
+				// so it is walked as a value at the same path rather
+				// than swept: a struct inside it is still a struct, and
+				// its open forms are named where any other field's are.
+				expr(path, v.Expr)
+			case *ast.LetClause:
+				// A let states a name, so the refusal points at it
+				// rather than at the file: a set with one open value
+				// somewhere is not a worklist.
+				sweep(join(path, "let "+v.Ident.Name), d)
+			default:
+				// Everything else a struct can declare — a comprehension,
+				// an attribute — states no label to build a path from,
+				// and was walked past for exactly that reason. It still
+				// reaches the value, so it is swept where it stands.
+				sweep(path, d)
 			}
 		}
 	}

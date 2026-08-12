@@ -13,7 +13,7 @@ func FuzzValidateNeverPanics(f *testing.F) {
 		f.Add([]byte(seed))
 	}
 	f.Fuzz(func(t *testing.T, data []byte) {
-		_, refusals := validateTrinityBytes("fuzz.cue", data)
+		_, _, refusals := validateTrinityBytes("fuzz.cue", data)
 		for _, r := range refusals {
 			if r.Check == "" {
 				t.Error("refusal without a check id")

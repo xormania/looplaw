@@ -47,6 +47,15 @@ attacks: {
 	// does not, and is refused for what its bytes say alone.
 	"open-list-of-cites.cue": {found_in:    "gate", must_draw: ["trinity/open-value"]}
 	"open-struct-of-clauses.cue": {found_in: "gate", must_draw: ["trinity/open-value"]}
+	// Law that reads as law and asserts none of it: every field the
+	// contract region exists for present and empty. A set may state an
+	// obligation with no recorded result, or a fault adjudicated from
+	// nothing, and the gates admitted it.
+	"empty-contract-region.cue": {found_in: "gate", must_draw: ["trinity/shape"]}
+	// A set disagreeing with itself across two regions, each of them
+	// well-formed alone: the judgment register declares its own absence,
+	// and nothing read the declaration against the register.
+	"absence-contradicted.cue": {found_in: "gate", must_draw: ["trinity/absence-declared"]}
 	// The check above examined fields, and a set states values by other
 	// declarations too. Both of these passed it while carrying exactly
 	// the value it refuses, because the walk had no path to build from a

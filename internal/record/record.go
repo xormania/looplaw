@@ -309,6 +309,18 @@ func Verify(s *store.Store, expected string) (int, string, *outcome.Refusal) {
 		current = fmt.Sprintf("%d:%s", n, recs[len(recs)-1].Hash)
 	}
 
+	// What the ledger can be faulted on from its own contents. Both are
+	// invariants the chain cannot see: it recomputes content and links,
+	// and neither the numbering nor an act's shape is hashed. Neither is
+	// protection against a ledger rewritten whole — that leaves both
+	// intact, and only state the ledger did not supply reaches it.
+	if refusal := sequenceIsWhole(recs); refusal != nil {
+		return 0, current, refusal
+	}
+	if refusal := actsAreWhole(recs); refusal != nil {
+		return 0, current, refusal
+	}
+
 	if expected == "" {
 		return n, current, nil
 	}
@@ -330,6 +342,67 @@ func Verify(s *store.Store, expected string) (int, string, *outcome.Refusal) {
 		}
 	}
 	return n, current, nil
+}
+
+// sequenceIsWhole: the ledger reports its records numbered from one,
+// each one more than the last. A gap is a record removed; a sequence
+// that does not begin at one is a ledger renumbered wholesale. The chain
+// sees neither, because a record's number is not part of its hash.
+func sequenceIsWhole(recs []store.Record) *outcome.Refusal {
+	for i, r := range recs {
+		if r.Seq == int64(i+1) {
+			continue
+		}
+		return &outcome.Refusal{
+			Class: outcome.Finding, Check: "verify/sequence",
+			Subject: "the ledger",
+			Reason: fmt.Sprintf("record %d of %d is numbered %d, so the sequence is not whole",
+				i+1, len(recs), r.Seq),
+			Remedy: "records may have been removed, or the ledger renumbered wholesale; a record's number is not part of its hash, so the chain cannot see this — treat the ledger as unevidenced and investigate the custody of this state root",
+		}
+	}
+	return nil
+}
+
+// actsAreWhole: content and its admission enter together, which the
+// Ledger contract requires because a record without its admission is an
+// entry nobody can reconstruct (T0-6). So an admission closes an act,
+// and every act reaches one.
+//
+// Stated as closing rather than as pairs: an act that records more than
+// one content record before its admission is a shape this forbids
+// nothing about, and the acts that exist today all record exactly one.
+func actsAreWhole(recs []store.Record) *outcome.Refusal {
+	finding := func(reason string) *outcome.Refusal {
+		return &outcome.Refusal{
+			Class: outcome.Finding, Check: "verify/act",
+			Subject: "the ledger", Reason: reason,
+			Remedy: "content and its admission enter together, so half an act on record is half an act removed; treat the ledger as unevidenced and investigate the custody of this state root",
+		}
+	}
+
+	open := 0
+	var since store.Record
+	for _, r := range recs {
+		if r.Type != "admission" {
+			if open == 0 {
+				since = r
+			}
+			open++
+			continue
+		}
+		if open == 0 {
+			return finding(fmt.Sprintf(
+				"the admission at seq %d closes no record: the entry it records is not here", r.Seq))
+		}
+		open = 0
+	}
+	if open > 0 {
+		return finding(fmt.Sprintf(
+			"the %s at seq %d entered with no admission, so nothing records that it entered",
+			since.Type, since.Seq))
+	}
+	return nil
 }
 
 // The recorded form of a ledger's state: how many records, and the hash

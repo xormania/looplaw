@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 
 	"cuelang.org/go/cue"
@@ -280,5 +281,68 @@ func TestSkeletonQuotesAsCUE(t *testing.T) {
 		if r.Check == "trinity/parse" {
 			t.Fatalf("skeleton is not parseable CUE: %s", r.Error())
 		}
+	}
+}
+
+// Proving red: the walk classifies an entry from its name and the read
+// resolves that name again, so an entry replaced between the two was
+// classified as a regular file and opened as whatever it had become.
+// Done with a symlink, the manifest attested to bytes outside the scope
+// it named — provenance that says what a project is, derived from a file
+// the project does not contain.
+//
+// Tested at the classify-and-read boundary rather than by racing a
+// scan: a timing test that passes proves only that the machine was
+// slow that day.
+func TestAnEntryIsHashedOnlyIfItIsStillScopeContent(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "plain"), []byte("scope content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(t.TempDir(), "secret")
+	if err := os.WriteFile(outside, []byte("not in the scope"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dir, "swapped")); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(filepath.Join(dir, "pipe"), 0o644); err != nil {
+		t.Skipf("no fifo on this platform: %v", err)
+	}
+
+	scope, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer scope.Close()
+
+	if _, err := hashEntry(scope, "plain"); err != nil {
+		t.Errorf("scope content was refused: %v", err)
+	}
+	if _, err := hashEntry(scope, "swapped"); err == nil {
+		t.Error("an entry pointing outside the scope was hashed into the scope's baseline")
+	}
+	if _, err := hashEntry(scope, "pipe"); err == nil {
+		t.Error("an entry that is not a regular file was read")
+	}
+}
+
+// And the scan as a whole is unchanged for a scope that holds only what
+// it should: a symlink inside it is still skipped by classification, and
+// what remains is hashed.
+func TestScanStillReadsAnOrdinaryScope(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte("package a"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("a.go", filepath.Join(dir, "link.go")); err != nil {
+		t.Fatal(err)
+	}
+	m, err := ScanScope(dir, "scope-x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Sources) != 1 || m.Sources["a.go"] == "" {
+		t.Errorf("want the one regular file, got %v", m.Sources)
 	}
 }

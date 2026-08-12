@@ -394,3 +394,112 @@ func TestAuthorityMustNameAParty(t *testing.T) {
 		}
 	}
 }
+
+// Proving red: the acts read recorded state to decide, and nothing
+// checked that what they read was what had been written. Records returns
+// rows; the chain is only recomputed when someone asks for a
+// verification, which is a separate command nobody is obliged to run.
+//
+// So an edited row was consumed as law and a new act recorded against it
+// — declared against a version whose body had been rewritten, while
+// verify reported the ledger broken. A preflight verification by the
+// caller does not close it either: that leaves a window between the
+// check and the use.
+func TestActsRefuseToDecideFromAnUnverifiedLedger(t *testing.T) {
+	// A deployment with an authority bound and a project holding a
+	// declared draft, with the directories in hand so the ledger can be
+	// edited from outside the way anything holding the state file does.
+	setup := func(t *testing.T) (*store.Store, string, *store.Store, string) {
+		t.Helper()
+		d, ddir := storeIn(t)
+		p, pdir := storeIn(t)
+		if _, refusal := BindAuthority(d, "xor", "xor"); refusal != nil {
+			t.Fatal(refusal)
+		}
+		if _, refusals := Declare(p, fixtureZero, "harness:worker"); len(refusals) > 0 {
+			t.Fatal(refusals)
+		}
+		return d, ddir, p, pdir
+	}
+
+	t.Run("declare reads the law it declares against", func(t *testing.T) {
+		d, _, p, pdir := setup(t)
+		if _, refusals := Ratify(d, p, "lend-library", "xor"); len(refusals) > 0 {
+			t.Fatal(refusals)
+		}
+		tamperBody(t, p, pdir, "version", "lend-library", "seize-library")
+
+		_, refusals := Declare(p, fixtureZero, "harness:worker")
+		if len(refusals) == 0 {
+			t.Fatal("a declaration was recorded against law that no longer re-hashes")
+		}
+		if refusals[0].Check != "declare/ledger" {
+			t.Errorf("want declare/ledger, got %s: %s", refusals[0].Check, refusals[0].Reason)
+		}
+		if refusals[0].Class != outcome.Finding {
+			t.Errorf("class = %s, want finding", refusals[0].Class)
+		}
+	})
+
+	t.Run("ratify reads the binding and the draft", func(t *testing.T) {
+		d, ddir, p, _ := setup(t)
+		tamperBody(t, d, ddir, "claim", `"bound":"xor"`, `"bound":"mallory"`)
+
+		_, refusals := Ratify(d, p, "lend-library", "xor")
+		if len(refusals) == 0 {
+			t.Fatal("law was made from a deployment ledger that no longer re-hashes")
+		}
+		if refusals[0].Check != "ratify/ledger" {
+			t.Errorf("want ratify/ledger, got %s: %s", refusals[0].Check, refusals[0].Reason)
+		}
+		if law, _ := CurrentLaw(p); law != nil {
+			t.Error("a refused ratification made law")
+		}
+	})
+
+	t.Run("an intact ledger still decides", func(t *testing.T) {
+		d, _, p, _ := setup(t)
+		if _, refusals := Ratify(d, p, "lend-library", "xor"); len(refusals) > 0 {
+			t.Fatalf("an intact ledger was refused: %v", refusals)
+		}
+	})
+}
+
+// storeIn opens a ledger and hands back where it lives, so a test can
+// reach it the way anything outside looplaw would.
+func storeIn(t *testing.T) (*store.Store, string) {
+	t.Helper()
+	dir := t.TempDir()
+	s, err := store.OpenDeployment(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.Close() })
+	return s, dir
+}
+
+// tamperBody rewrites the body of the first record of a type and leaves
+// its hash alone — what anything holding the state file does, and what
+// the chain exists to make evident.
+func tamperBody(t *testing.T, s *store.Store, dir, rectype, from, to string) {
+	t.Helper()
+	recs, err := s.Records()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range recs {
+		if r.Type != rectype {
+			continue
+		}
+		edited := strings.Replace(r.Body, from, to, 1)
+		// A replacement that changed nothing leaves the chain intact and
+		// the test asserting against an untampered ledger, which would
+		// pass for the wrong reason.
+		if edited == r.Body {
+			t.Fatalf("the %s record holds no %q, so nothing was tampered with", rectype, from)
+		}
+		tamper(t, dir, r.Seq, edited)
+		return
+	}
+	t.Fatalf("no %s record to tamper with", rectype)
+}

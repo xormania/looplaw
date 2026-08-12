@@ -93,6 +93,36 @@ func Submit(s *store.Store, sub gate.Submission) ([]store.Record, []outcome.Refu
 	return recs, nil
 }
 
+// decidesFrom re-checks a ledger before an act reads recorded state to
+// decide something.
+//
+// Records returns rows. The chain is recomputed only when someone asks
+// for a verification, which is a separate command nobody is obliged to
+// run — so an edited row was consumed as law and a new act recorded
+// against it, while a verification would have reported the ledger
+// broken. Asking the caller to verify first does not close it either:
+// that leaves a window between the check and the use, and the act is
+// where the use is.
+//
+// A finding rather than an abort: what re-verification cannot process is
+// first-class, the act commits nothing, and calling a rewritten ledger
+// an infrastructure failure would say the storage misbehaved when the
+// content did.
+//
+// The cost is one pass over the ledger per deciding act, which is the
+// price of the decision resting on what was written rather than on what
+// is currently in the file.
+func decidesFrom(s *store.Store, check string) *outcome.Refusal {
+	if _, err := s.Verify(); err != nil {
+		return &outcome.Refusal{
+			Class: outcome.Finding, Check: check,
+			Subject: "the ledger", Reason: err.Error(),
+			Remedy: "nothing was recorded; the ledger no longer re-hashes to what was written, so no act may read it to decide — treat every record after the break as unevidenced and investigate the custody of this state root",
+		}
+	}
+	return nil
+}
+
 // Declaration is the entry event for a declared amendment draft: what
 // was proposed, by whom, and against which law it was proposed. It
 // confers no standing — a declaration settles that a party proposed a
@@ -121,6 +151,12 @@ type Declaration struct {
 // arises only by the accountable authority's ratify act. The proposal is
 // recorded evidence-side for exactly that reason.
 func Declare(s *store.Store, path, party string) ([]store.Record, []outcome.Refusal) {
+	// What this act reads to decide: the law a proposal is measured
+	// against, and the subject the ledger already carries.
+	if refusal := decidesFrom(s, "declare/ledger"); refusal != nil {
+		return nil, []outcome.Refusal{*refusal}
+	}
+
 	law, err := CurrentLaw(s)
 	if err != nil {
 		return nil, []outcome.Refusal{{

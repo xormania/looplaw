@@ -3,8 +3,8 @@ package record
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
+	"github.com/xormania/looplaw/internal/gate"
 	"github.com/xormania/looplaw/internal/outcome"
 	"github.com/xormania/looplaw/internal/store"
 )
@@ -55,18 +55,23 @@ type AuthorityAdmission struct {
 // the authority is one per deployment, so binding it per project would
 // let two projects disagree about who may make law.
 func BindAuthority(s *store.Store, party, bound string) ([]store.Record, *outcome.Refusal) {
-	if strings.TrimSpace(party) == "" {
+	if !gate.IsName(party) {
 		return nil, &outcome.Refusal{
 			Class: outcome.Rejection, Check: "authority/claimant", Subject: "party",
 			Reason: "the binding names no claiming party",
 			Remedy: "name the claiming party (LOOPLAW_PARTY); recording settles that a party said a thing, which is unstatable without the party",
 		}
 	}
-	if bound == "" {
+	// Held to the grammar every recorded name is held to, not merely to
+	// being non-empty. First binding holds and looplaw names no act that
+	// changes one, so a party nobody can type again is bound for good:
+	// no act ratifies afterwards, and the honest binding is refused as
+	// already-bound.
+	if !gate.IsName(bound) {
 		return nil, &outcome.Refusal{
 			Class: outcome.Rejection, Check: "authority/party", Subject: "authority",
-			Reason: "no party was named to hold the accountable authority",
-			Remedy: "name the party that holds it; an unnamed authority binds nothing and no act could check against it",
+			Reason: fmt.Sprintf("%q does not name a party to hold the accountable authority", bound),
+			Remedy: "name the party that holds it; an unnamed authority binds nothing, and this binding is the one act that cannot be corrected afterwards",
 		}
 	}
 

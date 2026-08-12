@@ -2,6 +2,7 @@ package record
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -350,5 +351,46 @@ func TestRatificationRegatesTheRecordedDraft(t *testing.T) {
 	}
 	if law, err := CurrentLaw(p); err != nil || law != nil {
 		t.Errorf("law entered from a refused draft: %+v %v", law, err)
+	}
+}
+
+// Proving red: a party name is what every later act compares against,
+// so a binding must name one. `bound` was checked only against the
+// empty string, and the claiming party only against being blank after
+// trimming — so a deployment could bind "   " as its accountable
+// authority. First binding holds and looplaw names no act that changes
+// one, so that is permanent: no party anyone can type ratifies again,
+// and the honest binding is refused as already-bound.
+func TestAuthorityMustNameAParty(t *testing.T) {
+	for _, name := range []string{"   ", "\t", " xor", "xor\n", ""} {
+		t.Run(fmt.Sprintf("bound=%q", name), func(t *testing.T) {
+			d := declareStore(t)
+			if _, refusal := BindAuthority(d, "xor", name); refusal == nil {
+				t.Fatalf("%q was recorded as the accountable authority", name)
+			} else if refusal.Check != "authority/party" {
+				t.Errorf("want authority/party, got %s", refusal.Check)
+			}
+			// Nothing was bound, so the deployment is not locked out of
+			// its own authority: the act that should have worked still
+			// does.
+			if _, refusal := BindAuthority(d, "xor", "xor"); refusal != nil {
+				t.Errorf("a refused binding locked the deployment: %v", refusal)
+			}
+			if got, _ := CurrentAuthority(d); got != "xor" {
+				t.Errorf("CurrentAuthority = %q, want xor", got)
+			}
+		})
+	}
+
+	// The claiming party is held to the same grammar, for the same
+	// reason: it is recorded as who said the binding, and a name that
+	// cannot be typed again names nobody.
+	for _, claimant := range []string{"   ", " xor", "xor\n"} {
+		d := declareStore(t)
+		if _, refusal := BindAuthority(d, claimant, "xor"); refusal == nil {
+			t.Errorf("%q was recorded as the claiming party", claimant)
+		} else if refusal.Check != "authority/claimant" {
+			t.Errorf("want authority/claimant for %q, got %s", claimant, refusal.Check)
+		}
 	}
 }

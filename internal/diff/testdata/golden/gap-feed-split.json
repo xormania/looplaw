@@ -8,7 +8,7 @@
     "kind": "absent",
     "work": "split",
     "detail": "contract absent from the view; the goal decomposes it, so the work begins by decomposing",
-    "goal_hash": "a0993beae09e122516061e5d6a7f9e096c8f772f1c1f4c96a406ddbff221174c",
+    "goal_hash": "d4477c6cb01fc23a376e1e4e2816adee4ebba1b6cf091eba82c56a6d7f75dde5",
     "view_hash": "",
     "status": "open"
   }

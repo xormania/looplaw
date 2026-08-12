@@ -4,9 +4,15 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
+	"sort"
 	"strings"
 	"testing"
 
+	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/cuecontext"
+
+	"github.com/xormania/looplaw/internal/gate"
 	"github.com/xormania/looplaw/internal/outcome"
 )
 
@@ -299,4 +305,186 @@ func TestAbsorbedViewRefusedAsGoalLaw(t *testing.T) {
 			}
 		}
 	}
+}
+
+// One mutation per field #Contract admits, each of which must produce a
+// gap naming the contract.
+//
+// Proving red: contractsOf hashed parties, acts, cites, synchronization
+// and interior, and nothing else — so a contract could move from
+// "ratified" to "withdrawn", reassign blame from one registered party to
+// another, change the evidence a violation is adjudicated from, gain an
+// activation trigger, or be renamed, and the gap feed answered []. That
+// is a false statement of equilibrium at the reconciliation boundary,
+// which is the one place a consumer asks whether goal-law and the view
+// still agree.
+//
+// The mutations are hand-written because a mutation needs to know what
+// the field means; the completeness assertion below is what keeps the
+// table honest when the schema grows.
+var contractFieldMutations = map[string]struct {
+	old, new string
+	// The contracts the resulting gaps must address. A gap for the wrong
+	// reason proves nothing, and most of these mutations touch one
+	// contract; renaming one addresses two, because a rename is a
+	// contract absent and another added.
+	addresses []string
+}{
+	"name": {
+		old: `name: "the lending contract"`, new: `name: "the borrowing contract"`,
+		addresses: []string{"C-LEND-1"},
+	},
+	// Mutated on the contract with no interior: changing the client of a
+	// decomposed contract stops its children's preconditions being
+	// client-owed, and the set is refused before the differ sees it.
+	"parties": {
+		old:       "client:   \"borrower\"\n\t\t\tsupplier: \"librarian\"\n\t\t}\n\t\tacts: [\"return\"]",
+		new:       "client:   \"borrower\"\n\t\t\tsupplier: \"desk\"\n\t\t}\n\t\tacts: [\"return\"]",
+		addresses: []string{"C-RETURN-1"},
+	},
+	"acts": {
+		old: `acts: ["lend"]`, new: `acts: ["lend", "renew"]`,
+		addresses: []string{"C-LEND-1"},
+	},
+	"cites": {
+		old:       "cites: [\"L-1\"]\n\t\tblame: [\n\t\t\t{violation_class: \"lending an already-lent book\"",
+		new:       "cites: []\n\t\tblame: [\n\t\t\t{violation_class: \"lending an already-lent book\"",
+		addresses: []string{"C-LEND-1"},
+	},
+	"synchronization": {
+		old:       `name: "the lending contract"`,
+		new:       "name: \"the lending contract\"\n\t\tsynchronization: \"the loan record and the standing attestation commit together\"",
+		addresses: []string{"C-LEND-1"},
+	},
+	"blame": {
+		old:       `at_fault: "librarian", evidence: "the loan records at lending time"`,
+		new:       `at_fault: "borrower", evidence: "the loan records at lending time"`,
+		addresses: []string{"C-LEND-1"},
+	},
+	"status": {
+		old:       "\t\tstatus: \"ratified\"\n\t\tinterior:",
+		new:       "\t\tstatus: \"withdrawn\"\n\t\tinterior:",
+		addresses: []string{"C-LEND-1"},
+	},
+	"trigger": {
+		old:       "\t\tstatus: \"ratified\"\n\t\tinterior:",
+		new:       "\t\tstatus: \"ratified\"\n\t\ttrigger: \"a borrower requests a book\"\n\t\tinterior:",
+		addresses: []string{"C-LEND-1"},
+	},
+	"interior": {
+		old: `children: ["C-STANDING-1", "C-ISSUE-1"]`, new: `children: ["C-ISSUE-1", "C-STANDING-1"]`,
+		addresses: []string{"C-LEND-1"},
+	},
+	"preconditions": {
+		old:       `"P-2": {text: "The requested book carries no live loan, verifiable from the loan records."}`,
+		new:       `"P-2": {text: "The requested book may carry a live loan."}`,
+		addresses: []string{"C-LEND-1"},
+	},
+	"guarantees": {
+		old:       `"G-1": {text: "The loan is retired and the retirement is recorded; the book is lendable again.", records: "the return record"}`,
+		new:       `"G-1": {text: "The loan is retired and the retirement is recorded; the book is lendable again.", records: "nothing"}`,
+		addresses: []string{"C-RETURN-1"},
+	},
+	"invariants_local": {
+		old:       "invariants_local: {}\n\t\tcites: [\"L-1\"]\n\t\tblame: [\n\t\t\t{violation_class: \"late return\"",
+		new:       "invariants_local: {\"LI-1\": {text: \"a returned book is lendable before the next lend act\"}}\n\t\tcites: [\"L-1\"]\n\t\tblame: [\n\t\t\t{violation_class: \"late return\"",
+		addresses: []string{"C-RETURN-1"},
+	},
+	// The map key is the contract's identity, so changing it is not a
+	// field that differs: it is one contract absent from the view and
+	// another added. Renamed on the contract nothing cites and no
+	// interior contains, so the set stays valid and the differ is what
+	// answers.
+	"id": {
+		old: `"C-RETURN-1": {`, new: `"C-RETURNING-1": {`,
+		addresses: []string{"C-RETURN-1", "C-RETURNING-1"},
+	},
+}
+
+func TestEveryContractFieldProducesAGap(t *testing.T) {
+	base, err := os.ReadFile(goal)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, field := range sortedFieldNames(contractFieldMutations) {
+		m := contractFieldMutations[field]
+		t.Run(field, func(t *testing.T) {
+			if !strings.Contains(string(base), m.old) {
+				t.Fatalf("mutation target drifted from the fixture: %q", m.old)
+			}
+			mutated := strings.Replace(string(base), m.old, m.new, 1)
+			path := filepath.Join(t.TempDir(), "view.cue")
+			if err := os.WriteFile(path, []byte(mutated), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			gaps, refusals := Diff(goal, path)
+			if len(refusals) != 0 {
+				t.Fatalf("the mutation must stay a valid set, or it tests the gates instead: %+v", refusals)
+			}
+			if len(gaps) == 0 {
+				t.Fatalf("%s changed and the gap feed reported equilibrium", field)
+			}
+			// A gap for the wrong reason proves nothing: every gap must
+			// address a contract the mutation touched, and each of those
+			// must draw one.
+			addressed := map[string]bool{}
+			for _, g := range gaps {
+				addressed[g.Address.Contract] = true
+				if !slices.Contains(m.addresses, g.Address.Contract) {
+					t.Errorf("gap addresses %q, which the mutation did not touch: %+v", g.Address.Contract, g)
+				}
+			}
+			for _, want := range m.addresses {
+				if !addressed[want] {
+					t.Errorf("%s changed and no gap addresses %s", field, want)
+				}
+			}
+		})
+	}
+}
+
+// The table covers every field #Contract admits, read from the schema
+// the binary embeds rather than from a list kept beside it. A field
+// added to the schema with no mutation here fails, which is the point:
+// the differ was blind to four fields for as long as nothing compared
+// the two lists.
+func TestContractFieldMutationsCoverTheSchema(t *testing.T) {
+	ctx := cuecontext.New()
+	law, err := gate.Law(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	iter, err := law.LookupPath(cue.ParsePath("#Contract")).Fields(cue.Optional(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemaFields := map[string]bool{}
+	for iter.Next() {
+		schemaFields[iter.Selector().Unquoted()] = true
+	}
+	if len(schemaFields) == 0 {
+		t.Fatal("no #Contract fields read from the embedded schema")
+	}
+
+	for field := range schemaFields {
+		if _, ok := contractFieldMutations[field]; !ok {
+			t.Errorf("#Contract admits %q and no mutation proves the differ sees it", field)
+		}
+	}
+	for field := range contractFieldMutations {
+		if !schemaFields[field] {
+			t.Errorf("a mutation names %q, which #Contract does not admit — delete the stale entry", field)
+		}
+	}
+}
+
+func sortedFieldNames[V any](m map[string]V) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }

@@ -17,7 +17,11 @@
 // protocol) and the contract method's shared doctrine.
 package outcome
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+	"unicode"
+)
 
 // Class is the outcome class of an operation.
 type Class int
@@ -98,19 +102,60 @@ type Refusal struct {
 // Every field that is present appears; the remedy clause is omitted only
 // when no remedy exists.
 func (r *Refusal) Error() string {
-	s := r.Check
+	s := oneLine(r.Check)
 	if s != "" {
 		s += ": "
 	}
 	s += r.Class.String()
 	if r.Subject != "" {
-		s += " " + r.Subject
+		s += " " + oneLine(r.Subject)
 	}
 	if r.Reason != "" {
-		s += ": " + r.Reason
+		s += ": " + oneLine(r.Reason)
 	}
 	if r.Remedy != "" {
-		s += " — remedy: " + r.Remedy
+		s += " — remedy: " + oneLine(r.Remedy)
 	}
 	return s
+}
+
+// oneLine renders a field so it cannot end the line it is written on.
+//
+// Every field of a refusal is dynamic — a path a caller typed, a subject
+// a party submitted, a parser's own message — and one refusal is one
+// line. Concatenated as they arrived, a newline in any of them ended the
+// line early and what followed read as an independent refusal that no
+// check ever emitted. A carriage return forges the same thing without a
+// newline: it returns a terminal's cursor to column zero, so what
+// follows overwrites what came before, and consumers that split on line
+// breaks the way Python's splitlines does treat it as one.
+//
+// Escaped rather than stripped, because a refusal names what was
+// refused: a field with a newline in it must still show what was there,
+// or the reader is left guessing at a path they cannot see.
+//
+// Only control characters are touched. The wire form carries an em dash
+// and refusals quote submitted text, so escaping anything by width or
+// by not being ASCII would mangle what a caller needs to read.
+func oneLine(field string) string {
+	if strings.IndexFunc(field, unicode.IsControl) < 0 {
+		return field
+	}
+	var b strings.Builder
+	b.Grow(len(field))
+	for _, r := range field {
+		switch {
+		case !unicode.IsControl(r):
+			b.WriteRune(r)
+		case r == '\n':
+			b.WriteString(`\n`)
+		case r == '\r':
+			b.WriteString(`\r`)
+		case r == '\t':
+			b.WriteString(`\t`)
+		default:
+			fmt.Fprintf(&b, `\x%02x`, r)
+		}
+	}
+	return b.String()
 }

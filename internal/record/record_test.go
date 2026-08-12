@@ -392,3 +392,134 @@ func TestUnreadableLedgerAbortsRatherThanReportingAMismatch(t *testing.T) {
 		t.Errorf("a failed read reported state: n=%d current=%q", n, current)
 	}
 }
+
+// execSQL edits the ledger from outside, the way anything holding the
+// state file does. The product exposes no way to remove or renumber a
+// record, and adding one for a test would put it in the product.
+func execSQL(t *testing.T, dir, statement string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", filepath.Join(dir, "looplaw.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(statement); err != nil {
+		t.Fatalf("edit: %v", err)
+	}
+}
+
+// Proving red: a record's sequence number is not part of its hash, so
+// the chain cannot see the ledger renumbered. Every hash and every link
+// still recomputes; only the numbering says a record was removed, or
+// that this is not the ledger's beginning.
+func TestVerifyRefusesASequenceThatIsNotWhole(t *testing.T) {
+	for _, tc := range []struct{ name, edit string }{
+		{"renumbered wholesale", "UPDATE records SET seq = seq + 1000"},
+		{"a gap where a record was", "UPDATE records SET seq = seq + 10 WHERE seq >= 3"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, dir := openAt(t)
+			for _, sub := range []gate.Submission{goodClaim(), goodReceipt()} {
+				if _, refusals := Submit(s, sub); len(refusals) != 0 {
+					t.Fatal(refusals)
+				}
+			}
+			execSQL(t, dir, tc.edit)
+
+			n, _, refusal := Verify(s, "")
+			if refusal == nil {
+				t.Fatal("a ledger whose sequence is not whole verified clean")
+			}
+			if refusal.Check != "verify/sequence" {
+				t.Errorf("want verify/sequence, got %s: %s", refusal.Check, refusal.Reason)
+			}
+			if refusal.Class != outcome.Finding {
+				t.Errorf("class = %s, want finding", refusal.Class)
+			}
+			if n != 0 {
+				t.Errorf("reported %d records as verified", n)
+			}
+		})
+	}
+}
+
+// Proving red: content and its admission enter together, which the
+// Ledger contract requires because a record without its admission is an
+// entry nobody can reconstruct (T0-6). Neither half here disturbs the
+// chain — a deleted tail leaves every surviving link intact, and a
+// rewritten ledger recomputes its own.
+//
+// A content record removed from the middle is not among these: that
+// breaks the predecessor link, and verify/chain already reports it.
+func TestVerifyRefusesAHalfRecordedAct(t *testing.T) {
+	t.Run("the admission is gone", func(t *testing.T) {
+		s, dir := openAt(t)
+		for _, sub := range []gate.Submission{goodClaim(), goodReceipt()} {
+			if _, refusals := Submit(s, sub); len(refusals) != 0 {
+				t.Fatal(refusals)
+			}
+		}
+		// The tail: every surviving link still holds, and the sequence
+		// is still whole, so this must fail for the act alone.
+		execSQL(t, dir, "DELETE FROM records WHERE seq = 4")
+		assertActRefusal(t, s)
+	})
+
+	t.Run("the content is gone", func(t *testing.T) {
+		s, dir := openAt(t)
+		for _, sub := range []gate.Submission{goodClaim(), goodReceipt()} {
+			if _, refusals := Submit(s, sub); len(refusals) != 0 {
+				t.Fatal(refusals)
+			}
+		}
+		// Rewritten rather than deleted, because a deletion from the
+		// middle breaks the chain and would prove the wrong thing: this
+		// leaves an admission that closes nothing, in a ledger whose
+		// every hash and link recomputes.
+		rewrite(t, dir, func(r store.Record) bool { return r.Type != "receipt" })
+		assertActRefusal(t, s)
+	})
+}
+
+func assertActRefusal(t *testing.T, s *store.Store) {
+	t.Helper()
+	n, _, refusal := Verify(s, "")
+	if refusal == nil {
+		t.Fatal("half an act verified clean")
+	}
+	if refusal.Check != "verify/act" {
+		t.Fatalf("want verify/act, got %s: %s", refusal.Check, refusal.Reason)
+	}
+	if refusal.Class != outcome.Finding {
+		t.Errorf("class = %s, want finding", refusal.Class)
+	}
+	if n != 0 {
+		t.Errorf("reported %d records as verified", n)
+	}
+}
+
+// The limit of both, stated where it cannot quietly stop being true: a
+// whole act removed leaves a ledger these invariants cannot fault. The
+// sequence is whole and every act is paired, because what was taken was
+// a complete act. Only state the ledger did not supply catches it.
+func TestAWholeActRemovedPassesEveryLocalInvariant(t *testing.T) {
+	s, dir := openAt(t)
+	for _, sub := range []gate.Submission{goodClaim(), goodReceipt()} {
+		if _, refusals := Submit(s, sub); len(refusals) != 0 {
+			t.Fatal(refusals)
+		}
+	}
+	_, expected, refusal := Verify(s, "")
+	if refusal != nil {
+		t.Fatal(refusal)
+	}
+
+	rewrite(t, dir, func(r store.Record) bool { return r.Subject != "C-LEND-1" })
+
+	if n, _, refusal := Verify(s, ""); refusal != nil || n != 2 {
+		t.Fatalf("the local invariants faulted a ledger they cannot see through: n=%d %v", n, refusal)
+	}
+	if _, _, refusal := Verify(s, expected); refusal == nil || refusal.Check != "verify/expected" {
+		t.Fatalf("only the recorded state catches this: %v", refusal)
+	}
+}

@@ -8,10 +8,22 @@ on:
     - cron: "17 6 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   fuzz:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      # For the counterexample upload below, and deliberately wider than
+      # measured: whether the artifact upload reads the workflow token at
+      # all was not established here, and a fuzz run that finds a
+      # counterexample and then cannot keep it is the one failure this
+      # job exists to avoid. Narrow it once a nightly run has shown which
+      # scope it needs.
+      actions: write
     strategy:
       fail-fast: false
       matrix:
@@ -23,15 +35,17 @@ jobs:
           - pkg: ./internal/gate/
             target: FuzzValidateNeverPanics
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: go.mod
       - name: fuzz ${{ matrix.target }}
         run: go test ${{ matrix.pkg }} -run '^$' -fuzz ${{ matrix.target }} -fuzztime 5m
       - name: keep any counterexample
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: fuzz-corpus-${{ matrix.target }}
           path: ${{ matrix.pkg }}/testdata/fuzz/

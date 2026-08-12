@@ -15,6 +15,9 @@ dev/lock
 step "lanes"
 dev/lanes
 
+step "workflows"
+dev/workflows
+
 step "no machine paths in tracked files"
 # A tracked file is read on machines that are not this one, where a path
 # into somebody's home directory is unfollowable — and it publishes the

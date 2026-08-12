@@ -215,3 +215,17 @@ Clean up after yourself: scratch programs, probe tests, and worktrees
 you create for an investigation do not belong in the repository. Write
 them under a temp directory; `dev/check` refuses a tree with stray
 scratch files, because more than one harness has left them behind.
+
+**Probe from source, and make a probe prove its own setup.** A probe is
+evidence, so it earns the discipline the suite gets. `go run
+./cmd/looplaw …` costs about 80ms against 4ms for a binary you built
+earlier, and it cannot be stale; a binary that outlived the edit it was
+meant to test has twice produced a confident wrong answer here — one
+built while the working directory was a modified copy of the tree, one
+built by `git archive HEAD` from a fix that was still uncommitted, whose
+run then read as the fix not working. Where a probe genuinely needs a
+second, differently built artifact, assert the difference before
+asserting the claim: with "this binary refuses that file" first, a stale
+artifact fails at the setup instead of answering plausibly. `go version
+-m <bin>` prints the `vcs.revision` and `vcs.modified` Go already
+stamped, which names the ambiguity in one line.

@@ -41,8 +41,28 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: go.mod
+      # Go writes the inputs that expand coverage into $GOCACHE/fuzz, and
+      # a runner is thrown away. Without this, every night starts from
+      # the seed corpus again: a year of nightly runs is a year of
+      # five-minute searches rather than one search that gets deeper.
+      # The key changes each run because a cache entry is immutable, and
+      # the prefix restores the most recent one.
+      - name: the corpus this target has already found
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/go-build/fuzz
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: fuzz-corpus-${{ matrix.target }}-
       - name: fuzz ${{ matrix.target }}
         run: go test ${{ matrix.pkg }} -run '^$' -fuzz ${{ matrix.target }} -fuzztime 5m
+      # What the search has to work with, run over run. A corpus that
+      # stops growing says the target has stopped finding anything new,
+      # which is the signal to change the target rather than the budget.
+      - name: corpus size
+        if: always()
+        run: |
+          dir=~/.cache/go-build/fuzz
+          echo "| ${{ matrix.target }} | $(find $dir -type f 2>/dev/null | wc -l) inputs |" >> "$GITHUB_STEP_SUMMARY"
       - name: keep any counterexample
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

@@ -8,6 +8,12 @@ happened and why without asking anyone.
 
 - Never commit to `master` directly.
 - Branch per unit of work: `feat/<short-name>` or `fix/<short-name>`.
+- Branch from the remote rather than a local copy of it:
+
+      git fetch -q origin && git checkout -b <name> origin/master
+
+  A local `master` is current only until someone else's work lands, and
+  this needs neither a clean local `master` nor a checkout of one.
 - Commit to the branch, push, open a **draft** PR to `master`.
 - Only xormania marks a PR ready and merges. Harnesses open drafts.
 - One unit of work per **commit** — small and auditable beats big and
@@ -16,6 +22,14 @@ happened and why without asking anyone.
   pushing units to it, and present it when a coherent theme's worth is
   ready. Merge cadence is the accountable authority's attention budget —
   spend it on batches reviewable in one sitting, not on a PR per commit.
+- **When the base moves under an open PR, re-verify against the new base
+  and say so in the PR.** A run is green against the tree it ran on.
+  Three PRs opened from one base: the first to merge left the other two
+  verified against a tree that no longer existed, and the green marks
+  they carried had been earned before the change they would now sit on
+  top of. Git refuses a textual conflict by declining to merge; nothing
+  refuses a semantic one, so two branches can be green apart and broken
+  together. Sibling PRs are independent only until one of them lands.
 
 ## Voice
 
@@ -71,7 +85,12 @@ record):
 - **Why** — motivation and design basis: link the spec/doc section, ruling,
   or issue that made this the thing to do.
 - **Verification** — how it was checked: build, vet, tests, a manual run
-  with its output. Claimed-but-unverified is worth saying explicitly too.
+  with its output, and **the base commit it was checked against**
+  (`verified at base <sha>`). Without the base, "all checks passed" reads
+  as a standing property when it is a measurement of one tree at one
+  moment; with it, a reader comparing that sha against `master` can see
+  for themselves whether the claim still describes what would be merged.
+  Claimed-but-unverified is worth saying explicitly too.
 - **Notes** — anything a future reader needs: deferrals, known gaps,
   follow-ups, decisions punted and to whom.
 

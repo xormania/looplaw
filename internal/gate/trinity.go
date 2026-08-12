@@ -11,8 +11,11 @@ import (
 	"strings"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
+	"cuelang.org/go/cue/parser"
+	"cuelang.org/go/cue/token"
 
 	"github.com/xormania/looplaw/internal/outcome"
 	"github.com/xormania/looplaw/schema"
@@ -24,6 +27,7 @@ import (
 // here without a proving red fails the suite.
 var Checks = []string{
 	"trinity/optional",
+	"trinity/open-value",
 	"trinity/load",
 	"trinity/schema-load",
 	"trinity/parse",
@@ -140,6 +144,42 @@ func validateTrinityBytes(subject string, data []byte) (cue.Value, []outcome.Ref
 			})
 		}
 		return set, refusals
+	}
+
+	// The same rule as the optional check, for the other syntaxes that
+	// leave a value open. A submitted set states values, and a value is
+	// open when unifying these bytes with something else changes what
+	// they say without conflicting: a defaulted disjunction takes the
+	// other arm, an open list gains elements, an open struct gains
+	// fields. Ratification copies the declared bytes into a law version,
+	// so an open value is ratified law that reads differently in someone
+	// else's context — the invariant this gate already claimed and did
+	// not hold.
+	//
+	// Only these three, and the line is drawn by what unification can do
+	// rather than by how the syntax looks. A reference, an interpolation
+	// or a unification with a type computes one value from the same
+	// file, and an overlay that disagrees conflicts rather than winning,
+	// so ordinary DRY authoring stays green. The forms that state no
+	// value at all — a bare disjunction, a bound, a type — are refused
+	// by the shape gate as incomplete, and refusing them twice would say
+	// the same thing in two voices.
+	//
+	// Read from the authored bytes for the reason the optional check is:
+	// the schema states these forms legitimately, and after unification
+	// an author's would be indistinguishable from the schema's.
+	for _, open := range openValues(subject, data) {
+		where := subject
+		if open.path != "" {
+			where = fmt.Sprintf("%s: %s", subject, open.path)
+		}
+		refusals = append(refusals, outcome.Refusal{
+			Class:   outcome.Rejection,
+			Check:   "trinity/open-value",
+			Subject: where,
+			Reason:  open.reason,
+			Remedy:  "state the value that holds; law a later unification can change is not the law that was ratified",
+		})
 	}
 
 	// Shape gate: unify the set with #TrinitySet and validate. CUE is the
@@ -967,4 +1007,133 @@ func optionalFields(v cue.Value) []string {
 	walk(v, "")
 	sort.Strings(found)
 	return found
+}
+
+// openValue is one place a set leaves a value open: where it stands, and
+// which form it is. The form is named because a red for the wrong reason
+// proves nothing — a default and an open list are fixed differently.
+type openValue struct{ path, reason string }
+
+const (
+	defaultReason    = "a default takes this arm only until something else names another: unified with a set naming a different arm, these same bytes read as that arm, so what is ratified here is a choice rather than a value"
+	openListReason   = "an open list says more elements would be admissible rather than which elements there are: unified with a longer list, these same bytes gain the additions, so ratified law grows without an act"
+	openStructReason = "an open struct says more fields would be admissible rather than which fields there are: unified with a set carrying more, these same bytes gain them, so ratified law grows without an act"
+)
+
+// openValues walks the authored syntax and reports every open value.
+//
+// The walk is structural where a path can be built — fields, structs and
+// lists — so a refusal names where the open value stands. Anything else
+// is an expression that computes one value from this same file, which is
+// determinate and therefore fine; it is still swept, because an
+// expression can enclose a default, and that is reported at the field it
+// stands under.
+//
+// A parse failure is not reported: trinity/parse has already refused
+// those bytes, and a second refusal would say the same thing twice.
+func openValues(name string, data []byte) []openValue {
+	f, err := parser.ParseFile(name, data)
+	if err != nil {
+		return nil
+	}
+
+	var found []openValue
+	note := func(path, reason string) { found = append(found, openValue{path, reason}) }
+
+	sweep := func(path string, e ast.Expr) {
+		ast.Walk(e, func(n ast.Node) bool {
+			switch v := n.(type) {
+			case *ast.UnaryExpr:
+				if v.Op == token.MUL {
+					note(path, defaultReason)
+					return false
+				}
+			case *ast.Ellipsis:
+				note(path, openListReason)
+				return false
+			}
+			return true
+		}, nil)
+	}
+
+	var expr func(path string, e ast.Expr)
+	var decls func(path string, ds []ast.Decl)
+
+	expr = func(path string, e ast.Expr) {
+		switch v := e.(type) {
+		case *ast.BasicLit: // a string, number, bool or null: a value
+		case *ast.StructLit:
+			decls(path, v.Elts)
+		case *ast.ListLit:
+			for i, el := range v.Elts {
+				if _, open := el.(*ast.Ellipsis); open {
+					note(path, openListReason)
+					continue
+				}
+				expr(fmt.Sprintf("%s[%d]", path, i), el)
+			}
+		case *ast.UnaryExpr:
+			if v.Op == token.MUL {
+				note(path, defaultReason)
+				return
+			}
+			expr(path, v.X)
+		case *ast.BinaryExpr:
+			expr(path, v.X)
+			expr(path, v.Y)
+		case *ast.ParenExpr:
+			expr(path, v.X)
+		default:
+			sweep(path, e)
+		}
+	}
+
+	decls = func(path string, ds []ast.Decl) {
+		for _, d := range ds {
+			switch v := d.(type) {
+			case *ast.Field:
+				if label, ok := labelOf(v.Label); ok {
+					expr(join(path, label), v.Value)
+					continue
+				}
+				// A computed or pattern label states which fields would
+				// be admissible, which is the open-struct form written
+				// another way.
+				note(path, openStructReason)
+			case *ast.Ellipsis:
+				note(path, openStructReason)
+			}
+		}
+	}
+
+	decls("", f.Decls)
+	sort.Slice(found, func(i, j int) bool {
+		if found[i].path != found[j].path {
+			return found[i].path < found[j].path
+		}
+		return found[i].reason < found[j].reason
+	})
+	return found
+}
+
+// labelOf is the field name a label states, and whether it states one at
+// all. A quoted label is rendered quoted, so a path reads the way the
+// rest of the gates' paths read: contracts."C-LEND-1".status.
+func labelOf(l ast.Label) (string, bool) {
+	switch v := l.(type) {
+	case *ast.Ident:
+		return v.Name, true
+	case *ast.BasicLit:
+		if v.Kind == token.STRING {
+			return v.Value, true
+		}
+	}
+	return "", false
+}
+
+func join(path, label string) string {
+	if path == "" {
+		return label
+	}
+	return path + "." + label
 }

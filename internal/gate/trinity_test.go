@@ -581,6 +581,7 @@ func TestEveryGateHasAProvingRed(t *testing.T) {
 		{"trinity/provenance-source", TestProvenanceRedsAreRedForTheirDeclaredReason},
 		{"trinity/provenance-coverage", TestProvenanceRedsAreRedForTheirDeclaredReason},
 		{"trinity/optional", TestOptionalFieldIsRefusedAtEveryDepth},
+		{"trinity/open-value", TestOpenValuesAreRefusedAsAuthoredLaw},
 	} {
 		if !t.Run("proving "+red.check, red.run) {
 			t.Errorf("the red for %s did not pass, so it proves nothing", red.check)
@@ -764,5 +765,122 @@ func TestOptionalFieldIsRefusedAtEveryDepth(t *testing.T) {
 func TestSchemaOptionalFieldsAreNotRefused(t *testing.T) {
 	if refusals := ValidateTrinity("testdata/library/set.cue"); len(refusals) > 0 {
 		t.Errorf("fixture zero refused: %v", refusals)
+	}
+}
+
+// Proving red: a submitted set states values, and a value is open when
+// unifying these bytes with something else changes what they say without
+// conflicting. CUE calls a defaulted disjunction concrete, so
+// `status: *"ratified" | "withdrawn"` passed the shape gate, the
+// relational lane read the default, and ratification copied the bytes
+// into a law version — after which an overlay naming the other arm reads
+// the same ratified law as withdrawn.
+//
+// An open list and an open struct do it from the other direction: the
+// bytes admit additions, so ratified law gains a cited invariant, or a
+// whole local invariant, that no act ever ratified.
+func TestOpenValuesAreRefusedAsAuthoredLaw(t *testing.T) {
+	for _, tc := range []struct {
+		name, old, new, wantPath, wantReason string
+	}{
+		{
+			name: "defaulted subject", old: `subject:        "lend-library"`,
+			new:      `subject:        *"lend-library" | "other-library"`,
+			wantPath: "subject", wantReason: "default",
+		},
+		{
+			name: "defaulted contract status", old: "\t\tstatus: \"ratified\"\n\t\tinterior:",
+			new:      "\t\tstatus: *\"ratified\" | \"withdrawn\"\n\t\tinterior:",
+			wantPath: `contracts."C-LEND-1".status`, wantReason: "default",
+		},
+		{
+			name: "default nested in a list element", old: `acts: ["lend"]`,
+			new:      `acts: [*"lend" | "seize"]`,
+			wantPath: `contracts."C-LEND-1".acts`, wantReason: "default",
+		},
+		{
+			name: "open list of cites", old: `cites: ["L-1"]`,
+			new:      `cites: ["L-1", ...string]`,
+			wantPath: `contracts."C-LEND-1".cites`, wantReason: "open list",
+		},
+		{
+			name: "open struct of local invariants", old: `invariants_local: {}`,
+			new:      `invariants_local: {...}`,
+			wantPath: `contracts."C-LEND-1".invariants_local`, wantReason: "open struct",
+		},
+		{
+			name: "pattern label admitting unstated fields", old: `invariants_local: {}`,
+			new:      `invariants_local: {[=~"^LI-"]: {text: "whatever"}}`,
+			wantPath: `contracts."C-LEND-1".invariants_local`, wantReason: "open struct",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			base, err := os.ReadFile(fixture)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(base), tc.old) {
+				t.Fatalf("mutation target drifted from the fixture: %q", tc.old)
+			}
+			path := filepath.Join(t.TempDir(), "set.cue")
+			mutated := strings.Replace(string(base), tc.old, tc.new, 1)
+			if err := os.WriteFile(path, []byte(mutated), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			refusals := ValidateTrinity(path)
+			var got *outcome.Refusal
+			for i := range refusals {
+				if refusals[i].Check == "trinity/open-value" {
+					got = &refusals[i]
+					break
+				}
+			}
+			if got == nil {
+				t.Fatalf("an open value passed as authored law: %v", refusals)
+			}
+			// A red for the wrong reason proves nothing: the refusal
+			// names where the value is left open and which form it is.
+			if !strings.Contains(got.Subject, tc.wantPath) {
+				t.Errorf("refusal names %q, want it to name %q", got.Subject, tc.wantPath)
+			}
+			if !strings.Contains(got.Reason, tc.wantReason) {
+				t.Errorf("refusal reads %q, want it to name a %s", got.Reason, tc.wantReason)
+			}
+			if got.Remedy == "" {
+				t.Error("refusal without a remedy")
+			}
+		})
+	}
+}
+
+// The line is drawn by what unification can do, not by how the syntax
+// looks. These forms compute one value from the same file, and an
+// overlay that disagrees conflicts rather than winning — so DRY
+// authoring stays green, and the guard refuses no more than it must.
+// Refusing them would have overturned TestReferencesResolveGreen, which
+// is a position this repository holds rather than an oversight.
+func TestDeterminateExpressionsStayGreen(t *testing.T) {
+	base, err := os.ReadFile(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ name, old, new string }{
+		{"reference", `supplier: "librarian"`, `supplier: registry.librarian.id`},
+		{"interpolation", `name: "the lending contract"`, `name: "the \(subject) contract"`},
+		{"unification with a type", `name: "the lending contract"`, `name: string & "the lending contract"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if !strings.Contains(string(base), tc.old) {
+				t.Fatalf("target drifted from the fixture: %q", tc.old)
+			}
+			path := filepath.Join(t.TempDir(), "set.cue")
+			if err := os.WriteFile(path, []byte(strings.Replace(string(base), tc.old, tc.new, 1)), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			for _, r := range ValidateTrinity(path) {
+				t.Errorf("a determinate value was refused: %s", r.Error())
+			}
+		})
 	}
 }

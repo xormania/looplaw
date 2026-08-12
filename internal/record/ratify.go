@@ -2,6 +2,7 @@ package record
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/xormania/looplaw/internal/gate"
 	"github.com/xormania/looplaw/internal/outcome"
@@ -85,6 +86,26 @@ func Ratify(deployment, project *store.Store, subject, party string) ([]store.Re
 		return nil, refusals
 	}
 
+	// The draft was gated when it was declared, by whatever binary was
+	// running then. This one embeds the law it holds a set to, and the
+	// version it is about to record is these same bytes, so they are
+	// gated again here — against the law in force at the act that makes
+	// them law, rather than the law in force at the proposal.
+	//
+	// Without this, a draft pending across a change to the embedded law
+	// became law the binary making it would refuse. Proven with two
+	// binaries differing by one constraint: the stricter refused the
+	// set, ratified it at exit 0, and then refused the law it had made.
+	//
+	// The trinity refusals pass through as themselves, as they do from
+	// the declaration gates: each already names its check and carries
+	// the remedy that repairs it, and rewrapping would restate a remedy
+	// beside the precise one and leave a consumer reading two.
+	_, setRefusals := gate.LoadSetBytes(fmt.Sprintf("the declared draft %s", draft.Hash[:12]), []byte(draft.Body))
+	if len(setRefusals) > 0 {
+		return nil, setRefusals
+	}
+
 	// The law is the declared draft's own content. Ratification changes
 	// nothing about what was proposed — it changes what the proposal is:
 	// the same bytes, now law-side. A version that differed from the
@@ -94,9 +115,13 @@ func Ratify(deployment, project *store.Store, subject, party string) ([]store.Re
 		Body: draft.Body, Party: party,
 	}
 
+	// The checks that ran, not the act's registry: the trinity gates ran
+	// over the draft just above, and an admission recording a check as
+	// run when it was skipped is a small laundering of what happened.
 	entry := Ratification{
 		Act: "ratify", Party: party, Subject: subject,
-		Draft: draft.Hash, ChecksRun: gate.RatificationChecks,
+		Draft:     draft.Hash,
+		ChecksRun: append(append([]string{}, gate.RatificationChecks...), gate.Checks...),
 	}
 	body, err := json.Marshal(entry)
 	if err != nil {

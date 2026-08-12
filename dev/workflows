@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# What the workflow files must say about the code they run and the token
+# they run it under.
+#
+# Both were remembered rather than checked, and both had drifted: three
+# actions selected by a moving tag, and no permissions block in either
+# file, so the token took whatever the repository and the event happened
+# to give it. Neither is visible in a diff of this repository when it
+# changes — a retargeted tag changes what CI executes with nothing here
+# to review, which is exactly the case a check has to cover and a reader
+# cannot.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+fail=0
+note() {
+	echo "$1"
+	fail=1
+}
+
+for f in .github/workflows/*.yml; do
+	# A full-length commit SHA is the only immutable way to select an
+	# action; a tag can be moved or deleted by anyone who takes the
+	# account. The bracketed letters keep this file from matching its own
+	# pattern, so the check covers every workflow rather than excluding
+	# one by name.
+	moving=$(grep -nE '[u]ses:[[:space:]]*[^@]+@(v[0-9]|main|master|latest)' "$f" || true)
+	if [ -n "$moving" ]; then
+		note "$f: selects an action by a tag, which moves:"
+		echo "$moving" | sed 's/^/  /'
+		echo "  pin the full 40-character commit SHA, with the version beside it as a comment"
+	fi
+
+	# An unset permissions block is not a narrow one: it inherits, and
+	# what it inherits is a repository setting no reader of this file can
+	# see.
+	if ! grep -qE '^permissions:' "$f"; then
+		note "$f: declares no token permissions, so it takes whatever the repository default gives it"
+		echo "  add a top-level 'permissions:' block; contents: read is the floor for a job that only reads the tree"
+	fi
+
+	# Checkout leaves a credential in .git/config unless told not to, and
+	# every step after it in this repository runs scripts from the tree
+	# being checked out.
+	checkouts=$(grep -cE '[u]ses:[[:space:]]*actions/checkout@' "$f" || true)
+	optouts=$(grep -cE '^[[:space:]]*persist-credentials:[[:space:]]*false' "$f" || true)
+	if [ "$checkouts" -gt "$optouts" ]; then
+		note "$f: $checkouts checkout step(s), $optouts of them declining to persist a credential"
+		echo "  set 'persist-credentials: false' on each, unless a later step must reach the remote as this repository"
+	fi
+
+	# A tool fetched at head is a tool nobody reviewed. Its results are
+	# not reproducible across runs, which for a scanner means a finding
+	# can appear or vanish with no change here.
+	floating=$(grep -nE 'go run [^ ]+@(latest|master|main)' "$f" || true)
+	if [ -n "$floating" ]; then
+		note "$f: runs a tool at a moving version:"
+		echo "$floating" | sed 's/^/  /'
+		echo "  pin the module version; a scanner still refreshes its own database at run time"
+	fi
+done
+
+if [ "$fail" -ne 0 ]; then
+	echo
+	echo "CI's own inputs are part of what this repository is trusted for"
+	exit 1
+fi
+echo "workflows: pinned, least privilege, no persisted credential"

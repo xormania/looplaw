@@ -63,10 +63,10 @@
     "kind": "law",
     "type": "admission",
     "subject": "lend-library",
-    "body": "{\"act\":\"ratify\",\"party\":\"xor\",\"subject\":\"lend-library\",\"draft\":\"99c86ca105464055f4afac3c7323e5c53694fc7338be87fee4569dd6c1a52239\",\"checks_run\":[\"ratify/unbound\",\"ratify/authority\",\"ratify/target\",\"ratify/standing\"]}",
+    "body": "{\"act\":\"ratify\",\"party\":\"xor\",\"subject\":\"lend-library\",\"draft\":\"99c86ca105464055f4afac3c7323e5c53694fc7338be87fee4569dd6c1a52239\",\"checks_run\":[\"ratify/unbound\",\"ratify/authority\",\"ratify/target\",\"ratify/standing\",\"trinity/optional\",\"trinity/open-value\",\"trinity/load\",\"trinity/schema-load\",\"trinity/parse\",\"trinity/shape\",\"trinity/vacuity\",\"trinity/region-unreadable\",\"trinity/act-closure\",\"trinity/party-resolve\",\"trinity/party-coverage\",\"trinity/cite-resolve\",\"trinity/invariant-coverage\",\"trinity/blame-resolve\",\"trinity/authority-free\",\"trinity/related-resolve\",\"trinity/authority-resolve\",\"trinity/experience-cite-resolve\",\"trinity/decomp-resolve\",\"trinity/decomp-tree\",\"trinity/decomp-presents\",\"trinity/decomp-wire\",\"trinity/decomp-dangling\",\"trinity/decomp-cites\",\"trinity/decomp-refinement\",\"trinity/decomp-satisfier\",\"trinity/decomp-grounded\",\"trinity/provenance-address\",\"trinity/provenance-source\",\"trinity/provenance-coverage\"]}",
     "party": "xor",
     "at": "2026-01-01T00:00:00Z",
     "prev": "00f41631ab1bbf6db2dd685d9bfce0e16b4b4da13dcd1c86072e023b9491fdfb",
-    "hash": "b8499cc93238925ea247ec3c4a2779ec3818ca53f64348c019a232151a612451"
+    "hash": "fa74330d73cc4fb8e91cb43eaba912c0fbff6f50b7b2d8963232ac8a2d6e169d"
   }
 ]

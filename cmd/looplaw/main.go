@@ -475,13 +475,29 @@ func party() string {
 	return ""
 }
 
+// readBody reads what a party submits, bounded before the allocation
+// rather than after it: a reader that allocates whatever it is handed
+// has already paid the cost by the time it could refuse. The gates check
+// the same bound on the bytes, so a caller that is not this command line
+// meets it too.
 func readBody(path string) (string, error) {
-	if path == "-" {
-		b, err := io.ReadAll(os.Stdin)
-		return string(b), err
+	r := io.Reader(os.Stdin)
+	if path != "-" {
+		f, err := os.Open(path)
+		if err != nil {
+			return "", err
+		}
+		defer f.Close()
+		r = f
 	}
-	b, err := os.ReadFile(path)
-	return string(b), err
+	b, err := io.ReadAll(io.LimitReader(r, gate.MaxBytes+1))
+	if err != nil {
+		return "", err
+	}
+	if len(b) > gate.MaxBytes {
+		return "", fmt.Errorf("the submission holds more than %d bytes, which is more than the gates take", gate.MaxBytes)
+	}
+	return string(b), nil
 }
 
 func usage() {

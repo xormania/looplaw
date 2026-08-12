@@ -6,6 +6,7 @@ package gate
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strings"
@@ -102,7 +103,7 @@ func ValidateTrinity(setPath string) []outcome.Refusal {
 // otherwise) for read paths — the differ — to consume. The value is
 // data for derivation only; it carries no standing.
 func LoadSet(setPath string) (cue.Value, []outcome.Refusal) {
-	data, err := os.ReadFile(setPath)
+	data, err := ReadSetFile(setPath)
 	if err != nil {
 		return cue.Value{}, []outcome.Refusal{{
 			Class:   outcome.Abort,
@@ -114,6 +115,26 @@ func LoadSet(setPath string) (cue.Value, []outcome.Refusal) {
 	}
 	set, _, refusals := LoadSetBytes(setPath, data)
 	return set, refusals
+}
+
+// ReadSetFile reads a set file, refusing one larger than the gates take.
+// Bounded before the allocation rather than after it: a reader that
+// allocates whatever it is given has already paid the cost by the time
+// it could refuse.
+func ReadSetFile(path string) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, MaxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > MaxBytes {
+		return nil, fmt.Errorf("the file holds more than %d bytes, which is more set than the gates read", MaxBytes)
+	}
+	return data, nil
 }
 
 // LoadSetBytes runs the trinity gates over bytes already in hand. A

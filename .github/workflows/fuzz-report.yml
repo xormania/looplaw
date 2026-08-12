@@ -1,0 +1,131 @@
+name: fuzz-report
+
+# A counterexample is the one thing the nightly search produces that
+# needs a person. It arrives as an artifact that expires and a red run
+# nobody is obliged to open, so it is put where the question about it
+# already lives: an open issue labelled "fuzz".
+#
+# Only on a finding. A comment for every night the search found nothing
+# is a thread people mute, and a muted thread does not carry the night it
+# mattered.
+#
+# The issue is the switch. No open issue with the label means no comment
+# — the artifact and the failure notification are unaffected — and
+# closing the issue turns the reporting off without touching this file.
+on:
+  workflow_run:
+    workflows: [fuzz]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Reading the finished run's artifacts, and writing to the issue that
+    # asked for them.
+    #
+    # This job runs no repository code, which is the whole reason it is a
+    # separate workflow rather than a step in the fuzz job: that job runs
+    # `go test`, and a token that can write issues has no business in a
+    # job executing the tree's own test code. A workflow_run job also
+    # runs from the default branch, so a pull request cannot alter what
+    # it does.
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      RUN_URL: ${{ github.event.workflow_run.html_url }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: the counterexamples the search kept
+        run: |
+          mkdir -p corpus
+          # A failure with no artifact is a failure for some other reason
+          # — a build error, a timeout — which the run itself reports.
+          gh run download "$RUN_ID" --dir corpus || {
+            echo "no corpus artifact: the run failed for a reason other than a counterexample" >> "$GITHUB_STEP_SUMMARY"
+            echo "found=" >> "$GITHUB_ENV"
+            exit 0
+          }
+          find corpus -type f | sort > found.txt
+          echo "found=$(wc -l < found.txt)" >> "$GITHUB_ENV"
+
+      - name: say so where the question is
+        if: env.found != '' && env.found != '0'
+        run: |
+          issue=$(gh issue list --label fuzz --state open --limit 1 --json number --jq '.[0].number // empty')
+          if [ -z "$issue" ]; then
+            echo "no open issue labelled 'fuzz'; the corpus is in this run's artifacts" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # Go names a failing input file by the hash of its content, so
+          # the filename is the identity of the finding. A counterexample
+          # that fails again every night until it is fixed is reported
+          # once, which is what keeps the thread readable.
+          posted=$(gh issue view "$issue" --json comments --jq '.comments[].body')
+          new=0
+          body=$(mktemp)
+          {
+            echo "The nightly search found a counterexample."
+            echo
+            echo "- run: $RUN_URL"
+            echo "- commit: \`$HEAD_SHA\`"
+            echo
+          } > "$body"
+
+          while read -r f; do
+            name=$(basename "$f")
+            case "$posted" in *"$name"*) continue ;; esac
+            new=$((new + 1))
+            target=$(basename "$(dirname "$f")")
+            {
+              echo "### $target — \`$name\`"
+              echo
+              echo '```'
+              cat "$f"
+              echo '```'
+              echo
+            } >> "$body"
+          done < found.txt
+
+          if [ "$new" -eq 0 ]; then
+            echo "every counterexample in this run is already on issue #$issue" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # The input is inline because that is the whole payload: a Go
+          # corpus entry is a few lines, and an issue outlives the
+          # artifact it came from. Reproducing it needs the file, not a
+          # download.
+          #
+          # The package is not in the heading and cannot be: the artifact
+          # names the target, and which package holds a target is not
+          # something this job is told. So the reader is given the one
+          # command that answers it rather than a path they would have to
+          # guess at.
+          {
+            echo "Each heading is a fuzz target and the name of its input. To reproduce,"
+            echo "find the package that holds the target:"
+            echo
+            echo '```'
+            echo "grep -rl 'func FuzzTargetName' --include='*_test.go'"
+            echo '```'
+            echo
+            echo "then write the block to \`<package>/testdata/fuzz/<target>/<name>\` and run"
+            echo "that package's tests."
+            echo
+            echo "Anything that found a defect belongs in the permanent corpus, with a"
+            echo "proving red. This comment is the notification; the corpus is the record."
+          } >> "$body"
+
+          gh issue comment "$issue" --body-file "$body"
+          echo "reported $new counterexample(s) on issue #$issue" >> "$GITHUB_STEP_SUMMARY"

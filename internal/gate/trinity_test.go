@@ -770,16 +770,15 @@ func TestSchemaOptionalFieldsAreNotRefused(t *testing.T) {
 }
 
 // Proving red: a submitted set states values, and a value is open when
-// unifying these bytes with something else changes what they say without
-// conflicting. CUE calls a defaulted disjunction concrete, so
-// `status: *"ratified" | "withdrawn"` passed the shape gate, the
-// relational lane read the default, and ratification copied the bytes
-// into a law version — after which an overlay naming the other arm reads
-// the same ratified law as withdrawn.
+// the bytes do not state which value holds. CUE calls a defaulted
+// disjunction concrete, so `status: *"ratified" | "withdrawn"` passed the
+// shape gate, the relational lane read the default, and ratification
+// copied the bytes into a law version — law whose status cannot be read
+// from the record it is written in.
 //
-// An open list and an open struct do it from the other direction: the
-// bytes admit additions, so ratified law gains a cited invariant, or a
-// whole local invariant, that no act ever ratified.
+// An open list and an open struct say what would be admissible rather
+// than what there is, which is the same failure: the record does not
+// state what the contract cites, or which clauses it holds.
 func TestOpenValuesAreRefusedAsAuthoredLaw(t *testing.T) {
 	for _, tc := range []struct {
 		name, old, new, wantPath, wantReason string
@@ -874,12 +873,12 @@ func TestOpenValuesAreRefusedAsAuthoredLaw(t *testing.T) {
 	}
 }
 
-// The line is drawn by what unification can do, not by how the syntax
-// looks. These forms compute one value from the same file, and an
-// overlay that disagrees conflicts rather than winning — so DRY
-// authoring stays green, and the guard refuses no more than it must.
-// Refusing them would have overturned TestReferencesResolveGreen, which
-// is a position this repository holds rather than an oversight.
+// The line is drawn by whether the bytes state a value, not by how the
+// syntax looks. These forms state one value computed from this same
+// file, so DRY authoring stays green and the guard refuses no more than
+// it must. Refusing them would have overturned
+// TestReferencesResolveGreen, which is a position this repository holds
+// rather than an oversight.
 func TestDeterminateExpressionsStayGreen(t *testing.T) {
 	base, err := os.ReadFile(fixture)
 	if err != nil {

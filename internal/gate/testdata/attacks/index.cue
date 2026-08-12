@@ -41,9 +41,10 @@ attacks: {
 	// security audit of the master tree.
 	"defaulted-contract-status.cue": {found_in: "gate", must_draw: ["trinity/open-value"]}
 	"defaulted-subject.cue": {found_in:         "gate", must_draw: ["trinity/open-value"]}
-	// The same defect in the two forms that admit additions rather than
-	// choose among arms. A default is not the only syntax unification can
-	// change without conflict, and drawing that line is what found these.
+	// The same defect in the two forms that state what would be
+	// admissible rather than what there is. The list also resists a
+	// later unification where its closed spelling conflicts; the struct
+	// does not, and is refused for what its bytes say alone.
 	"open-list-of-cites.cue": {found_in:    "gate", must_draw: ["trinity/open-value"]}
 	"open-struct-of-clauses.cue": {found_in: "gate", must_draw: ["trinity/open-value"]}
 	// The check above examined fields, and a set states values by other

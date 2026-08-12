@@ -1,9 +1,15 @@
 // ATTACK — an open struct where a clause region belongs.
 //
-// The same defect on a region rather than a list: unified with a set
-// carrying more fields, the ratified law gains a local invariant nobody
-// ratified, and the contract binds under a clause that entered by
-// unification instead of by an act. Found with its sibling attack.
+// The contract states no local invariants and does not state that there
+// are none: "{...}" says only that more would be admissible, so the
+// ratified law cannot be read from its own record.
+//
+// Not the claim its sibling attacks make, and the difference is worth
+// keeping straight. A defaulted disjunction and an open list can each be
+// changed by a later unification where the closed spelling conflicts; a
+// struct cannot be told apart that way, because every struct literal in
+// a CUE file grows the same — "{}" as readily as "{...}". What is wrong
+// here is only what the bytes say.
 // Fixture zero: a target project's trinity set — a tiny lending library.
 // Green by construction; the mutation tests derive every red from it.
 subject:        "lend-library"

@@ -55,8 +55,11 @@ func ValidateDeclaration(d Declaration) (cue.Value, []string, []outcome.Refusal)
 	// names its check and carries the remedy that repairs it, and those
 	// refusals are the worklist — rewrapping them would restate a remedy
 	// beside the precise one and leave a consumer reading two.
-	set, setRefusals := LoadSetBytes(d.Name, d.Body)
-	ran = append(ran, Checks...)
+	// The list this returns, not Checks: the bytes path cannot run
+	// trinity/load, and recording it as run is evidence of an
+	// examination that did not happen.
+	set, setRan, setRefusals := LoadSetBytes(d.Name, d.Body)
+	ran = append(ran, setRan...)
 	refusals = append(refusals, setRefusals...)
 	if len(refusals) > 0 {
 		return cue.Value{}, ran, refusals

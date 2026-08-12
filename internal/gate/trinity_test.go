@@ -3,6 +3,7 @@ package gate
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -901,5 +902,57 @@ func TestDeterminateExpressionsStayGreen(t *testing.T) {
 				t.Errorf("a determinate value was refused: %s", r.Error())
 			}
 		})
+	}
+}
+
+// The list a run reports as examined is honest: every id in it is one
+// the gates can emit, and the only id the bytes path leaves out is the
+// one it cannot run.
+//
+// Proving red: the ratify admission recorded gate.Checks wholesale, so
+// it claimed trinity/load had been run over bytes the act was handed —
+// and only LoadSet, which reads a file, can emit that. An admission is
+// the evidence an entry happened; a check listed there that could not
+// have run is evidence of an examination that did not.
+func TestReportedChecksAreOnesThatCouldRun(t *testing.T) {
+	data, err := os.ReadFile(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, ran, refusals := LoadSetBytes(fixture, data)
+	if len(refusals) > 0 {
+		t.Fatalf("the green fixture must pass, or the run is not the whole path: %v", refusals)
+	}
+
+	emittable := map[string]bool{}
+	for _, c := range Checks {
+		emittable[c] = true
+	}
+	reported := map[string]bool{}
+	for _, c := range ran {
+		if !emittable[c] {
+			t.Errorf("%s is reported as run and is not a check the gates can emit", c)
+		}
+		if reported[c] {
+			t.Errorf("%s is reported twice", c)
+		}
+		reported[c] = true
+	}
+
+	// Everything the gates can emit ran on a set that reaches the end,
+	// except what belongs to the path that reads a file.
+	for _, c := range Checks {
+		if reported[c] {
+			continue
+		}
+		if slices.Contains(loadChecks, c) {
+			continue
+		}
+		t.Errorf("%s is a check the gates can emit, and a complete run does not report it", c)
+	}
+	for _, c := range loadChecks {
+		if reported[c] {
+			t.Errorf("%s cannot run over bytes and is reported as run", c)
+		}
 	}
 }

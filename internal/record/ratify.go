@@ -101,7 +101,7 @@ func Ratify(deployment, project *store.Store, subject, party string) ([]store.Re
 	// the declaration gates: each already names its check and carries
 	// the remedy that repairs it, and rewrapping would restate a remedy
 	// beside the precise one and leave a consumer reading two.
-	_, setRefusals := gate.LoadSetBytes(fmt.Sprintf("the declared draft %s", draft.Hash[:12]), []byte(draft.Body))
+	_, gateRan, setRefusals := gate.LoadSetBytes(fmt.Sprintf("the declared draft %s", draft.Hash[:12]), []byte(draft.Body))
 	if len(setRefusals) > 0 {
 		return nil, setRefusals
 	}
@@ -115,13 +115,15 @@ func Ratify(deployment, project *store.Store, subject, party string) ([]store.Re
 		Body: draft.Body, Party: party,
 	}
 
-	// The checks that ran, not the act's registry: the trinity gates ran
-	// over the draft just above, and an admission recording a check as
-	// run when it was skipped is a small laundering of what happened.
+	// The checks that ran, reported by the gate that ran them — never
+	// the gates' registry. Recording gate.Checks here claimed
+	// trinity/load had been run over bytes, and only the file-reading
+	// path can run it: an admission recording a check as run when it
+	// was skipped is a small laundering of what happened.
 	entry := Ratification{
 		Act: "ratify", Party: party, Subject: subject,
 		Draft:     draft.Hash,
-		ChecksRun: append(append([]string{}, gate.RatificationChecks...), gate.Checks...),
+		ChecksRun: append(append([]string{}, gate.RatificationChecks...), gateRan...),
 	}
 	body, err := json.Marshal(entry)
 	if err != nil {

@@ -32,6 +32,20 @@ attacks: {
 	// and hid an absorbed view's provenance from the goal-law guard.
 	"optional-interior.cue": {found_in:   "decomposition", must_draw: ["trinity/optional"]}
 	"optional-provenance.cue": {found_in: "absorber", must_draw: ["trinity/optional"]}
+	// The optional field's sibling, and the reason one syntax was never
+	// the rule: a set states values, and "?:" was the only form the
+	// gates held to it. A defaulted disjunction is concrete to CUE, so
+	// these passed shape, passed every relational check by reading the
+	// default, and were copied into a law version verbatim — law whose
+	// value depends on what a consumer later unifies it with. Found by
+	// security audit of the master tree.
+	"defaulted-contract-status.cue": {found_in: "gate", must_draw: ["trinity/open-value"]}
+	"defaulted-subject.cue": {found_in:         "gate", must_draw: ["trinity/open-value"]}
+	// The same defect in the two forms that admit additions rather than
+	// choose among arms. A default is not the only syntax unification can
+	// change without conflict, and drawing that line is what found these.
+	"open-list-of-cites.cue": {found_in:    "gate", must_draw: ["trinity/open-value"]}
+	"open-struct-of-clauses.cue": {found_in: "gate", must_draw: ["trinity/open-value"]}
 	"double-satisfier.cue": {found_in:            "decomposition", must_draw: ["trinity/decomp-satisfier"]}
 	"duplicate-child.cue": {found_in:             "decomposition", must_draw: ["trinity/decomp-resolve"]}
 	"containment-cycle.cue": {found_in:           "decomposition", must_draw: ["trinity/decomp-tree"]}

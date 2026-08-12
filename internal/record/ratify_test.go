@@ -2,6 +2,7 @@ package record
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 
@@ -277,4 +278,77 @@ func ratifyRefusals(t *testing.T, d, p *store.Store, subject, party string) []ou
 		t.Error("a refused ratification recorded something")
 	}
 	return refusals
+}
+
+// Proving red: ratification makes the recorded draft's own bytes law,
+// and those bytes were gated by whatever binary was running when they
+// were declared. Nothing gated them again, so law entered that the
+// binary making it would refuse — proven with two binaries whose
+// embedded schemas differed by one constraint: the stricter one refused
+// the set, ratified it anyway at exit 0, and then refused the law it had
+// just made.
+//
+// The draft here is entered the way the store holds one rather than
+// through Declare, because that is what a ledger looks like after the
+// embedded law tightens: the bytes are already recorded, and the act
+// that recorded them ran under gates that admitted them. A default is
+// the concrete case — the gates admitted it until the batch that
+// refused open values, and every ledger declared before that one holds
+// drafts like this.
+func TestRatificationRegatesTheRecordedDraft(t *testing.T) {
+	d, p := declareStore(t), declareStore(t)
+	if _, refusal := BindAuthority(d, "xor", "xor"); refusal != nil {
+		t.Fatal(refusal)
+	}
+
+	body, err := os.ReadFile("../gate/testdata/attacks/defaulted-subject.cue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if refusals := gate.ValidateTrinity("../gate/testdata/attacks/defaulted-subject.cue"); len(refusals) == 0 {
+		t.Fatal("the draft passes this binary's gates, so ratifying it proves nothing")
+	}
+
+	content := store.Draft{
+		Kind: store.Evidence, Type: "claim", Subject: "lend-library",
+		Body: string(body), Party: "harness:worker",
+	}
+	entry, err := json.Marshal(Declaration{
+		Act: "declare", Subject: "lend-library", Party: "harness:worker",
+		ContentHash: store.ContentHash(content),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.AppendAll([]store.Draft{content, {
+		Kind: store.Evidence, Type: "admission", Subject: "lend-library",
+		Body: string(entry), Party: "harness:worker",
+	}}); err != nil {
+		t.Fatal(err)
+	}
+
+	recs, refusals := Ratify(d, p, "lend-library", "xor")
+	if len(refusals) == 0 {
+		t.Fatal("a draft this binary refuses became its law")
+	}
+	if len(recs) > 0 {
+		t.Error("a refused ratification recorded something")
+	}
+	// A red for the wrong reason proves nothing: the refusal must be the
+	// gate's own, naming what is wrong with the bytes.
+	named := false
+	for _, r := range refusals {
+		if r.Check == "trinity/open-value" {
+			named = true
+		}
+		if r.Remedy == "" {
+			t.Errorf("refusal without a remedy: %s", r.Error())
+		}
+	}
+	if !named {
+		t.Errorf("refused, but not by the gate that refuses these bytes: %v", refusals)
+	}
+	if law, err := CurrentLaw(p); err != nil || law != nil {
+		t.Errorf("law entered from a refused draft: %+v %v", law, err)
+	}
 }

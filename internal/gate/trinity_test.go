@@ -955,3 +955,93 @@ func TestReportedChecksAreOnesThatCouldRun(t *testing.T) {
 		}
 	}
 }
+
+// Proving red: a meaning-bearing field left empty asserts nothing while
+// reading as a statement. A guarantee that records "" states an
+// obligation with no recorded result; a blame clause whose evidence is
+// "" names a fault adjudicated from nothing; a contract named "" is the
+// region blame and verification are adjudicated from, unnamed. All of
+// them passed the gates and would have become law.
+//
+// Whitespace counts as empty: "  " states as little as "".
+func TestAStatedFieldMustStateSomething(t *testing.T) {
+	for _, tc := range []struct{ name, old, new, wantPath string }{
+		{"contract name", `name: "the lending contract"`, `name: ""`, "name"},
+		{"precondition text", `"P-1": {text: "A live loan names this borrower and this book, verifiable from the loan records."}`,
+			`"P-1": {text: ""}`, "P-1"},
+		{"guarantee text", `"G-1": {text: "The loan is retired and the retirement is recorded; the book is lendable again.", records: "the return record"}`,
+			`"G-1": {text: "   ", records: "the return record"}`, "G-1"},
+		{"what a guarantee records", `"G-1": {text: "The loan is retired and the retirement is recorded; the book is lendable again.", records: "the return record"}`,
+			`"G-1": {text: "The loan is retired.", records: ""}`, "G-1"},
+		{"the violation blame names", `{violation_class: "late return", at_fault: "borrower"`, `{violation_class: "", at_fault: "borrower"`, "blame"},
+		{"the evidence blame adjudicates from", `evidence: "the loan record's due date against the return record's date"`,
+			`evidence: ""`, "blame"},
+		{"an invariant's text", `text:      "Every loan is recorded; no book leaves the building on an unrecorded loan."`, `text:      ""`, "L-1"},
+		{"a judgment", `judgment: "December renewals are adjudicated leniently: exam season produces late requests in good faith; advise renewal over fault-finding."`, `judgment: ""`, "X-1"},
+		{"a party's name", `name:           "the borrower"`, `name:           ""`, "borrower"},
+		{"a term's definition", `definition: "The recorded standing created by the librarian's lend act: one book, one borrower, one due date. Only the lend act creates a loan; return retires it."`,
+			`definition: ""`, "loan"},
+		// Optional fields too: absence is how a set says there is none,
+		// so a stated one that says nothing is the same defect.
+		{"a stated trigger", "\t\tstatus: \"ratified\"\n\t\tinterior:", "\t\tstatus: \"ratified\"\n\t\ttrigger: \"\"\n\t\tinterior:", "trigger"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			base, err := os.ReadFile(fixture)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(base), tc.old) {
+				t.Fatalf("mutation target drifted from the fixture: %q", tc.old)
+			}
+			path := filepath.Join(t.TempDir(), "set.cue")
+			if err := os.WriteFile(path, []byte(strings.Replace(string(base), tc.old, tc.new, 1)), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			refusals := ValidateTrinity(path)
+			var got *outcome.Refusal
+			for i := range refusals {
+				if refusals[i].Check == "trinity/shape" {
+					got = &refusals[i]
+					break
+				}
+			}
+			if got == nil {
+				t.Fatalf("a field that states nothing passed as law: %v", refusals)
+			}
+			// A red for the wrong reason proves nothing: the refusal
+			// must name where the empty field stands.
+			if !strings.Contains(got.Reason, tc.wantPath) {
+				t.Errorf("refusal does not name %q: %s", tc.wantPath, got.Reason)
+			}
+		})
+	}
+}
+
+// The registers a set may genuinely have nothing to say in stay open.
+// Requiring text there buys filler, which is worse than an empty field
+// and harder to read past — recorded here so the next reader does not
+// re-derive it and tighten them.
+func TestRegistersThatMayBeEmptyStayGreen(t *testing.T) {
+	base, err := os.ReadFile(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ name, old, new string }{
+		{"a party with no note", `note:           "deliberately authority-free: proposes, requests, returns — holds nothing"`, `note:           ""`},
+		{"a term with no known collision", `collision:  "The finance prior: a loan as money owed at interest; here nothing accrues and the standing is possession, not debt."`, `collision:  ""`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if !strings.Contains(string(base), tc.old) {
+				t.Fatalf("target drifted from the fixture: %q", tc.old)
+			}
+			path := filepath.Join(t.TempDir(), "set.cue")
+			if err := os.WriteFile(path, []byte(strings.Replace(string(base), tc.old, tc.new, 1)), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			for _, r := range ValidateTrinity(path) {
+				t.Errorf("a register that may be empty was refused: %s", r.Error())
+			}
+		})
+	}
+}

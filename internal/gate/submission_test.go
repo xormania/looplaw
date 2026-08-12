@@ -155,3 +155,76 @@ func TestASetFileIsBounded(t *testing.T) {
 		t.Errorf("class = %s, want abort", refusals[0].Class)
 	}
 }
+
+// Proving red: a receipt is evidence of something that happened
+// elsewhere, and two readers of the same recorded receipt could reach
+// different answers about what it says.
+//
+// The envelope subject is what the record is filed under and what an
+// index finds it by; the body carries its own. Nothing compared them, so
+// a receipt filed under job-1 could say it is about job-2. Nothing
+// rejected a repeated key either, and parsers disagree about which wins
+// — Go and Python take the last, others take the first — so the same
+// bytes carry two verdicts. An unknown field is the same hazard held
+// over for later: it reads as meaningful to a consumer that grows one.
+func TestAReceiptSaysOneThing(t *testing.T) {
+	zero := strings.Repeat("0", 64)
+	for _, tc := range []struct{ name, subject, body string }{
+		{"the body names another subject", "job-1",
+			`{"subject":"job-2","verdict":"pass","source":"ci","hash":"` + zero + `"}`},
+		{"a repeated key", "job-1",
+			`{"subject":"job-1","verdict":"pass","verdict":"fail","source":"ci","hash":"` + zero + `"}`},
+		{"a repeated key deeper than the top", "job-1",
+			`{"subject":"job-1","verdict":"pass","source":"ci","hash":"` + zero + `","subject":"job-9"}`},
+		{"a field the shape does not name", "job-1",
+			`{"subject":"job-1","verdict":"pass","source":"ci","hash":"` + zero + `","extra":true}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, refusals := ValidateSubmission(Submission{
+				Kind: "receipt", Subject: tc.subject, Party: "ci", Body: tc.body,
+			})
+			if len(refusals) == 0 {
+				t.Fatal("a receipt that says two things was admitted")
+			}
+			if refusals[0].Check != "submit/receipt-shape" {
+				t.Errorf("want submit/receipt-shape, got %s", refusals[0].Check)
+			}
+		})
+	}
+
+	// The receipt the shape is for stays green.
+	if _, refusals := ValidateSubmission(Submission{
+		Kind: "receipt", Subject: "job-1", Party: "ci",
+		Body: `{"subject":"job-1","verdict":"pass","source":"ci","hash":"` + zero + `"}`,
+	}); len(refusals) != 0 {
+		t.Errorf("a well-formed receipt was refused: %v", refusals)
+	}
+}
+
+// Proving red: a body that is not UTF-8 was recorded as its bytes and
+// exported as replacement characters, so the export could not reproduce
+// the record it came from — and the record hash covers the original
+// bytes, which means nothing downstream could re-derive it.
+//
+// Refused at submission rather than encoded on the way out: a record is
+// text a party stated, the export is the ledger as recorded, and making
+// it lossless by changing what export means would change a wire format
+// every consumer reads to accommodate content nothing legitimately
+// submits.
+func TestASubmittedBodyIsText(t *testing.T) {
+	_, refusals := ValidateSubmission(Submission{
+		Kind: "claim", Subject: "s", Party: "p", Body: "\xff",
+	})
+	if len(refusals) == 0 {
+		t.Fatal("a body that is not UTF-8 was admitted")
+	}
+	if refusals[0].Check != "submit/content" {
+		t.Errorf("want submit/content, got %s", refusals[0].Check)
+	}
+	// Text outside ASCII is not the thing being refused.
+	if _, refusals := ValidateSubmission(Submission{
+		Kind: "claim", Subject: "s", Party: "p", Body: `{"note":"prêt-à-porter — 契約"}`,
+	}); len(refusals) != 0 {
+		t.Errorf("text outside ASCII was refused: %v", refusals)
+	}
+}

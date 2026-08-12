@@ -523,3 +523,52 @@ func TestAWholeActRemovedPassesEveryLocalInvariant(t *testing.T) {
 		t.Fatalf("only the recorded state catches this: %v", refusal)
 	}
 }
+
+// The export is the ledger as recorded, which is a claim that can be
+// checked: every exported record must re-derive the hash it carries.
+//
+// Proving red for the property, not only for one input. A body that was
+// not text was recorded as its bytes and exported as replacement
+// characters, so the export could not reproduce the record it came from
+// — and because the record hash covers the original bytes, nothing
+// downstream could re-derive it either. The gates now refuse such a
+// body, and this is what would notice if anything else ever made the
+// export lossy: a field dropped, a value normalised, an encoding
+// changed.
+//
+// The hash is re-derived here rather than asked of the store, so the
+// property is checked by a second implementation of the canonical form.
+func TestEveryExportedRecordRederivesItsHash(t *testing.T) {
+	s := open(t)
+	for _, sub := range []gate.Submission{goodClaim(), goodReceipt()} {
+		if _, refusals := Submit(s, sub); len(refusals) != 0 {
+			t.Fatal(refusals)
+		}
+	}
+	// Text the encoding has to survive intact, not just ASCII.
+	if _, refusals := Submit(s, gate.Submission{
+		Kind: "claim", Subject: "unicode", Party: "p",
+		Body: `{"note":"prêt-à-porter — 契約 — \"quoted\" \\ backslash\ttab"}`,
+	}); len(refusals) != 0 {
+		t.Fatal(refusals)
+	}
+
+	out, refusal := Export(s)
+	if refusal != nil {
+		t.Fatal(refusal)
+	}
+	var exported []store.Record
+	if err := json.Unmarshal([]byte(out), &exported); err != nil {
+		t.Fatalf("the export does not read back as records: %v", err)
+	}
+	if len(exported) != 6 {
+		t.Fatalf("exported %d records, want 6", len(exported))
+	}
+	prev := ""
+	for _, r := range exported {
+		if got := chainHash(r, prev); got != r.Hash {
+			t.Errorf("seq %d does not re-derive its hash:\n exported %s\n derived  %s", r.Seq, r.Hash, got)
+		}
+		prev = r.Hash
+	}
+}

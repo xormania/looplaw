@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/xormania/looplaw/internal/outcome"
 )
@@ -88,6 +89,98 @@ var (
 // happened before it had.
 var submittableKinds = map[string]bool{"claim": true, "receipt": true}
 
+// decodeReceipt reads a receipt strictly, because a recorded receipt has
+// to say one thing to everyone who reads it.
+//
+// json.Unmarshal is permissive in two ways that matter here. It keeps
+// the last of a repeated key, and parsers disagree about which one wins
+// — Go and Python take the last, others take the first — so the same
+// recorded bytes carry two verdicts depending on who reads them. And it
+// discards a field the shape does not name, which reads as meaningful to
+// any consumer that later grows one.
+//
+// Trailing content is already refused by the standard decoder, so
+// nothing here repeats that.
+func decodeReceipt(body string) (Receipt, error) {
+	var r Receipt
+	dec := json.NewDecoder(strings.NewReader(body))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&r); err != nil {
+		return r, err
+	}
+	if err := noRepeatedKey(json.NewDecoder(strings.NewReader(body))); err != nil {
+		return r, err
+	}
+	return r, nil
+}
+
+// noRepeatedKey walks the document and refuses an object that states the
+// same key twice, at any depth: a nested one is as ambiguous as a
+// top-level one, and cheaper to refuse than to explain later.
+func noRepeatedKey(dec *json.Decoder) error {
+	var walk func(seen map[string]bool) error
+	walk = func(seen map[string]bool) error {
+		for {
+			tok, err := dec.Token()
+			if err != nil {
+				return err
+			}
+			switch t := tok.(type) {
+			case json.Delim:
+				switch t {
+				case '}', ']':
+					return nil
+				case '{':
+					if err := walk(map[string]bool{}); err != nil {
+						return err
+					}
+				case '[':
+					if err := walk(nil); err != nil {
+						return err
+					}
+				}
+			case string:
+				if seen == nil {
+					continue // a string in a list is a value, not a key
+				}
+				if seen[t] {
+					return fmt.Errorf("the key %q is stated twice, and readers disagree about which one holds", t)
+				}
+				seen[t] = true
+				if err := valueOf(dec, &walk); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	tok, err := dec.Token()
+	if err != nil {
+		return err
+	}
+	if d, ok := tok.(json.Delim); !ok || d != '{' {
+		return nil // not an object; the decoder above has already judged it
+	}
+	return walk(map[string]bool{})
+}
+
+// valueOf consumes the value following a key, descending into it so that
+// a repeated key inside is found too.
+func valueOf(dec *json.Decoder, walk *func(map[string]bool) error) error {
+	tok, err := dec.Token()
+	if err != nil {
+		return err
+	}
+	if d, ok := tok.(json.Delim); ok {
+		switch d {
+		case '{':
+			return (*walk)(map[string]bool{})
+		case '[':
+			return (*walk)(nil)
+		}
+	}
+	return nil
+}
+
 // ValidateSubmission verifies the preconditions of the record act. It
 // judges nothing about the content: whether a claim is true is not a
 // question the gates ask, and recording settles only that it was said.
@@ -136,6 +229,16 @@ func ValidateSubmission(sub Submission) ([]string, []outcome.Refusal) {
 	case strings.TrimSpace(sub.Body) == "":
 		refuse("submit/content", "body", "a submission carries nothing",
 			"state what is claimed, or what the receipt evidences")
+	case !utf8.ValidString(sub.Body):
+		// A record is text a party stated, and the export is the ledger
+		// as recorded. Bytes that are not text were recorded as
+		// themselves and exported as replacement characters, so the
+		// export could not reproduce the record it came from, and the
+		// record hash covers the original bytes — nothing downstream
+		// could re-derive it.
+		refuse("submit/content", "body",
+			"a submission carries bytes that are not text",
+			"submit text; a body that cannot be read back as it was recorded is a file to submit the digest of, not a claim to record")
 	case len(sub.Body) > MaxBytes:
 		// Checked here as well as where the bytes are read, so a caller
 		// that is not the command line meets the same bound.
@@ -146,8 +249,8 @@ func ValidateSubmission(sub Submission) ([]string, []outcome.Refusal) {
 
 	if sub.Kind == "receipt" {
 		ran = append(ran, "submit/receipt-shape")
-		var r Receipt
-		switch err := json.Unmarshal([]byte(sub.Body), &r); {
+		r, err := decodeReceipt(sub.Body)
+		switch {
 		case err != nil:
 			refuse("submit/receipt-shape", "body",
 				fmt.Sprintf("a receipt's body is not readable as its ratified shape: %v", err),
@@ -160,6 +263,14 @@ func ValidateSubmission(sub Submission) ([]string, []outcome.Refusal) {
 			refuse("submit/receipt-shape", "hash",
 				fmt.Sprintf("%q is not a sha256 hex digest", r.Hash),
 				"a receipt carries the digest of what it evidences, so it can be checked later")
+		case r.Subject != sub.Subject:
+			// The envelope subject is what the record is filed under and
+			// what an index finds it by; the body carries its own. A
+			// receipt whose two subjects disagree is one an index and a
+			// reader answer differently about.
+			refuse("submit/receipt-shape", "subject",
+				fmt.Sprintf("the receipt is about %q and is submitted about %q", r.Subject, sub.Subject),
+				"submit the receipt under the subject it names; a record filed under one subject and stating another is found by one and read as the other")
 		}
 	}
 

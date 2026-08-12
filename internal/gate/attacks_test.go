@@ -90,10 +90,12 @@ func TestAttackCorpusIsComplete(t *testing.T) {
 // would put trinity/optional with trinity/load because both are one
 // word after the slash.
 var lanes = map[string]func(check string) bool{
-	// The set is not the shape the schema admits.
+	// The set is not the shape the schema admits, or does not state a
+	// value where the schema admits one — the same lane, because both
+	// are answered by reading the set alone.
 	"shape": func(c string) bool {
 		return c == "trinity/shape" || c == "trinity/parse" || c == "trinity/vacuity" ||
-			c == "trinity/optional"
+			c == "trinity/optional" || c == "trinity/open-value"
 	},
 	// The set is well-shaped and its parts do not agree: a party, an
 	// invariant, an act or a citation that resolves to nothing.

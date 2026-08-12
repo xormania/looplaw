@@ -9,7 +9,7 @@
     "work": "fill",
     "detail": "contract present in the view but absent from goal-law — reconciliation is the accountable authority's amendment path, never silent adoption",
     "goal_hash": "",
-    "view_hash": "4a134b2cfdb107f85750cac67a5ee78f1304c188e5c891ae01a6a4e1fdfb84d6",
+    "view_hash": "0e8e15177ca311069fd7c993978d0472827d1523c9c33c8e2de8c78bd548ee0f",
     "status": "open"
   },
   {
@@ -35,7 +35,7 @@
     "kind": "absent",
     "work": "fill",
     "detail": "contract absent from the view",
-    "goal_hash": "968172ce540a5aaeb82016231e8a6d917bcae20fc671962855871b2d44c1a801",
+    "goal_hash": "7f432bd5ca829fbe0272d26b150643426f702463d8785b1984c8547ec5839a12",
     "view_hash": "",
     "status": "open"
   }

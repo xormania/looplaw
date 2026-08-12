@@ -13,6 +13,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
+	"strings"
 
 	"cuelang.org/go/cue"
 
@@ -256,16 +258,86 @@ func CurrentLaw(s *store.Store) (*store.Record, error) {
 // read is the record that was written. A break is a finding: a
 // verification path commits nothing, and an item re-verification cannot
 // process is never skipped or quarantined.
-func Verify(s *store.Store) (int, *outcome.Refusal) {
+//
+// expected is what a caller wrote down the last time they looked, as
+// "<count>:<hash>", or empty to check only what the ledger can say about
+// itself. That distinction is the whole of what it adds. The chain is
+// checked against itself, so a writer who controls the state file can
+// erase an act and rebuild what remains as a fresh chain that verifies,
+// with every local invariant intact — the sequence contiguous from one,
+// each act's records still paired — because those are computed from the
+// same rewritten rows.
+//
+// Catching that needs a value the writer could not reach, and looplaw
+// can neither hold one (it would sit in the rewritten state) nor fetch
+// one (the kernel decides over recorded state and submitted claims, and
+// yields the same answer offline). So the caller keeps it and submits
+// it, exactly as a client computes a provenance baseline and submits it
+// for the kernel to compare.
+//
+// None of that is enforceable here, and the remedy says so: an
+// expectation read back out of the same state root proves nothing. What
+// this reports is a match, never custody.
+//
+// It returns the count, and what a caller records to compare against
+// next time.
+func Verify(s *store.Store, expected string) (int, string, *outcome.Refusal) {
 	n, err := s.Verify()
 	if err != nil {
-		return 0, &outcome.Refusal{
+		return 0, "", &outcome.Refusal{
 			Class: outcome.Finding, Check: "verify/chain",
 			Subject: "the ledger", Reason: err.Error(),
 			Remedy: "the ledger no longer re-hashes to what was recorded; treat every record after the break as unevidenced and investigate the custody of this state root",
 		}
 	}
-	return n, nil
+
+	recs, err := s.Records()
+	if err != nil {
+		return 0, "", &outcome.Refusal{
+			Class: outcome.Abort, Check: "verify/read",
+			Subject: "the ledger", Reason: err.Error(),
+			Remedy: "nothing was checked; retry once the ledger is readable",
+		}
+	}
+	current := ""
+	if len(recs) > 0 {
+		current = fmt.Sprintf("%d:%s", n, recs[len(recs)-1].Hash)
+	}
+
+	if expected == "" {
+		return n, current, nil
+	}
+	if !expectedRE.MatchString(expected) {
+		return 0, current, &outcome.Refusal{
+			Class: outcome.Rejection, Check: "verify/expected-form",
+			Subject: expected,
+			Reason:  "not a recorded ledger state: a count and the last record's hash",
+			Remedy:  `state it as "<count>:<hash>", copied from what a verification printed; a mistyped expectation is not evidence that the ledger changed`,
+		}
+	}
+	if current != expected {
+		return 0, current, &outcome.Refusal{
+			Class: outcome.Finding, Check: "verify/expected",
+			Subject: "the ledger",
+			Reason: fmt.Sprintf("holds %d records ending %s, and was recorded as holding %s",
+				n, short(current), short(expected)),
+			Remedy: "the ledger no longer matches what was recorded of it, so records may have been removed or rewritten wholesale; treat the whole of it as unevidenced and investigate the custody of this state root — and check that the expectation was not read back out of the same state root, which would prove nothing either way",
+		}
+	}
+	return n, current, nil
+}
+
+// The recorded form of a ledger's state: how many records, and the hash
+// of the last. Written out rather than named, because it is an argument
+// a caller types and not a term the lexicon reserves.
+var expectedRE = regexp.MustCompile(`^[0-9]+:[0-9a-f]{64}$`)
+
+func short(state string) string {
+	count, hash, ok := strings.Cut(state, ":")
+	if !ok || len(hash) < 12 {
+		return state
+	}
+	return count + ":" + hash[:12]
 }
 
 // Export renders the ledger as JSON: a read path over recorded facts,

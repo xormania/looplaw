@@ -13,6 +13,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/xormania/looplaw/internal/outcome"
 )
 
 var bin string
@@ -181,6 +183,55 @@ func TestProjectArgumentCannotEscapeTheStateRoot(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// The verification a caller can act on: the state it prints is the
+// argument that checks it next time, and a ledger rewritten whole is
+// caught only by that argument — never by the ledger checking itself.
+func TestVerifyAgainstRecordedStateBehavior(t *testing.T) {
+	root := t.TempDir()
+	env := []string{"LOOPLAW_ROOT=" + root, "LOOPLAW_PARTY=behavior:test"}
+	body := filepath.Join(t.TempDir(), "claim.json")
+	if err := os.WriteFile(body, []byte(`{"states":"a contract exists"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, stderr, exit := runEnv(t, env, "init", "demo"); exit != 0 {
+		t.Fatalf("init: %d %s", exit, stderr)
+	}
+	if _, stderr, exit := runEnv(t, env, "submit", "demo", "claim", "scope-x", body); exit != 0 {
+		t.Fatalf("submit: %d %s", exit, stderr)
+	}
+
+	stdout, _, exit := runEnv(t, env, "verify", "demo")
+	if exit != 0 {
+		t.Fatalf("verify: %d", exit)
+	}
+	_, state, ok := strings.Cut(strings.TrimSpace(stdout), "recorded state ")
+	if !ok {
+		t.Fatalf("verify must print the state to compare against: %q", stdout)
+	}
+
+	// What it printed is what checks it: a caller keeps the line, not a
+	// recipe for assembling one.
+	if _, stderr, exit := runEnv(t, env, "verify", "demo", state); exit != 0 {
+		t.Errorf("the printed state did not check its own ledger: %d %s", exit, stderr)
+	}
+
+	// A different ledger's state is a finding, at the finding's code —
+	// callers branch on it, so it is pinned here.
+	other := "9:" + strings.Repeat("a", 64)
+	if _, stderr, exit := runEnv(t, env, "verify", "demo", other); exit != outcome.ExitFinding {
+		t.Errorf("mismatch: exit=%d want %d; %s", exit, outcome.ExitFinding, stderr)
+	} else if !strings.Contains(stderr, "verify/expected:") {
+		t.Errorf("mismatch must name its check: %s", stderr)
+	}
+
+	// A mistyped expectation is the caller's, not the ledger's.
+	if _, stderr, exit := runEnv(t, env, "verify", "demo", "nonsense"); exit != outcome.ExitRejection {
+		t.Errorf("malformed: exit=%d want %d; %s", exit, outcome.ExitRejection, stderr)
+	} else if !strings.Contains(stderr, "verify/expected-form:") {
+		t.Errorf("malformed must name its own check, not a mismatch: %s", stderr)
 	}
 }
 

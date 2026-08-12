@@ -6,6 +6,7 @@ package gate
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strings"
@@ -52,6 +53,7 @@ var (
 		"trinity/related-resolve",
 		"trinity/authority-resolve",
 		"trinity/experience-cite-resolve",
+		"trinity/absence-declared",
 		"trinity/decomp-resolve",
 		"trinity/decomp-tree",
 		"trinity/decomp-presents",
@@ -101,7 +103,7 @@ func ValidateTrinity(setPath string) []outcome.Refusal {
 // otherwise) for read paths — the differ — to consume. The value is
 // data for derivation only; it carries no standing.
 func LoadSet(setPath string) (cue.Value, []outcome.Refusal) {
-	data, err := os.ReadFile(setPath)
+	data, err := ReadSetFile(setPath)
 	if err != nil {
 		return cue.Value{}, []outcome.Refusal{{
 			Class:   outcome.Abort,
@@ -113,6 +115,26 @@ func LoadSet(setPath string) (cue.Value, []outcome.Refusal) {
 	}
 	set, _, refusals := LoadSetBytes(setPath, data)
 	return set, refusals
+}
+
+// ReadSetFile reads a set file, refusing one larger than the gates take.
+// Bounded before the allocation rather than after it: a reader that
+// allocates whatever it is given has already paid the cost by the time
+// it could refuse.
+func ReadSetFile(path string) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, MaxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > MaxBytes {
+		return nil, fmt.Errorf("the file holds more than %d bytes, which is more set than the gates read", MaxBytes)
+	}
+	return data, nil
 }
 
 // LoadSetBytes runs the trinity gates over bytes already in hand. A
@@ -332,6 +354,10 @@ func relationalChecks(subject string, set cue.Value) []outcome.Refusal {
 	if err != nil {
 		regionFinding("contracts", err)
 	}
+	experienceIDs, err := fieldNames(set, "experience")
+	if err != nil {
+		regionFinding("experience", err)
+	}
 
 	// Vacuity: a set with no parties or no contracts binds nothing.
 	// Silence is not a declaration (the experience_declared_absent
@@ -524,6 +550,36 @@ func relationalChecks(subject string, set cue.Value) []outcome.Refusal {
 					Remedy:  "point authority at an authority-holding party, declare it \"none\", or amend the registry entry",
 				})
 			}
+		}
+	}
+
+	// The judgment register declares its own absence, because silence is
+	// not a declaration — and nothing related the declaration to the
+	// register, so a set could hold judgments and say it holds none.
+	//
+	// The one contradiction the shape gate cannot state: both fields are
+	// separately well-formed, and only reading them together shows the
+	// set disagreeing with itself. Which is what the relational lane is
+	// for.
+	if declared, err := set.LookupPath(cue.ParsePath("experience_declared_absent")).Bool(); err == nil {
+		switch judgments := len(experienceIDs); {
+		case declared && judgments > 0:
+			refusals = append(refusals, outcome.Refusal{
+				Class:   outcome.Rejection,
+				Check:   "trinity/absence-declared",
+				Subject: subject,
+				Reason: fmt.Sprintf("the set declares its judgment register absent and states %d judgment(s) in it (%s)",
+					judgments, strings.Join(experienceIDs, ", ")),
+				Remedy: "declare the register absent only when it is; a set that holds judgments and says it holds none cannot be read for either",
+			})
+		case !declared && judgments == 0:
+			refusals = append(refusals, outcome.Refusal{
+				Class:   outcome.Rejection,
+				Check:   "trinity/absence-declared",
+				Subject: subject,
+				Reason:  "the set declares its judgment register present and states no judgments in it",
+				Remedy:  "declare the absence where the schema asks for it; silence is not a declaration, and neither is a declaration nothing bears out",
+			})
 		}
 	}
 

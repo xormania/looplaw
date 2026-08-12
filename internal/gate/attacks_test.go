@@ -101,7 +101,8 @@ var lanes = map[string]func(check string) bool{
 	// invariant, an act or a citation that resolves to nothing.
 	"relational": func(c string) bool {
 		return strings.HasSuffix(c, "-resolve") || strings.HasSuffix(c, "-coverage") ||
-			c == "trinity/act-closure" || c == "trinity/authority-free"
+			c == "trinity/act-closure" || c == "trinity/authority-free" ||
+			c == "trinity/absence-declared"
 	},
 	// The interior does not compose: wires, grounding, containment.
 	"decomposition": func(c string) bool { return strings.HasPrefix(c, "trinity/decomp-") },

@@ -1,9 +1,13 @@
 package gate
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/xormania/looplaw/internal/outcome"
 )
 
 // Proving red: a name is recorded, and the ledger is append-only, so a
@@ -100,5 +104,54 @@ func TestSubmissionReportsTheChecksItRan(t *testing.T) {
 	}
 	if slices.Contains(ran, "submit/receipt-shape") {
 		t.Errorf("a refused claim reports the receipt shape as run: %v", ran)
+	}
+}
+
+// Proving red: every read was unbounded, so a 16 MiB claim was
+// allocated, hashed and stored, growing the ledger by the same amount —
+// and repetition scaled it linearly. Any wrapper putting these commands
+// in front of an untrusted submitter could spend a deployment's memory
+// and disk at the submitter's choosing.
+//
+// The bound is checked on the bytes as well as at the read, so a caller
+// that is not the command line meets it too.
+func TestASubmissionIsBounded(t *testing.T) {
+	body := strings.Repeat("a", MaxBytes+1)
+	_, refusals := ValidateSubmission(Submission{Kind: "claim", Subject: "s", Party: "p", Body: body})
+	if len(refusals) == 0 {
+		t.Fatalf("a %d-byte body passed the gates", len(body))
+	}
+	if refusals[0].Check != "submit/content" {
+		t.Errorf("want submit/content, got %s", refusals[0].Check)
+	}
+
+	// The bound refuses an attack without meeting honest work: the
+	// largest CUE in this repository is its own design basis, well
+	// inside it.
+	if _, refusals := ValidateSubmission(Submission{
+		Kind: "claim", Subject: "s", Party: "p", Body: strings.Repeat("a", MaxBytes),
+	}); len(refusals) != 0 {
+		t.Errorf("a body at the bound was refused: %v", refusals)
+	}
+}
+
+// And a set file, bounded before the allocation rather than after it: a
+// reader that allocates whatever it is handed has already paid the cost
+// by the time it could refuse.
+func TestASetFileIsBounded(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "big.cue")
+	if err := os.WriteFile(path, []byte(strings.Repeat("a", MaxBytes+1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadSetFile(path); err == nil {
+		t.Fatal("an oversized set file was read whole")
+	}
+
+	refusals := ValidateTrinity(path)
+	if len(refusals) == 0 || refusals[0].Check != "trinity/load" {
+		t.Fatalf("want trinity/load, got %v", refusals)
+	}
+	if refusals[0].Class != outcome.Abort {
+		t.Errorf("class = %s, want abort", refusals[0].Class)
 	}
 }

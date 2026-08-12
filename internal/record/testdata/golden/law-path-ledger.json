@@ -41,11 +41,11 @@
     "kind": "evidence",
     "type": "admission",
     "subject": "lend-library",
-    "body": "{\"act\":\"declare\",\"subject\":\"lend-library\",\"party\":\"harness:worker\",\"content_hash\":\"5898aa46bc4819d4c1e3949e7b33dddd7cb2d628fd3f2940664d74526fef4425\",\"checks_run\":[\"declare/party\",\"trinity/schema-load\",\"trinity/parse\",\"trinity/optional\",\"trinity/open-value\",\"trinity/shape\",\"trinity/vacuity\",\"trinity/region-unreadable\",\"trinity/act-closure\",\"trinity/party-resolve\",\"trinity/party-coverage\",\"trinity/cite-resolve\",\"trinity/invariant-coverage\",\"trinity/blame-resolve\",\"trinity/authority-free\",\"trinity/related-resolve\",\"trinity/authority-resolve\",\"trinity/experience-cite-resolve\",\"trinity/decomp-resolve\",\"trinity/decomp-tree\",\"trinity/decomp-presents\",\"trinity/decomp-wire\",\"trinity/decomp-dangling\",\"trinity/decomp-cites\",\"trinity/decomp-refinement\",\"trinity/decomp-satisfier\",\"trinity/decomp-grounded\",\"trinity/provenance-address\",\"trinity/provenance-source\",\"trinity/provenance-coverage\",\"declare/provenance\",\"declare/subject-mismatch\"]}",
+    "body": "{\"act\":\"declare\",\"subject\":\"lend-library\",\"party\":\"harness:worker\",\"content_hash\":\"5898aa46bc4819d4c1e3949e7b33dddd7cb2d628fd3f2940664d74526fef4425\",\"checks_run\":[\"declare/party\",\"trinity/schema-load\",\"trinity/parse\",\"trinity/optional\",\"trinity/open-value\",\"trinity/shape\",\"trinity/vacuity\",\"trinity/region-unreadable\",\"trinity/act-closure\",\"trinity/party-resolve\",\"trinity/party-coverage\",\"trinity/cite-resolve\",\"trinity/invariant-coverage\",\"trinity/blame-resolve\",\"trinity/authority-free\",\"trinity/related-resolve\",\"trinity/authority-resolve\",\"trinity/experience-cite-resolve\",\"trinity/absence-declared\",\"trinity/decomp-resolve\",\"trinity/decomp-tree\",\"trinity/decomp-presents\",\"trinity/decomp-wire\",\"trinity/decomp-dangling\",\"trinity/decomp-cites\",\"trinity/decomp-refinement\",\"trinity/decomp-satisfier\",\"trinity/decomp-grounded\",\"trinity/provenance-address\",\"trinity/provenance-source\",\"trinity/provenance-coverage\",\"declare/provenance\",\"declare/subject-mismatch\"]}",
     "party": "harness:worker",
     "at": "2026-01-01T00:00:00Z",
     "prev": "99c86ca105464055f4afac3c7323e5c53694fc7338be87fee4569dd6c1a52239",
-    "hash": "c64083ff458d7202ee026f378d75b51fcd6dc8778a2de3267a30c560238c8dc3"
+    "hash": "a69d484159a06ec2440e0dada055b1aa46bc51e60dfb20cef97d41c1551908e4"
   },
   {
     "seq": 3,
@@ -55,18 +55,18 @@
     "body": "<the ratified set>",
     "party": "xor",
     "at": "2026-01-01T00:00:00Z",
-    "prev": "c64083ff458d7202ee026f378d75b51fcd6dc8778a2de3267a30c560238c8dc3",
-    "hash": "27b740812da44eb69b7c5d960ce4291ec371c5b730ffb8b03e52021942f28162"
+    "prev": "a69d484159a06ec2440e0dada055b1aa46bc51e60dfb20cef97d41c1551908e4",
+    "hash": "2ade193b2842cb4ef3ed2cabb5fbb3ce42eec60d9a46a8bf611239a94460c4a7"
   },
   {
     "seq": 4,
     "kind": "law",
     "type": "admission",
     "subject": "lend-library",
-    "body": "{\"act\":\"ratify\",\"party\":\"xor\",\"subject\":\"lend-library\",\"draft\":\"99c86ca105464055f4afac3c7323e5c53694fc7338be87fee4569dd6c1a52239\",\"checks_run\":[\"ratify/unbound\",\"ratify/authority\",\"ratify/target\",\"ratify/standing\",\"trinity/schema-load\",\"trinity/parse\",\"trinity/optional\",\"trinity/open-value\",\"trinity/shape\",\"trinity/vacuity\",\"trinity/region-unreadable\",\"trinity/act-closure\",\"trinity/party-resolve\",\"trinity/party-coverage\",\"trinity/cite-resolve\",\"trinity/invariant-coverage\",\"trinity/blame-resolve\",\"trinity/authority-free\",\"trinity/related-resolve\",\"trinity/authority-resolve\",\"trinity/experience-cite-resolve\",\"trinity/decomp-resolve\",\"trinity/decomp-tree\",\"trinity/decomp-presents\",\"trinity/decomp-wire\",\"trinity/decomp-dangling\",\"trinity/decomp-cites\",\"trinity/decomp-refinement\",\"trinity/decomp-satisfier\",\"trinity/decomp-grounded\",\"trinity/provenance-address\",\"trinity/provenance-source\",\"trinity/provenance-coverage\"]}",
+    "body": "{\"act\":\"ratify\",\"party\":\"xor\",\"subject\":\"lend-library\",\"draft\":\"99c86ca105464055f4afac3c7323e5c53694fc7338be87fee4569dd6c1a52239\",\"checks_run\":[\"ratify/unbound\",\"ratify/authority\",\"ratify/target\",\"ratify/standing\",\"trinity/schema-load\",\"trinity/parse\",\"trinity/optional\",\"trinity/open-value\",\"trinity/shape\",\"trinity/vacuity\",\"trinity/region-unreadable\",\"trinity/act-closure\",\"trinity/party-resolve\",\"trinity/party-coverage\",\"trinity/cite-resolve\",\"trinity/invariant-coverage\",\"trinity/blame-resolve\",\"trinity/authority-free\",\"trinity/related-resolve\",\"trinity/authority-resolve\",\"trinity/experience-cite-resolve\",\"trinity/absence-declared\",\"trinity/decomp-resolve\",\"trinity/decomp-tree\",\"trinity/decomp-presents\",\"trinity/decomp-wire\",\"trinity/decomp-dangling\",\"trinity/decomp-cites\",\"trinity/decomp-refinement\",\"trinity/decomp-satisfier\",\"trinity/decomp-grounded\",\"trinity/provenance-address\",\"trinity/provenance-source\",\"trinity/provenance-coverage\"]}",
     "party": "xor",
     "at": "2026-01-01T00:00:00Z",
-    "prev": "27b740812da44eb69b7c5d960ce4291ec371c5b730ffb8b03e52021942f28162",
-    "hash": "ff01da5496638bfdf0404d71c167a6d9aaad28dfb67305f8c2ec6d735c846b1c"
+    "prev": "2ade193b2842cb4ef3ed2cabb5fbb3ce42eec60d9a46a8bf611239a94460c4a7",
+    "hash": "76f6d3aa9bd19d944833098cd05d8f12abb6d2283716a723637e15a6ac4ac1c2"
   }
 ]

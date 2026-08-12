@@ -583,6 +583,7 @@ func TestEveryGateHasAProvingRed(t *testing.T) {
 		{"trinity/provenance-coverage", TestProvenanceRedsAreRedForTheirDeclaredReason},
 		{"trinity/optional", TestOptionalFieldIsRefusedAtEveryDepth},
 		{"trinity/open-value", TestOpenValuesAreRefusedAsAuthoredLaw},
+		{"trinity/absence-declared", TestAbsenceDeclarationMustAgreeWithTheRegister},
 	} {
 		if !t.Run("proving "+red.check, red.run) {
 			t.Errorf("the red for %s did not pass, so it proves nothing", red.check)
@@ -1043,5 +1044,79 @@ func TestRegistersThatMayBeEmptyStayGreen(t *testing.T) {
 				t.Errorf("a register that may be empty was refused: %s", r.Error())
 			}
 		})
+	}
+}
+
+// Proving red: the judgment register declares its own absence, because
+// silence is not a declaration. Nothing related the declaration to the
+// register, so a set could hold judgments and declare there are none —
+// and the reverse, declaring judgments it does not hold.
+//
+// It is the one contradiction the shape gate cannot state: both fields
+// are separately well-formed, and only reading them together shows the
+// set disagreeing with itself.
+func TestAbsenceDeclarationMustAgreeWithTheRegister(t *testing.T) {
+	for _, tc := range []struct{ name, old, new, wantIn string }{
+		{"declared absent while holding one", "experience_declared_absent: false", "experience_declared_absent: true", "1 judgment"},
+		{"a second judgment is no contradiction",
+			"experience: {\n\t\"X-1\": {", "experience: {\n\t\"X-0\": {\n\t\tjudgment: \"a second judgment\"\n\t\tcites: [\"L-1\"]\n\t\tadvisory: true\n\t}\n\t\"X-1\": {", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			base, err := os.ReadFile(fixture)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(base), tc.old) {
+				t.Fatalf("mutation target drifted from the fixture: %q", tc.old)
+			}
+			path := filepath.Join(t.TempDir(), "set.cue")
+			if err := os.WriteFile(path, []byte(strings.Replace(string(base), tc.old, tc.new, 1)), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			refusals := ValidateTrinity(path)
+			if tc.wantIn == "" {
+				// The second case is a control: adding a judgment to a
+				// set that already declares it holds them is no
+				// contradiction, and must stay green.
+				for _, r := range refusals {
+					if r.Check == "trinity/absence-declared" {
+						t.Errorf("a set agreeing with itself was refused: %s", r.Error())
+					}
+				}
+				return
+			}
+			var got *outcome.Refusal
+			for i := range refusals {
+				if refusals[i].Check == "trinity/absence-declared" {
+					got = &refusals[i]
+					break
+				}
+			}
+			if got == nil {
+				t.Fatalf("a set contradicting itself passed as law: %v", refusals)
+			}
+			if !strings.Contains(got.Reason, tc.wantIn) {
+				t.Errorf("the refusal must name what the register holds: %q", got.Reason)
+			}
+			if got.Class != outcome.Rejection {
+				t.Errorf("class = %s, want rejection", got.Class)
+			}
+		})
+	}
+
+	// And the honest declaration of an empty register stays green: a set
+	// with no judgments that says so is the case the field exists for.
+	base, _ := os.ReadFile(fixture)
+	start := strings.Index(string(base), "experience: {")
+	end := strings.Index(string(base), "experience_declared_absent:")
+	emptied := string(base)[:start] + "experience: {}\n" + string(base)[end:]
+	emptied = strings.Replace(emptied, "experience_declared_absent: false", "experience_declared_absent: true", 1)
+	path := filepath.Join(t.TempDir(), "set.cue")
+	if err := os.WriteFile(path, []byte(emptied), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range ValidateTrinity(path) {
+		t.Errorf("an empty register declared absent was refused: %s", r.Error())
 	}
 }

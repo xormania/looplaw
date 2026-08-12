@@ -52,6 +52,7 @@ var (
 		"trinity/related-resolve",
 		"trinity/authority-resolve",
 		"trinity/experience-cite-resolve",
+		"trinity/absence-declared",
 		"trinity/decomp-resolve",
 		"trinity/decomp-tree",
 		"trinity/decomp-presents",
@@ -332,6 +333,10 @@ func relationalChecks(subject string, set cue.Value) []outcome.Refusal {
 	if err != nil {
 		regionFinding("contracts", err)
 	}
+	experienceIDs, err := fieldNames(set, "experience")
+	if err != nil {
+		regionFinding("experience", err)
+	}
 
 	// Vacuity: a set with no parties or no contracts binds nothing.
 	// Silence is not a declaration (the experience_declared_absent
@@ -524,6 +529,36 @@ func relationalChecks(subject string, set cue.Value) []outcome.Refusal {
 					Remedy:  "point authority at an authority-holding party, declare it \"none\", or amend the registry entry",
 				})
 			}
+		}
+	}
+
+	// The judgment register declares its own absence, because silence is
+	// not a declaration — and nothing related the declaration to the
+	// register, so a set could hold judgments and say it holds none.
+	//
+	// The one contradiction the shape gate cannot state: both fields are
+	// separately well-formed, and only reading them together shows the
+	// set disagreeing with itself. Which is what the relational lane is
+	// for.
+	if declared, err := set.LookupPath(cue.ParsePath("experience_declared_absent")).Bool(); err == nil {
+		switch judgments := len(experienceIDs); {
+		case declared && judgments > 0:
+			refusals = append(refusals, outcome.Refusal{
+				Class:   outcome.Rejection,
+				Check:   "trinity/absence-declared",
+				Subject: subject,
+				Reason: fmt.Sprintf("the set declares its judgment register absent and states %d judgment(s) in it (%s)",
+					judgments, strings.Join(experienceIDs, ", ")),
+				Remedy: "declare the register absent only when it is; a set that holds judgments and says it holds none cannot be read for either",
+			})
+		case !declared && judgments == 0:
+			refusals = append(refusals, outcome.Refusal{
+				Class:   outcome.Rejection,
+				Check:   "trinity/absence-declared",
+				Subject: subject,
+				Reason:  "the set declares its judgment register present and states no judgments in it",
+				Remedy:  "declare the absence where the schema asks for it; silence is not a declaration, and neither is a declaration nothing bears out",
+			})
 		}
 	}
 

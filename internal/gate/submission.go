@@ -39,6 +39,14 @@ type Receipt struct {
 	Hash    string `json:"hash"`
 }
 
+// IsName reports whether a string is a name an act may record: a
+// subject, or a party. Exported because the acts that record one are
+// not all in this package, and a second copy of the grammar is a second
+// thing to keep in step — the authority binding checked its party
+// against the empty string alone, which admitted "   " as a
+// deployment's accountable authority.
+func IsName(s string) bool { return nameRE.MatchString(s) }
+
 var (
 	nameRE = regexp.MustCompile(`^[^\s][^\n]*$`)
 	hashRE = regexp.MustCompile(`^[0-9a-f]{64}$`)

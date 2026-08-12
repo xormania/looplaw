@@ -43,6 +43,13 @@ func TestPersistedBodyKeysAreContract(t *testing.T) {
 			[]string{"act", "party", "subject", "draft", "checks_run"}},
 		{"authority binding — who may make law here", AuthorityBinding{},
 			[]string{"act", "party", "bound"}},
+		// The admission beside it, which is what tells a binding from a
+		// claim shaped like one: a party can submit a claim, and the
+		// gates refuse a submitted admission, so only the act writes
+		// this pair. Renaming a key here makes every recorded binding
+		// unreadable as an act.
+		{"authority admission — the entry event for the binding act", AuthorityAdmission{},
+			[]string{"act", "party", "content_hash"}},
 		// Read from what a party submits rather than written by an act,
 		// which makes it an input contract: a rename refuses every
 		// receipt already being sent.
@@ -75,7 +82,7 @@ func TestOnlyMeaningfulAbsenceIsOmitempty(t *testing.T) {
 		"against_law": "absence means the project holds no ratified law, which is a first declaration",
 		"grant":       "absence means no standing grant licensed the entry; the citation confers nothing either way",
 	}
-	for _, v := range []any{Admission{}, Declaration{}, Ratification{}, AuthorityBinding{}, gate.Receipt{}} {
+	for _, v := range []any{Admission{}, Declaration{}, Ratification{}, AuthorityBinding{}, AuthorityAdmission{}, gate.Receipt{}} {
 		rt := reflect.TypeOf(v)
 		for i := 0; i < rt.NumField(); i++ {
 			tag := rt.Field(i).Tag.Get("json")

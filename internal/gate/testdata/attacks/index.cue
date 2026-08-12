@@ -46,6 +46,13 @@ attacks: {
 	// change without conflict, and drawing that line is what found these.
 	"open-list-of-cites.cue": {found_in:    "gate", must_draw: ["trinity/open-value"]}
 	"open-struct-of-clauses.cue": {found_in: "gate", must_draw: ["trinity/open-value"]}
+	// The check above examined fields, and a set states values by other
+	// declarations too. Both of these passed it while carrying exactly
+	// the value it refuses, because the walk had no path to build from a
+	// declaration that states no label. Found by adversarial review of
+	// the batch that added the check.
+	"default-through-let.cue": {found_in:       "gate", must_draw: ["trinity/open-value"]}
+	"default-through-embedding.cue": {found_in: "gate", must_draw: ["trinity/open-value"]}
 	"double-satisfier.cue": {found_in:            "decomposition", must_draw: ["trinity/decomp-satisfier"]}
 	"duplicate-child.cue": {found_in:             "decomposition", must_draw: ["trinity/decomp-resolve"]}
 	"containment-cycle.cue": {found_in:           "decomposition", must_draw: ["trinity/decomp-tree"]}

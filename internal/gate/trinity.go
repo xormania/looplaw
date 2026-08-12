@@ -1040,8 +1040,8 @@ func openValues(name string, data []byte) []openValue {
 	var found []openValue
 	note := func(path, reason string) { found = append(found, openValue{path, reason}) }
 
-	sweep := func(path string, e ast.Expr) {
-		ast.Walk(e, func(n ast.Node) bool {
+	sweep := func(path string, n ast.Node) {
+		ast.Walk(n, func(n ast.Node) bool {
 			switch v := n.(type) {
 			case *ast.UnaryExpr:
 				if v.Op == token.MUL {
@@ -1102,6 +1102,23 @@ func openValues(name string, data []byte) []openValue {
 				note(path, openStructReason)
 			case *ast.Ellipsis:
 				note(path, openStructReason)
+			case *ast.EmbedDecl:
+				// An embedding contributes its fields to this struct,
+				// so it is walked as a value at the same path rather
+				// than swept: a struct inside it is still a struct, and
+				// its open forms are named where any other field's are.
+				expr(path, v.Expr)
+			case *ast.LetClause:
+				// A let states a name, so the refusal points at it
+				// rather than at the file: a set with one open value
+				// somewhere is not a worklist.
+				sweep(join(path, "let "+v.Ident.Name), d)
+			default:
+				// Everything else a struct can declare — a comprehension,
+				// an attribute — states no label to build a path from,
+				// and was walked past for exactly that reason. It still
+				// reaches the value, so it is swept where it stands.
+				sweep(path, d)
 			}
 		}
 	}

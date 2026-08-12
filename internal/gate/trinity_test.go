@@ -808,6 +808,25 @@ func TestOpenValuesAreRefusedAsAuthoredLaw(t *testing.T) {
 			new:      `invariants_local: {...}`,
 			wantPath: `contracts."C-LEND-1".invariants_local`, wantReason: "open struct",
 		},
+		// The walk builds a path through fields, and every other
+		// declaration form was walked past without being examined —
+		// so the check the batch added to refuse a default admitted
+		// one written any way but as a field's value.
+		{
+			name: "default bound by a let", old: `subject:        "lend-library"`,
+			new:      "let chosen = *\"lend-library\" | \"other-library\"\nsubject:        chosen",
+			wantPath: "let chosen", wantReason: "default",
+		},
+		{
+			name: "default inside an embedding", old: "\t\tstatus: \"ratified\"\n\t\tinterior:",
+			new:      "\t\t{status: *\"ratified\" | \"withdrawn\"}\n\t\tinterior:",
+			wantPath: `contracts."C-LEND-1".status`, wantReason: "default",
+		},
+		{
+			name: "open struct as an embedding", old: `invariants_local: {}`,
+			new:      "invariants_local: {}\n\t\t{...}",
+			wantPath: `contracts."C-LEND-1"`, wantReason: "open struct",
+		},
 		{
 			name: "pattern label admitting unstated fields", old: `invariants_local: {}`,
 			new:      `invariants_local: {[=~"^LI-"]: {text: "whatever"}}`,
